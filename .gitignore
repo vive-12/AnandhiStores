@@ -1,0 +1,8 @@
+node_modules/
+.expo/
+.env
+npm-debug.log
+yarn-error.log
+server/node_modules/
+mobile/node_modules/
+mobile/.expo/

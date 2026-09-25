@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "AquaRush",
+    "slug": "aquarush",
+    "version": "1.0.0",
+    "sdkVersion": "57.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0ea5e9"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.aquarush.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "AquaRush needs your location to auto-fill delivery address."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0ea5e9"
+      },
+      "package": "com.aquarush.app",
+      "permissions": ["android.permission.ACCESS_FINE_LOCATION", "android.permission.ACCESS_COARSE_LOCATION"]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "AquaRush needs location to auto-detect your delivery address."
+        }
+      ]
+    ],
+    "scheme": "aquarush",
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

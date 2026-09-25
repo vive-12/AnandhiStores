@@ -1,0 +1,396 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "Vivek",
+      "phone": "9003115101",
+      "address": "36 karnam street ",
+      "lat": 12.9192388,
+      "lng": 80.1373029,
+      "status": "approved",
+      "pin": "1226",
+      "temp_pin": null,
+      "delivery_fee": 0,
+      "created_at": "21/9/2026, 1:59:14 am",
+      "first_name": "vivekanandan",
+      "last_name": "jayaraja",
+      "door_number": "36",
+      "flat_house_name": "Anandhi illam",
+      "street_number": "Karnam street",
+      "locality": "Selaiyur",
+      "city": "Chennai",
+      "landmark": "Opposite to a2b"
+    },
+    {
+      "id": 2,
+      "first_name": "Vivek",
+      "last_name": "J",
+      "phone": "9003115106",
+      "door_number": "12",
+      "flat_house_name": "Kshb",
+      "street_number": "N",
+      "locality": "Hjlf",
+      "city": "Chennai ",
+      "landmark": "Kfn",
+      "lat": 12.919130226160652,
+      "lng": 80.13724860596868,
+      "status": "approved",
+      "pin": null,
+      "temp_pin": "9578",
+      "delivery_fee": 5,
+      "created_at": "2026-09-25T17:58:41.485Z"
+    },
+    {
+      "id": 3,
+      "first_name": "Shiv",
+      "last_name": "A",
+      "phone": "9789042245",
+      "door_number": "A",
+      "flat_house_name": "",
+      "street_number": "Hn",
+      "locality": "Hh",
+      "city": "Nn in",
+      "landmark": "",
+      "lat": 12.9191320399219,
+      "lng": 80.13725086852338,
+      "status": "approved",
+      "pin": "1226",
+      "temp_pin": null,
+      "delivery_fee": 5,
+      "created_at": "2026-09-25T18:02:17.624Z"
+    },
+    {
+      "id": 4,
+      "first_name": "Vivek ",
+      "last_name": "",
+      "phone": "9003115102",
+      "door_number": "Thh",
+      "flat_house_name": "",
+      "street_number": "36 Karnam Street",
+      "locality": "Selaiyur",
+      "city": "Chennai",
+      "landmark": "",
+      "lat": 12.91909546720368,
+      "lng": 80.13721901485621,
+      "status": "approved",
+      "pin": "1211",
+      "temp_pin": null,
+      "delivery_fee": 5,
+      "created_at": "2026-09-25T18:52:46.417Z"
+    }
+  ],
+  "agents": [
+    {
+      "id": 1,
+      "name": "Ravi Kumar",
+      "phone": "9876543210",
+      "is_available": 1,
+      "created_at": "21/9/2026, 12:27:45 am",
+      "pin": "1226"
+    },
+    {
+      "id": 2,
+      "name": "Suresh Babu",
+      "phone": "9876543211",
+      "is_available": 1,
+      "created_at": "21/9/2026, 12:27:45 am",
+      "pin": "1226"
+    },
+    {
+      "id": 3,
+      "name": "Smallvivek",
+      "phone": "9940405016",
+      "pin": "1226",
+      "is_available": 1,
+      "created_at": "2026-09-20T20:49:35.327Z"
+    }
+  ],
+  "orders": [
+    {
+      "id": 1,
+      "customer_name": "Vivek",
+      "customer_phone": "9003115101",
+      "delivery_address": "36 karnam street ",
+      "lat": 12.9192388,
+      "lng": 80.1373029,
+      "cans_qty": 1,
+      "cod_amount": 40,
+      "status": "delivered",
+      "placed_at": "21/9/2026, 2:02:09 am",
+      "delivered_at": "2026-09-20T21:46:51.569Z",
+      "empty_can_returned": 1,
+      "empty_can_alert_sent": 0
+    },
+    {
+      "id": 2,
+      "customer_name": "Vivek",
+      "customer_phone": "9003115101",
+      "delivery_address": "36 karnam street ",
+      "lat": 12.9192388,
+      "lng": 80.1373029,
+      "cans_qty": 1,
+      "cod_amount": 40,
+      "status": "delivered",
+      "placed_at": "21/9/2026, 2:05:42 am",
+      "delivered_at": "2026-09-20T21:47:38.302Z",
+      "empty_can_returned": 1,
+      "empty_can_alert_sent": 0
+    },
+    {
+      "id": 3,
+      "customer_name": "Vivek",
+      "customer_phone": "9003115101",
+      "delivery_address": "36 karnam street ",
+      "lat": 12.9192388,
+      "lng": 80.1373029,
+      "cans_qty": 1,
+      "cod_amount": 40,
+      "status": "delivered",
+      "placed_at": "2026-09-20T20:51:04.335Z",
+      "delivered_at": "2026-09-20T21:17:06.017Z",
+      "empty_can_returned": 1,
+      "empty_can_alert_sent": 0
+    },
+    {
+      "id": 4,
+      "customer_name": "Vivek",
+      "customer_phone": "9003115101",
+      "delivery_address": "36 karnam street ",
+      "lat": 12.9192388,
+      "lng": 80.1373029,
+      "cans_qty": 1,
+      "cod_amount": 40,
+      "status": "delivered",
+      "placed_at": "2026-09-20T21:12:10.348Z",
+      "delivered_at": "2026-09-20T21:28:03.970Z",
+      "empty_can_returned": 1,
+      "empty_can_alert_sent": 0
+    },
+    {
+      "id": 5,
+      "customer_name": "Vivek",
+      "customer_phone": "9003115101",
+      "delivery_address": "36 karnam street ",
+      "lat": 12.9192388,
+      "lng": 80.1373029,
+      "cans_qty": 2,
+      "cod_amount": 70,
+      "status": "delivered",
+      "placed_at": "2026-09-20T21:12:14.449Z",
+      "delivered_at": "2026-09-20T21:25:01.235Z",
+      "empty_can_returned": 1,
+      "empty_can_alert_sent": 0
+    },
+    {
+      "id": 6,
+      "customer_name": "Vivek",
+      "customer_phone": "9003115101",
+      "delivery_address": "36 karnam street ",
+      "lat": 12.9192388,
+      "lng": 80.1373029,
+      "cans_qty": 1,
+      "cod_amount": 40,
+      "status": "delivered",
+      "placed_at": "2026-09-20T21:39:22.292Z",
+      "delivered_at": "2026-09-20T21:40:42.388Z",
+      "empty_can_returned": 1,
+      "empty_can_alert_sent": 0
+    },
+    {
+      "id": 7,
+      "customer_name": "vivekanandan jayaraja",
+      "customer_phone": "9003115101",
+      "delivery_address": "36, Anandhi illam, Karnam street, Selaiyur, Chennai, Landmark: Opposite to a2b",
+      "lat": 12.9192388,
+      "lng": 80.1373029,
+      "cans_qty": 1,
+      "cod_amount": 30,
+      "status": "delivered",
+      "placed_at": "2026-09-21T18:19:43.669Z",
+      "delivered_at": "2026-09-21T18:20:45.240Z",
+      "empty_can_returned": 0,
+      "empty_can_alert_sent": 0
+    },
+    {
+      "id": 8,
+      "customer_name": "vivekanandan jayaraja",
+      "customer_phone": "9003115101",
+      "delivery_address": "36, Anandhi illam, Karnam street, Selaiyur, Chennai, Landmark: Opposite to a2b",
+      "lat": 12.9192388,
+      "lng": 80.1373029,
+      "items": [
+        {
+          "id": 1,
+          "name": "20L Water Can",
+          "price": 30,
+          "qty": 2
+        },
+        {
+          "id": 2,
+          "name": "Onions (1kg)",
+          "price": 40,
+          "qty": 1
+        }
+      ],
+      "cod_amount": 100,
+      "status": "assigned",
+      "placed_at": "2026-09-25T19:17:54.473Z",
+      "delivered_at": null,
+      "empty_can_returned": 0,
+      "empty_can_alert_sent": 0
+    },
+    {
+      "id": 9,
+      "customer_name": "vivekanandan jayaraja",
+      "customer_phone": "9003115101",
+      "delivery_address": "36, Anandhi illam, Karnam street, Selaiyur, Chennai, Landmark: Opposite to a2b",
+      "lat": 12.9192388,
+      "lng": 80.1373029,
+      "items": [
+        {
+          "id": 1,
+          "name": "20L Water Can",
+          "price": 30,
+          "qty": 2
+        },
+        {
+          "id": 2,
+          "name": "Onions (1kg)",
+          "price": 40,
+          "qty": 1
+        }
+      ],
+      "cod_amount": 100,
+      "status": "assigned",
+      "placed_at": "2026-09-25T19:18:25.211Z",
+      "delivered_at": null,
+      "empty_can_returned": 0,
+      "empty_can_alert_sent": 0
+    }
+  ],
+  "assignments": [
+    {
+      "id": 1,
+      "order_id": 1,
+      "agent_id": 1,
+      "assigned_at": "21/9/2026, 2:03:30 am"
+    },
+    {
+      "id": 2,
+      "order_id": 2,
+      "agent_id": 2,
+      "assigned_at": "21/9/2026, 2:06:12 am"
+    },
+    {
+      "id": 3,
+      "order_id": 3,
+      "agent_id": 3,
+      "assigned_at": "2026-09-20T20:51:12.390Z"
+    },
+    {
+      "id": 4,
+      "order_id": 5,
+      "agent_id": 3,
+      "assigned_at": "2026-09-20T21:17:17.842Z"
+    },
+    {
+      "id": 5,
+      "order_id": 4,
+      "agent_id": 3,
+      "assigned_at": "2026-09-20T21:27:03.450Z"
+    },
+    {
+      "id": 6,
+      "order_id": 6,
+      "agent_id": 3,
+      "assigned_at": "2026-09-20T21:39:29.526Z"
+    },
+    {
+      "id": 7,
+      "order_id": 7,
+      "agent_id": 3,
+      "assigned_at": "2026-09-21T18:20:17.274Z"
+    },
+    {
+      "id": 8,
+      "order_id": 8,
+      "agent_id": 1,
+      "assigned_at": "2026-09-25T19:17:54.506Z"
+    },
+    {
+      "id": 9,
+      "order_id": 9,
+      "agent_id": 1,
+      "assigned_at": "2026-09-25T19:18:25.240Z"
+    }
+  ],
+  "profile_reviews": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "agent_id": 1,
+      "status": "completed",
+      "assigned_at": "21/9/2026, 1:59:29 am",
+      "completed_at": "21/9/2026, 2:01:14 am"
+    },
+    {
+      "id": 2,
+      "user_id": 1,
+      "agent_id": 1,
+      "status": "completed",
+      "assigned_at": "21/9/2026, 1:59:38 am",
+      "completed_at": "21/9/2026, 2:01:24 am"
+    },
+    {
+      "id": 3,
+      "user_id": 1,
+      "agent_id": 3,
+      "status": "completed",
+      "assigned_at": "2026-09-20T22:28:25.335Z",
+      "completed_at": "2026-09-20T22:49:43.513Z"
+    },
+    {
+      "id": 7,
+      "user_id": 2,
+      "agent_id": 3,
+      "status": "completed",
+      "assigned_at": "2026-09-25T17:59:19.232Z",
+      "completed_at": "2026-09-25T18:00:19.613Z"
+    },
+    {
+      "id": 8,
+      "user_id": 3,
+      "agent_id": 3,
+      "status": "completed",
+      "assigned_at": "2026-09-25T18:02:32.971Z",
+      "completed_at": "2026-09-25T18:02:47.323Z"
+    },
+    {
+      "id": 9,
+      "user_id": 4,
+      "agent_id": 3,
+      "status": "completed",
+      "assigned_at": "2026-09-25T18:53:06.796Z",
+      "completed_at": "2026-09-25T18:53:39.899Z"
+    }
+  ],
+  "_nextId": {
+    "users": 5,
+    "agents": 4,
+    "orders": 10,
+    "assignments": 10,
+    "profile_reviews": 10,
+    "inventory": 2
+  },
+  "inventory": [
+    {
+      "id": 1,
+      "name": "20L Water Can (Refill)",
+      "category": "Water",
+      "price": 30,
+      "unit": "can",
+      "in_stock": true,
+      "created_at": "2026-09-25T19:08:16.594Z"
+    }
+  ]
+}
