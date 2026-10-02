@@ -10,15 +10,7 @@ const COL = 'users';
 
 /** Get a single user by UID (one-shot) */
 export async function getUser(uid: string): Promise<User | null> {
-  if (uid === 'admin') {
-    return {
-      id: 'admin',
-      name: 'Store Admin',
-      phone: '9999999999',
-      role: 'admin',
-      status: 'approved',
-    };
-  }
+  const sUid = String(uid);
   const snap = await getDoc(doc(db, COL, String(uid)));
   if (snap.exists()) {
     const d = snap.data();
@@ -57,16 +49,6 @@ export async function getUser(uid: string): Promise<User | null> {
 
 /** Live listener for a single user */
 export function listenUser(uid: string, onData: (u: User | null) => void): Unsubscribe {
-  if (uid === 'admin') {
-    onData({
-      id: 'admin',
-      name: 'Store Admin',
-      phone: '9999999999',
-      role: 'admin',
-      status: 'approved',
-    });
-    return () => {};
-  }
   return onSnapshot(doc(db, COL, String(uid)), snap => {
     if (snap.exists()) {
       const d = snap.data();

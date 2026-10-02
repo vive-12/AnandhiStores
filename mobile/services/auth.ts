@@ -139,19 +139,6 @@ export async function loginWithPhone(params: {
 }): Promise<User> {
   const { phone, pin } = params;
 
-  // Direct Admin login shortcut via phone 9999999999 or admin phone
-  if ((phone === '9999999999' || phone === '9876543219') && pin === '1234') {
-    const adminUser: User = {
-      id: 'admin',
-      role: 'admin',
-      name: 'Store Admin',
-      phone,
-      status: 'approved',
-    };
-    await saveSession({ id: adminUser.id, role: 'admin', name: adminUser.name, phone, status: 'approved' });
-    return adminUser;
-  }
-
   // 1. Find user by phone in Firestore (users collection)
   const q    = query(collection(db, 'users'), where('phone', '==', phone), limit(1));
   const snap = await getDocs(q);
@@ -233,27 +220,24 @@ export async function loginAsAdmin(pin: string): Promise<User> {
   const snap = await getDocs(q);
 
   if (snap.empty) {
-    // Standard default Admin fallback (PIN 1234)
-    if (pin === '1234') {
-      const adminUser: User = {
-        id: 'admin',
-        role: 'admin',
-        name: 'Store Admin',
-        phone: '9999999999',
-        status: 'approved',
-      };
-      await saveSession({ id: adminUser.id, role: 'admin', name: adminUser.name, phone: adminUser.phone, status: 'approved' });
-      return adminUser;
-    }
-    throw new Error('Incorrect admin PIN. Default is 1234.');
+    throw new Error('No admin account found. Please run the admin seed script first.');
   }
 
-  const doc      = snap.docs[0];
-  const userData = { id: doc.id, ...doc.data() } as User;
+  const adminDoc  = snap.docs[0];
+  const userData  = { id: adminDoc.id, ...adminDoc.data() } as User;
 
   const hashed = await hashPin(pin, userData.phone);
-  const pinOk  = userData.pin === hashed || userData.pin === pin || pin === '1234';
+  const pinOk  = userData.pin === hashed || userData.pin === pin;
   if (!pinOk) throw new Error('Incorrect admin PIN.');
+
+  // Sign into Firebase Auth so request.auth is real for Firestore rules
+  const email = toEmail(userData.phone);
+  try {
+    await signInWithEmailAndPassword(auth, email, hashed);
+  } catch {
+    // If no Firebase Auth account yet, create one
+    try { await createUserWithEmailAndPassword(auth, email, hashed); } catch {}
+  }
 
   await saveSession({ id: userData.id, role: 'admin', name: userData.name, phone: userData.phone, status: 'approved' });
   return userData;

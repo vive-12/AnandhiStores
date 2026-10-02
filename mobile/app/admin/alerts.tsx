@@ -439,6 +439,7 @@ export default function AdminAlerts() {
         addressSnapshot,
         customerName,
         customerPhone,
+        customerId,
         subtotal,
         deliveryFee: fee,
         total,

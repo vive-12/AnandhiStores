@@ -68,31 +68,37 @@ service cloud.firestore {
 
     // ─── Items (Catalogue / Inventory) ─────────────────────────────
     match /items/{itemId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     // Legacy inventory collection support
     match /inventory/{itemId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     // ─── Settings & Banners ────────────────────────────────────────
     match /settings/{docId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     match /banners/{bannerId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     // Legacy offers collection support
     match /offers/{offerId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     // ─── Stats Daily ───────────────────────────────────────────────
     match /stats_daily/{docId} {
-      allow read, write: if true;
+      allow read: if isAdmin();
+      allow write: if isAdmin() || (isAgent() && isApproved());
     }
 
     // ─── Orders ────────────────────────────────────────────────────
@@ -166,14 +172,8 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // ─── Daily Stats & Counters ────────────────────────────────────
-    // stats_daily: read by admin; written by admin or agents upon delivery.
+    // ─── Counters ──────────────────────────────────────────────────
     // counters: read & incremented during order creation transactions.
-
-    match /stats_daily/{date} {
-      allow read: if isAdmin();
-      allow write: if isAdmin() || (isAgent() && isApproved());
-    }
 
     match /counters/{counterId} {
       allow read, write: if isSignedIn();
@@ -181,7 +181,8 @@ service cloud.firestore {
 
     // Legacy agents collection support
     match /agents/{agentId} {
-      allow read, write: if isAdmin() || !isSignedIn();
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }

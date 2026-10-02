@@ -187,6 +187,7 @@ export async function createOrder(params: {
   notes:           string;
   source:          OrderSource;
   adminUid?:       string;    // required for admin_manual
+  customerId?:     string;    // explicit customer UID for admin_manual orders
   // can-recovery extension
   type?:               'order' | 'recovery';
   pendingCansToCollect?: number;
@@ -206,7 +207,7 @@ export async function createOrder(params: {
 
     const orderData: Omit<Order, 'id'> = {
       orderNo,
-      customerId:      params.actor.uid,
+      customerId:      params.customerId ?? params.actor.uid,
       customerName:    params.customerName,
       customerPhone:   params.customerPhone,
       addressSnapshot: params.addressSnapshot,

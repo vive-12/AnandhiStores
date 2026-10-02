@@ -128,10 +128,10 @@ export default function LoginScreen() {
 
             <TouchableOpacity
               style={[styles.demoBtn, styles.demoBtnAdmin]}
-              onPress={() => { setPhone('9999999999'); setPin('1234'); }}
+              onPress={() => { setPhone('9876543219'); setPin('1234'); }}
             >
               <Text style={[styles.demoBtnRole, { color: Colors.green900 }]}>👑 Admin</Text>
-              <Text style={styles.demoBtnDetail}>9999999999 • 1234</Text>
+              <Text style={styles.demoBtnDetail}>9876543219 • 1234</Text>
             </TouchableOpacity>
           </View>
         </View>
