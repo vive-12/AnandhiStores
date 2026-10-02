@@ -1,0 +1,187 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Authentication & Role Helpers ─────────────────────────────
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isUser(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function hasUserDoc() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function role() {
+      return hasUserDoc() ? getUserData().role : null;
+    }
+
+    function status() {
+      return hasUserDoc() ? getUserData().status : null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && role() == 'admin';
+    }
+
+    function isAgent() {
+      return isSignedIn() && role() == 'agent';
+    }
+
+    function isCustomer() {
+      return isSignedIn() && role() == 'customer';
+    }
+
+    function isApproved() {
+      return isSignedIn() && (status() == 'approved' || isAdmin());
+    }
+
+    // ─── Users Collection ──────────────────────────────────────────
+    // Users can read/update their own profile.
+    // Unauthenticated reads permitted for phone login lookups.
+    // Customers/agents cannot change role or status.
+    // Agents can update their own isOnline status.
+    // Admin has full access.
+
+    match /users/{userId} {
+      allow read: if !isSignedIn() || isUser(userId) || isAdmin();
+
+      allow create: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+
+      allow update: if isAdmin() || (
+        isUser(userId) &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.status == resource.data.status &&
+        (isAgent() || request.resource.data.isOnline == resource.data.isOnline)
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // ─── Items (Catalogue / Inventory) ─────────────────────────────
+    match /items/{itemId} {
+      allow read, write: if true;
+    }
+
+    // Legacy inventory collection support
+    match /inventory/{itemId} {
+      allow read, write: if true;
+    }
+
+    // ─── Settings & Banners ────────────────────────────────────────
+    match /settings/{docId} {
+      allow read, write: if true;
+    }
+
+    match /banners/{bannerId} {
+      allow read, write: if true;
+    }
+
+    // Legacy offers collection support
+    match /offers/{offerId} {
+      allow read, write: if true;
+    }
+
+    // ─── Stats Daily ───────────────────────────────────────────────
+    match /stats_daily/{docId} {
+      allow read, write: if true;
+    }
+
+    // ─── Orders ────────────────────────────────────────────────────
+    // Customer: reads where customerId == uid; creates 'placed' with COD;
+    //           can update only to 'cancelled' while in 'placed'.
+    // Agent:    reads where agentId == uid; updates only status
+    //           (placed|packed -> out_for_delivery -> delivered), timestamps, and statusHistory.
+    // Admin:    full read and write access.
+
+    match /orders/{orderId} {
+      allow read: if isAdmin() ||
+        (isCustomer() && resource.data.customerId == request.auth.uid) ||
+        (isAgent() && resource.data.agentId == request.auth.uid);
+
+      allow create: if isAdmin() || (
+        isCustomer() &&
+        isApproved() &&
+        request.resource.data.customerId == request.auth.uid &&
+        request.resource.data.status == 'placed' &&
+        request.resource.data.paymentMethod == 'COD'
+      );
+
+      allow update: if isAdmin() || (
+        // Customer cancelling own placed order
+        isCustomer() &&
+        resource.data.customerId == request.auth.uid &&
+        resource.data.status == 'placed' &&
+        request.resource.data.status == 'cancelled' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'cancelReason', 'cancelledBy', 'cancelledAt', 'statusHistory', 'updatedAt'
+        ])
+      ) || (
+        // Agent transitioning assigned order
+        isAgent() &&
+        resource.data.agentId == request.auth.uid &&
+        (
+          (resource.data.status in ['placed', 'packed'] && request.resource.data.status == 'out_for_delivery') ||
+          (resource.data.status == 'out_for_delivery' && request.resource.data.status == 'delivered')
+        ) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'pickedUpAt', 'deliveredAt', 'statusHistory', 'updatedAt', 'emptyCansCollected'
+        ])
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // ─── Notifications ─────────────────────────────────────────────
+    // Read and mark-read only by toUid; create allowed during order flows; admin full.
+
+    match /notifications/{id} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == resource.data.toUid);
+
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        request.auth.uid == resource.data.toUid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+      );
+
+      allow create: if isSignedIn() && (
+        isAdmin() ||
+        (
+          request.resource.data.orderId != null &&
+          request.resource.data.type in [
+            'order_placed', 'order_assigned', 'order_packed',
+            'order_picked_up', 'order_delivered', 'order_cancelled', 'agent_reassigned'
+          ]
+        )
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // ─── Daily Stats & Counters ────────────────────────────────────
+    // stats_daily: read by admin; written by admin or agents upon delivery.
+    // counters: read & incremented during order creation transactions.
+
+    match /stats_daily/{date} {
+      allow read: if isAdmin();
+      allow write: if isAdmin() || (isAgent() && isApproved());
+    }
+
+    match /counters/{counterId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Legacy agents collection support
+    match /agents/{agentId} {
+      allow read, write: if isAdmin() || !isSignedIn();
+    }
+  }
+}

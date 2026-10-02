@@ -6,3 +6,4 @@ yarn-error.log
 server/node_modules/
 mobile/node_modules/
 mobile/.expo/
+*.log
