@@ -143,6 +143,10 @@ export default function LoginScreen() {
         <TouchableOpacity onPress={() => router.push('/auth/register')} style={styles.link}>
           <Text style={styles.linkTxt}>New customer? <Text style={styles.linkBold}>Create account</Text></Text>
         </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push('/dev/seed-admin')} style={styles.link}>
+          <Text style={[styles.linkTxt, { fontSize: 10, color: Colors.inkSoft }]}>🔧 Setup Admin Account (Dev)</Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
