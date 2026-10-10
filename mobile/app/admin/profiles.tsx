@@ -753,7 +753,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: Spacing.lg,
-    paddingBottom: Spacing.xxl,
+    paddingBottom: Spacing.xxl * 3,
     gap: Spacing.lg,
   },
   searchBar: {
