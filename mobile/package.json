@@ -6,8 +6,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "test": "node scripts/test-comprehensive-e2e.js",
-    "test:order": "node scripts/test-e2e-order.js"
+    "test": "node scripts/test_scripts/test-comprehensive-e2e.js",
+    "test:order": "node scripts/test_scripts/test-e2e-order.js"
   },
   "dependencies": {
     "@expo-google-fonts/manrope": "^0.4.2",

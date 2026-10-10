@@ -25,7 +25,7 @@ const {
 } = require('firebase/auth');
 
 // Set up logging to file
-const logsDir = path.resolve(__dirname, '..', 'logs');
+const logsDir = path.resolve(__dirname, '..', '..', 'logs');
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }
@@ -660,9 +660,11 @@ async function runComprehensiveTests() {
 
     // 8.1 Read and parse root .env
     const envFileCandidates = [
+      path.resolve(__dirname, '..', '..', '..', '.env'),
       path.resolve(__dirname, '..', '..', '.env'),
       path.resolve(__dirname, '..', '.env'),
       path.resolve(process.cwd(), '.env'),
+      path.resolve(process.cwd(), '..', '.env'),
     ];
     const envFilePath = envFileCandidates.find(p => fs.existsSync(p));
     assert(Boolean(envFilePath), `Root .env file located at ${envFilePath}`);
@@ -1797,7 +1799,7 @@ async function runComprehensiveTests() {
     console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY! ZERO FAILURES.`);
     console.log('================================================================\n');
     console.log(`📁 Test execution log saved to: ${logFilePath}`);
-    console.log(`📁 Locations registered in:     ${path.resolve(__dirname, '..', '..', '.locations')}\n`);
+    console.log(`📁 Locations registered in:     ${path.resolve(__dirname, '..', '..', '..', '.locations')}\n`);
     logStream.end();
   } catch (error) {
     console.error('\n❌ TEST SUITE RUNNER ENCOUNTERED AN ERROR:', error);
