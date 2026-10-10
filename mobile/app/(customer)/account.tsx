@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Linking,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
@@ -178,6 +179,7 @@ export default function AccountScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              router.replace('/auth/login');
               await logout();
               clearCart();
               clearSession();
@@ -198,11 +200,16 @@ export default function AccountScreen() {
         right={<NotificationBell />}
       />
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
       >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         {loading ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="large" color={Colors.green700} />
@@ -391,7 +398,8 @@ export default function AccountScreen() {
             </View>
           </>
         )}
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

@@ -302,6 +302,7 @@ export function NotificationBell({ color = '#FFFFFF', size = 22 }: NotificationB
         visible={isOpen}
         transparent
         animationType="none"
+        statusBarTranslucent
         onRequestClose={handleCloseDrawer}
       >
         <View style={styles.modalOverlay}>

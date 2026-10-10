@@ -47,7 +47,11 @@ const PRESET_COLORS = [
   '#E1604A', // Coral Red
 ];
 
-export default function OffersScreen() {
+interface OffersScreenProps {
+  showHeader?: boolean;
+}
+
+export default function OffersScreen({ showHeader = true }: OffersScreenProps = {}) {
   const { showToast } = useToast();
   const { items: inventoryItems } = useItems();
 
@@ -284,10 +288,12 @@ export default function OffersScreen() {
 
   return (
     <View style={s.container}>
-      <ScreenHeader
-        title="Banners & Offers"
-        subtitle="Manage customer home carousel banners"
-      />
+      {showHeader && (
+        <ScreenHeader
+          title="Banners & Offers"
+          subtitle="Manage customer home carousel banners"
+        />
+      )}
 
       {/* Action Bar */}
       <View style={s.actionBar}>
@@ -325,7 +331,16 @@ export default function OffersScreen() {
       )}
 
       {/* Add / Edit Modal */}
-      <Modal visible={modalVisible} transparent animationType="slide">
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => {
+          Keyboard.dismiss();
+          setModalVisible(false);
+        }}
+      >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <KeyboardAvoidingView
             style={[s.modalOverlay, isKeyboardVisible && { justifyContent: 'flex-end', paddingBottom: 0, paddingHorizontal: 0 }]}
@@ -622,7 +637,13 @@ export default function OffersScreen() {
     </Modal>
 
       {/* Product Picker Modal */}
-      <Modal visible={pickerModalVisible} transparent animationType="slide">
+      <Modal
+        visible={pickerModalVisible}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setPickerModalVisible(false)}
+      >
         <View style={s.pickerOverlay}>
           <View style={s.pickerSheet}>
             <View style={s.pickerHeader}>

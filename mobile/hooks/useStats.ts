@@ -1,15 +1,31 @@
 // hooks/useStats.ts — Realtime Daily Stats & Analytics Hook
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { listenRecentStats, getTodayKey, getRecentStats } from '../services/stats';
+import {
+  listenRecentStats,
+  getTodayKey,
+  getRecentStats,
+  getSundayOfCurrentWeek,
+  getFirstDayOfCurrentMonth,
+  formatDateKey,
+  formatTimeOnly,
+  getTimeframeWindow,
+  type TimeframeWindow,
+} from '../services/stats';
 import type { DailyStats } from '../types';
 
-export type AnalyticsRange = 'today' | '7days' | '30days';
+export type AnalyticsRange = 'today' | 'week' | 'month' | '7days' | '30days';
 
 export interface DailyBreakdownItem {
   date: string;
-  label: string; // e.g. "Mon" or "10/01"
+  label: string; // e.g. "Sun" or "1"
+  fullLabel: string; // e.g. "Sunday, Oct 4"
   revenue: number;
   orders: number;
+  upiRevenue: number;
+  upiOrders: number;
+  codRevenue: number;
+  isToday: boolean;
+  isFuture?: boolean;
 }
 
 export interface AgentPerformanceData {
@@ -17,12 +33,16 @@ export interface AgentPerformanceData {
   weeklyDeliveries: number;
   monthlyDeliveries: number;
   todayCash: number;
+  weeklyCash: number;
+  monthlyCash: number;
 }
 
-export function useStats(maxDays = 30) {
+export function useStats(maxDays = 45) {
   const [stats, setStats] = useState<DailyStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+
+  const [asOfTime, setAsOfTime] = useState<Date>(new Date());
 
   useEffect(() => {
     setLoading(true);
@@ -45,6 +65,7 @@ export function useStats(maxDays = 30) {
   const refresh = useCallback(async () => {
     try {
       setLoading(true);
+      setAsOfTime(new Date());
       const data = await getRecentStats(maxDays);
       setStats(data);
     } catch (e) {
@@ -55,8 +76,10 @@ export function useStats(maxDays = 30) {
   }, [maxDays]);
 
   const todayKey = useMemo(() => getTodayKey(), []);
+  const sundayKey = useMemo(() => formatDateKey(getSundayOfCurrentWeek()), []);
+  const firstOfMonthKey = useMemo(() => formatDateKey(getFirstDayOfCurrentMonth()), []);
 
-  // Filter stats by selected range
+  // Filter stats by selected range (Calendar bound: today from 12 AM, week from Sun 12 AM, month from 1st 12 AM)
   const getStatsForRange = useCallback(
     (range: AnalyticsRange): DailyStats[] => {
       if (range === 'today') {
@@ -64,73 +87,157 @@ export function useStats(maxDays = 30) {
         return todayDoc ? [todayDoc] : [];
       }
 
-      const daysLimit = range === '7days' ? 7 : 30;
-      // Get cutoff date
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - (daysLimit - 1));
-      const cutoffStr = cutoff.toISOString().slice(0, 10);
+      if (range === 'week' || range === '7days') {
+        return stats.filter(s => s.date >= sundayKey);
+      }
 
-      return stats.filter(s => s.date >= cutoffStr);
+      // 'month' or '30days'
+      return stats.filter(s => s.date >= firstOfMonthKey);
     },
-    [stats, todayKey],
+    [stats, todayKey, sundayKey, firstOfMonthKey],
   );
 
   // Compute aggregated metrics for a range
   const computeMetrics = useCallback(
-    (range: AnalyticsRange) => {
+    (range: AnalyticsRange, targetAsOf: Date = asOfTime) => {
       const filtered = getStatsForRange(range);
 
       let revenue = 0;
       let deliveredCount = 0;
       let cancelledCount = 0;
+      let upiRevenue = 0;
+      let upiOrders = 0;
       const itemQtyMap: Record<string, number> = {};
+      const qrSalesMap: Record<string, number> = {};
+      const qrOrdersMap: Record<string, number> = {};
 
       for (const day of filtered) {
         revenue += day.revenue || 0;
         deliveredCount += day.orders || 0;
         cancelledCount += day.cancelledOrders || 0;
+        upiRevenue += day.upiRevenue || 0;
+        upiOrders += day.upiOrders || 0;
 
         if (day.itemQty) {
           for (const [itemId, qty] of Object.entries(day.itemQty)) {
             itemQtyMap[itemId] = (itemQtyMap[itemId] || 0) + (qty || 0);
           }
         }
+
+        if (day.qrSales) {
+          for (const [qrId, amt] of Object.entries(day.qrSales)) {
+            qrSalesMap[qrId] = (qrSalesMap[qrId] || 0) + (amt || 0);
+          }
+        }
+
+        if (day.qrOrders) {
+          for (const [qrId, cnt] of Object.entries(day.qrOrders)) {
+            qrOrdersMap[qrId] = (qrOrdersMap[qrId] || 0) + (cnt || 0);
+          }
+        }
       }
 
+      const codRevenue = Math.max(0, revenue - upiRevenue);
       const aov = deliveredCount > 0 ? Math.round(revenue / deliveredCount) : 0;
 
-      // Build daily breakdown for charts (chronological order)
-      const daysCount = range === 'today' ? 1 : range === '7days' ? 7 : 30;
+      // Build daily breakdown for charts
       const dailyBreakdown: DailyBreakdownItem[] = [];
+      const now = new Date();
 
-      for (let i = daysCount - 1; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().slice(0, 10);
-        const matchingDoc = stats.find(s => s.date === dateStr);
-
-        const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
-        const dayMonth = `${d.getDate()}/${d.getMonth() + 1}`;
-        const label = range === 'today' ? 'Today' : range === '7days' ? dayName : dayMonth;
-
+      if (range === 'today') {
+        const matchingDoc = stats.find(s => s.date === todayKey);
+        const dayRev = matchingDoc?.revenue || 0;
+        const dayUpi = matchingDoc?.upiRevenue || 0;
         dailyBreakdown.push({
-          date: dateStr,
-          label,
-          revenue: matchingDoc?.revenue || 0,
+          date: todayKey,
+          label: 'Today',
+          fullLabel: `${now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })} (12:00 AM – ${formatTimeOnly(targetAsOf)})`,
+          revenue: dayRev,
           orders: matchingDoc?.orders || 0,
+          upiRevenue: dayUpi,
+          upiOrders: matchingDoc?.upiOrders || 0,
+          codRevenue: Math.max(0, dayRev - dayUpi),
+          isToday: true,
+          isFuture: false,
         });
+      } else if (range === 'week' || range === '7days') {
+        // 7-day week starting Sunday 12:00 AM (Sun, Mon, Tue, Wed, Thu, Fri, Sat)
+        const sunday = getSundayOfCurrentWeek(targetAsOf);
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(sunday);
+          d.setDate(sunday.getDate() + i);
+          const dateStr = formatDateKey(d);
+          const matchingDoc = stats.find(s => s.date === dateStr);
+
+          const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+          const fullDate = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+          const isToday = dateStr === todayKey;
+          const isFuture = dateStr > todayKey;
+
+          const dayRev = isFuture ? 0 : matchingDoc?.revenue || 0;
+          const dayUpi = isFuture ? 0 : matchingDoc?.upiRevenue || 0;
+
+          dailyBreakdown.push({
+            date: dateStr,
+            label: isToday ? `${dayName} •` : dayName,
+            fullLabel: isToday ? `${fullDate} (Today 12:00 AM – ${formatTimeOnly(targetAsOf)})` : fullDate,
+            revenue: dayRev,
+            orders: isFuture ? 0 : matchingDoc?.orders || 0,
+            upiRevenue: dayUpi,
+            upiOrders: isFuture ? 0 : matchingDoc?.upiOrders || 0,
+            codRevenue: Math.max(0, dayRev - dayUpi),
+            isToday,
+            isFuture,
+          });
+        }
+      } else {
+        // 'month' or '30days' — Month-to-date starting 1st of month 12:00 AM up to today
+        const totalDaysToDate = now.getDate();
+        for (let i = 1; i <= totalDaysToDate; i++) {
+          const d = new Date(now.getFullYear(), now.getMonth(), i);
+          const dateStr = formatDateKey(d);
+          const matchingDoc = stats.find(s => s.date === dateStr);
+
+          const fullDate = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+          const isToday = dateStr === todayKey;
+
+          const dayRev = matchingDoc?.revenue || 0;
+          const dayUpi = matchingDoc?.upiRevenue || 0;
+
+          dailyBreakdown.push({
+            date: dateStr,
+            label: `${i}`,
+            fullLabel: isToday ? `${fullDate} (Today 12:00 AM – ${formatTimeOnly(targetAsOf)})` : fullDate,
+            revenue: dayRev,
+            orders: matchingDoc?.orders || 0,
+            upiRevenue: dayUpi,
+            upiOrders: matchingDoc?.upiOrders || 0,
+            codRevenue: Math.max(0, dayRev - dayUpi),
+            isToday,
+            isFuture: false,
+          });
+        }
       }
+
+      const timeWindow = getTimeframeWindow(range, targetAsOf);
 
       return {
         revenue,
         deliveredCount,
         cancelledCount,
         aov,
+        upiRevenue,
+        upiOrders,
+        codRevenue,
         itemQtyMap,
+        qrSalesMap,
+        qrOrdersMap,
         dailyBreakdown,
+        asOfTime: targetAsOf,
+        timeWindow,
       };
     },
-    [getStatsForRange, stats],
+    [getStatsForRange, stats, todayKey, asOfTime],
   );
 
   // Compute stats per agent
@@ -140,27 +247,23 @@ export function useStats(maxDays = 30) {
       const todayDeliveries = todayDoc?.deliveriesByAgent?.[agentId] || 0;
       const todayCash = todayDoc?.cashCollectedByAgent?.[agentId] || 0;
 
-      // 7 days
-      const cutoff7 = new Date();
-      cutoff7.setDate(cutoff7.getDate() - 6);
-      const cutoff7Str = cutoff7.toISOString().slice(0, 10);
-
+      // Week to Date (since Sunday 12:00 AM)
       let weeklyDeliveries = 0;
+      let weeklyCash = 0;
       for (const s of stats) {
-        if (s.date >= cutoff7Str) {
+        if (s.date >= sundayKey) {
           weeklyDeliveries += s.deliveriesByAgent?.[agentId] || 0;
+          weeklyCash += s.cashCollectedByAgent?.[agentId] || 0;
         }
       }
 
-      // 30 days
-      const cutoff30 = new Date();
-      cutoff30.setDate(cutoff30.getDate() - 29);
-      const cutoff30Str = cutoff30.toISOString().slice(0, 10);
-
+      // Month to Date (since 1st 12:00 AM)
       let monthlyDeliveries = 0;
+      let monthlyCash = 0;
       for (const s of stats) {
-        if (s.date >= cutoff30Str) {
+        if (s.date >= firstOfMonthKey) {
           monthlyDeliveries += s.deliveriesByAgent?.[agentId] || 0;
+          monthlyCash += s.cashCollectedByAgent?.[agentId] || 0;
         }
       }
 
@@ -169,9 +272,11 @@ export function useStats(maxDays = 30) {
         weeklyDeliveries,
         monthlyDeliveries,
         todayCash,
+        weeklyCash,
+        monthlyCash,
       };
     },
-    [stats, todayKey],
+    [stats, todayKey, sundayKey, firstOfMonthKey],
   );
 
   return {
@@ -180,6 +285,10 @@ export function useStats(maxDays = 30) {
     error,
     refresh,
     todayKey,
+    sundayKey,
+    firstOfMonthKey,
+    asOfTime,
+    setAsOfTime,
     computeMetrics,
     getAgentPerformance,
   };

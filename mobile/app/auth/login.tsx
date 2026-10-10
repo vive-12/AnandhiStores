@@ -112,6 +112,8 @@ export default function LoginScreen() {
           <View style={styles.demoRow}>
             <TouchableOpacity
               style={styles.demoBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Quick login as customer Shivani"
               onPress={() => { setPhone('9789042245'); setPin('1211'); }}
             >
               <Text style={styles.demoBtnRole}>👤 Shivani</Text>
@@ -120,6 +122,8 @@ export default function LoginScreen() {
 
             <TouchableOpacity
               style={styles.demoBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Quick login as agent Smallvivek"
               onPress={() => { setPhone('9940405016'); setPin('1211'); }}
             >
               <Text style={styles.demoBtnRole}>🛵 Smallvivek</Text>
@@ -128,6 +132,8 @@ export default function LoginScreen() {
 
             <TouchableOpacity
               style={[styles.demoBtn, styles.demoBtnAdmin]}
+              accessibilityRole="button"
+              accessibilityLabel="Quick login as store admin"
               onPress={() => { setPhone('9876543219'); setPin('1234'); }}
             >
               <Text style={[styles.demoBtnRole, { color: Colors.green900 }]}>👑 Admin</Text>
@@ -136,15 +142,30 @@ export default function LoginScreen() {
           </View>
         </View>
 
-        <TouchableOpacity onPress={() => router.push('/auth/admin-login')} style={styles.adminLink}>
+        <TouchableOpacity
+          onPress={() => router.push('/auth/admin-login')}
+          style={styles.adminLink}
+          accessibilityRole="button"
+          accessibilityLabel="Switch to Admin PIN Unlock"
+        >
           <Text style={styles.adminLinkTxt}>🔐 Switch to Admin PIN Unlock</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push('/auth/register')} style={styles.link}>
+        <TouchableOpacity
+          onPress={() => router.push('/auth/register')}
+          style={styles.link}
+          accessibilityRole="button"
+          accessibilityLabel="New customer? Create account"
+        >
           <Text style={styles.linkTxt}>New customer? <Text style={styles.linkBold}>Create account</Text></Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push('/dev/seed-admin')} style={styles.link}>
+        <TouchableOpacity
+          onPress={() => router.push('/dev/seed-admin')}
+          style={styles.devLink}
+          accessibilityRole="button"
+          accessibilityLabel="Setup Admin Account in Dev"
+        >
           <Text style={[styles.linkTxt, { fontSize: 10, color: Colors.inkSoft }]}>🔧 Setup Admin Account (Dev)</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -198,13 +219,15 @@ const styles = StyleSheet.create({
   },
   demoBtn: {
     flex: 1,
-    paddingVertical: Spacing.sm,
+    minHeight: 46,
+    paddingVertical: Spacing.xs,
     paddingHorizontal: 4,
     backgroundColor: Colors.card,
     borderRadius: Radius.sm,
     borderWidth: 1,
     borderColor: Colors.line,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   demoBtnAdmin: {
     borderColor: Colors.amber,
@@ -221,9 +244,10 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope_500Medium',
     color: Colors.inkSoft,
   },
-  adminLink:  { marginTop: Spacing.lg, alignItems: 'center' },
+  adminLink:  { marginTop: Spacing.lg, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   adminLinkTxt: { fontSize: FontSize.sm, fontFamily: 'Manrope_600SemiBold', color: Colors.green700 },
-  link:       { marginTop: Spacing.md, alignItems: 'center', marginBottom: Spacing.lg },
+  link:       { marginTop: Spacing.sm, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  devLink:    { marginTop: 2, minHeight: 44, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.lg },
   linkTxt:    { fontSize: FontSize.sm, fontFamily: 'Manrope_500Medium', color: Colors.inkSoft },
   linkBold:   { fontFamily: 'Manrope_600SemiBold', color: Colors.green700 },
 });

@@ -5,6 +5,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { transitionOrder, getOrder } from './orders';
 import { setAgentOnline } from './users';
 import type { Actor, OrderStatus } from '../types';
+import { log } from '../utils/logger';
 
 const OUTBOX_KEY = '@anandhi_outbox';
 
@@ -36,7 +37,7 @@ export async function getOutboxQueue(): Promise<OutboxAction[]> {
     const raw = await AsyncStorage.getItem(OUTBOX_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch (err) {
-    console.error('Failed to read outbox queue:', err);
+    log.outbox.error('Failed to read outbox queue', err);
     return [];
   }
 }
@@ -46,7 +47,7 @@ async function saveOutboxQueue(queue: OutboxAction[]): Promise<void> {
   try {
     await AsyncStorage.setItem(OUTBOX_KEY, JSON.stringify(queue));
   } catch (err) {
-    console.error('Failed to save outbox queue:', err);
+    log.outbox.error('Failed to save outbox queue', err);
   }
 }
 
@@ -64,6 +65,7 @@ export async function enqueueAction(
   const queue = await getOutboxQueue();
   queue.push(item);
   await saveOutboxQueue(queue);
+  log.outbox.info(`Queued action (offline): ${action.type}`, { id, type: action.type });
   return id;
 }
 
@@ -71,6 +73,8 @@ export async function enqueueAction(
 export async function replayOutbox(): Promise<{ replayed: number; conflicts: number }> {
   const queue = await getOutboxQueue();
   if (queue.length === 0) return { replayed: 0, conflicts: 0 };
+
+  log.outbox.info(`Replaying ${queue.length} queued action(s)`);
 
   const remaining: OutboxAction[] = [];
   let replayed = 0;
@@ -80,51 +84,42 @@ export async function replayOutbox(): Promise<{ replayed: number; conflicts: num
     try {
       if (item.type === 'transition_order') {
         const { orderId, toStatus, actor, cancelReason } = item.payload;
-        // Verify current order state to detect conflicts before writing
         const latestOrder = await getOrder(orderId);
         if (!latestOrder) {
-          console.warn(`[Outbox] Order ${orderId} no longer exists. Discarding action.`);
+          log.outbox.warn(`Order ${orderId} no longer exists — discarding`, { actionId: item.id });
           conflicts++;
           continue;
         }
 
-        // If the order was already transitioned to the desired status, treat as done
         if (latestOrder.status === toStatus) {
+          log.outbox.debug(`Order ${orderId} already at ${toStatus} — skipping`);
           replayed++;
           continue;
         }
 
-        // If order was cancelled in the meantime by someone else, avoid invalid state transition
         if (latestOrder.status === 'cancelled' && toStatus !== 'cancelled') {
-          console.warn(
-            `[Outbox] Conflict: Order ${orderId} was cancelled by ${latestOrder.cancelledBy}. Skipping ${toStatus}.`,
-          );
+          log.outbox.warn(`Conflict: order ${orderId} was cancelled — skipping ${toStatus}`, { cancelledBy: latestOrder.cancelledBy });
           conflicts++;
           continue;
         }
 
-        // Apply transition
-        await transitionOrder({
-          orderId,
-          order: latestOrder,
-          toStatus,
-          actor,
-          cancelReason,
-        });
+        await transitionOrder({ orderId, order: latestOrder, toStatus, actor, cancelReason });
+        log.outbox.info(`Replayed transition_order: ${orderId} → ${toStatus}`);
         replayed++;
       } else if (item.type === 'set_agent_online') {
         const { uid, isOnline } = item.payload;
         await setAgentOnline(uid, isOnline);
+        log.outbox.info(`Replayed set_agent_online: ${uid} → ${isOnline}`);
         replayed++;
       }
     } catch (err) {
-      console.error(`[Outbox] Failed to replay action ${item.id}:`, err);
-      // Keep in remaining queue to retry later
+      log.outbox.error(`Failed to replay action ${item.id}`, err);
       remaining.push(item);
     }
   }
 
   await saveOutboxQueue(remaining);
+  log.outbox.info(`Replay complete: ${replayed} replayed, ${conflicts} conflicts, ${remaining.length} still queued`);
   return { replayed, conflicts };
 }
 
@@ -138,13 +133,16 @@ export function initOutboxListener(): () => void {
   // Immediate replay check if online
   NetInfo.fetch().then(state => {
     if (state.isConnected && state.isInternetReachable !== false) {
+      log.outbox.debug('App started online — running immediate replay check');
       replayOutbox();
+    } else {
+      log.outbox.debug('App started offline — outbox listener ready, will replay on reconnect');
     }
   });
 
-  // Replay when connection transitions to online
   const unsub = NetInfo.addEventListener(state => {
     if (state.isConnected && state.isInternetReachable !== false) {
+      log.outbox.info('Network restored — replaying outbox');
       replayOutbox();
     }
   });

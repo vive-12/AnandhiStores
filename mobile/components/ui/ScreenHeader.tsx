@@ -31,7 +31,13 @@ export function ScreenHeader({ title, subtitle, showBack = false, onBack, right 
       <StatusBar barStyle="light-content" backgroundColor={Colors.green900} />
       <View style={styles.row}>
         {showBack ? (
-          <TouchableOpacity onPress={handleBack} style={styles.backBtn} hitSlop={12}>
+          <TouchableOpacity
+            onPress={handleBack}
+            style={styles.backBtn}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
         ) : (

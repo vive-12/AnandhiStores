@@ -34,7 +34,11 @@ import {
 } from '../../components/ui';
 import type { User, Order } from '../../types';
 
-export default function AdminAgents() {
+interface AdminAgentsProps {
+  showHeader?: boolean;
+}
+
+export default function AdminAgents({ showHeader = true }: AdminAgentsProps = {}) {
   const { uid: adminUid } = useSession();
   const { showToast } = useToast();
 
@@ -302,10 +306,12 @@ export default function AdminAgents() {
 
   return (
     <View style={s.container}>
-      <ScreenHeader
-        title="Delivery Fleet"
-        subtitle="Manage agents, verify cash & track runs"
-      />
+      {showHeader && (
+        <ScreenHeader
+          title="Delivery Fleet"
+          subtitle="Manage agents, verify cash & track runs"
+        />
+      )}
 
       {/* Fleet Summary Strip */}
       <View style={s.summaryStrip}>
@@ -506,7 +512,13 @@ export default function AdminAgents() {
       </BottomSheet>
 
       {/* Add Agent Modal */}
-      <Modal visible={showAddModal} transparent animationType="slide">
+      <Modal
+        visible={showAddModal}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setShowAddModal(false)}
+      >
         <KeyboardAvoidingView
           style={s.modalOverlay}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -574,7 +586,13 @@ export default function AdminAgents() {
       </Modal>
 
       {/* Reset PIN Modal */}
-      <Modal visible={!!resetModalAgent} transparent animationType="fade">
+      <Modal
+        visible={!!resetModalAgent}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setResetModalAgent(null)}
+      >
         <KeyboardAvoidingView
           style={s.modalOverlay}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}

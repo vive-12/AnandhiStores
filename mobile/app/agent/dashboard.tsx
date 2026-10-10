@@ -1,5 +1,5 @@
 // app/agent/dashboard.tsx — Delivery Agent Dashboard & Order Runs
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import { useSession } from '../../hooks/useSession';
 import { useAuthUser } from '../../hooks/useAuthUser';
 import { useAgentOrders } from '../../hooks/useOrders';
 import { useStats } from '../../hooks/useStats';
+import { getSundayOfCurrentWeek, getFirstDayOfCurrentMonth } from '../../services/stats';
 import { setAgentOnline } from '../../services/users';
 import { logout } from '../../services/auth';
 import { openMapChoice } from '../../utils/openMap';
@@ -88,30 +89,103 @@ export default function AgentDashboard() {
     return orders.filter(o => o.status === 'delivered');
   }, [orders]);
 
+  // Run timeframe state: 'today' | 'week' | 'month' | '7days' | '30days'
+  type RunTimeframe = 'today' | 'week' | 'month' | '7days' | '30days';
+  const [runTimeframe, setRunTimeframe] = useState<RunTimeframe>('today');
+  const [clickTime, setClickTime] = useState<Date>(new Date());
+
+  const parseOrderDate = useCallback((o: Order): Date | null => {
+    const ts = o.deliveredAt || o.updatedAt || o.createdAt;
+    if (!ts) return null;
+    if (ts instanceof Date) return ts;
+    if (typeof (ts as any).toDate === 'function') return (ts as any).toDate();
+    if (typeof (ts as any).seconds === 'number') return new Date((ts as any).seconds * 1000);
+    if (typeof ts === 'string' || typeof ts === 'number') return new Date(ts);
+    return null;
+  }, []);
+
+  const todayCompletedOrders = useMemo(() => {
+    const todayMidnight = new Date(clickTime);
+    todayMidnight.setHours(0, 0, 0, 0);
+    return completedOrders.filter(o => {
+      const d = parseOrderDate(o);
+      return d ? d >= todayMidnight && d <= clickTime : false;
+    });
+  }, [completedOrders, parseOrderDate, clickTime]);
+
+  const weeklyCompletedOrders = useMemo(() => {
+    const sundayMidnight = getSundayOfCurrentWeek(clickTime);
+    return completedOrders.filter(o => {
+      const d = parseOrderDate(o);
+      return d ? d >= sundayMidnight && d <= clickTime : false;
+    });
+  }, [completedOrders, parseOrderDate, clickTime]);
+
+  const monthlyCompletedOrders = useMemo(() => {
+    const firstOfMonthMidnight = getFirstDayOfCurrentMonth(clickTime);
+    return completedOrders.filter(o => {
+      const d = parseOrderDate(o);
+      return d ? d >= firstOfMonthMidnight && d <= clickTime : false;
+    });
+  }, [completedOrders, parseOrderDate, clickTime]);
+
+  const todayCashFromOrders = useMemo(() => {
+    return todayCompletedOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+  }, [todayCompletedOrders]);
+
+  const weeklyCashFromOrders = useMemo(() => {
+    return weeklyCompletedOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+  }, [weeklyCompletedOrders]);
+
+  const monthlyCashFromOrders = useMemo(() => {
+    return monthlyCompletedOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+  }, [monthlyCompletedOrders]);
+
+  // Aggregate with stats_daily if available
+  const effectiveTodayDeliveries = Math.max(agentPerf?.todayDeliveries || 0, todayCompletedOrders.length);
+  const effectiveWeeklyDeliveries = Math.max(agentPerf?.weeklyDeliveries || 0, weeklyCompletedOrders.length);
+  const effectiveMonthlyDeliveries = Math.max(agentPerf?.monthlyDeliveries || 0, monthlyCompletedOrders.length);
+  const effectiveTodayCash = Math.max(agentPerf?.todayCash || 0, todayCashFromOrders);
+
+  // Filtered completed runs list based on active timeframe
+  const filteredCompletedOrders = useMemo(() => {
+    if (runTimeframe === 'today') return todayCompletedOrders;
+    if (runTimeframe === 'week' || runTimeframe === '7days') return weeklyCompletedOrders;
+    return monthlyCompletedOrders;
+  }, [runTimeframe, todayCompletedOrders, weeklyCompletedOrders, monthlyCompletedOrders]);
+
   const activeOrdersCount = assignedOrders.length + outOrders.length;
 
-  // New assignment alert tracking (sync row 5)
-  const prevOrderIdsRef = useRef<Set<string>>(new Set());
+  // New assignment alert tracking
+  // IMPORTANT: Firestore onSnapshot fires TWICE on first load (cache, then server).
+  // We must skip the detection window until the initial snapshot settles,
+  // otherwise every existing order looks "new" and the modal blocks the whole screen.
+  const prevOrderIdsRef   = useRef<Set<string>>(new Set());
+  const initialLoadDone   = useRef(false);
   const [newAssignmentAlert, setNewAssignmentAlert] = useState<Order | null>(null);
 
   useEffect(() => {
     if (ordersLoading) return;
 
-    const currentAssigned = new Set(assignedOrders.map(o => o.id));
+    const currentIds = new Set(assignedOrders.map(o => o.id));
 
-    // Check if new orders were assigned
-    if (prevOrderIdsRef.current.size > 0) {
-      for (const order of assignedOrders) {
-        if (!prevOrderIdsRef.current.has(order.id)) {
-          // New assignment arrived!
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          setNewAssignmentAlert(order);
-          break;
-        }
+    if (!initialLoadDone.current) {
+      // First real snapshot — seed the ref silently, don't alert.
+      prevOrderIdsRef.current = currentIds;
+      initialLoadDone.current = true;
+      return;
+    }
+
+    // Subsequent snapshots — only alert for genuinely NEW order IDs.
+    for (const order of assignedOrders) {
+      if (!prevOrderIdsRef.current.has(order.id)) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        setNewAssignmentAlert(order);
+        break;
       }
     }
 
-    prevOrderIdsRef.current = currentAssigned;
+    prevOrderIdsRef.current = currentIds;
   }, [assignedOrders, ordersLoading]);
 
   // Online / Offline toggle (sync row 14)
@@ -158,6 +232,11 @@ export default function AgentDashboard() {
         style: 'destructive',
         onPress: async () => {
           try {
+            // Navigate first, THEN clear session.
+            // On Android, clearing Zustand state before navigation causes a
+            // race where the layout guard fires before the router can redirect,
+            // resulting in a frozen blank screen.
+            router.replace('/auth/login');
             await logout();
             clearSession();
           } catch (e) {
@@ -353,7 +432,7 @@ export default function AgentDashboard() {
       ? assignedOrders
       : activeTab === 'out'
       ? outOrders
-      : completedOrders;
+      : filteredCompletedOrders;
 
   return (
     <>
@@ -514,6 +593,56 @@ export default function AgentDashboard() {
           </TouchableOpacity>
         </View>
 
+        {/* Run Timeframe Filter for Completed Tab */}
+        {activeTab === 'completed' && (
+          <View style={s.timeframeRow}>
+            <TouchableOpacity
+              style={[s.timeframeChip, runTimeframe === 'today' && s.timeframeChipActive]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setClickTime(new Date());
+                setRunTimeframe('today');
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Filter today runs, total ${effectiveTodayDeliveries}`}
+            >
+              <Text style={[s.timeframeChipTxt, runTimeframe === 'today' && s.timeframeChipTxtActive]}>
+                Today ({effectiveTodayDeliveries})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[s.timeframeChip, (runTimeframe === 'week' || runTimeframe === '7days') && s.timeframeChipActive]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setClickTime(new Date());
+                setRunTimeframe('week');
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Filter weekly runs, total ${effectiveWeeklyDeliveries}`}
+            >
+              <Text style={[s.timeframeChipTxt, (runTimeframe === 'week' || runTimeframe === '7days') && s.timeframeChipTxtActive]}>
+                Weekly ({effectiveWeeklyDeliveries})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[s.timeframeChip, (runTimeframe === 'month' || runTimeframe === '30days') && s.timeframeChipActive]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setClickTime(new Date());
+                setRunTimeframe('month');
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Filter monthly runs, total ${effectiveMonthlyDeliveries}`}
+            >
+              <Text style={[s.timeframeChipTxt, (runTimeframe === 'month' || runTimeframe === '30days') && s.timeframeChipTxtActive]}>
+                Monthly ({effectiveMonthlyDeliveries})
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Orders List */}
         {ordersLoading ? (
           <View style={{ padding: Spacing.lg, gap: Spacing.md }}>
@@ -534,7 +663,11 @@ export default function AgentDashboard() {
                     ? 'No Assigned Runs'
                     : activeTab === 'out'
                     ? 'No Deliveries in Transit'
-                    : 'No Completed Orders Yet'
+                    : runTimeframe === 'today'
+                    ? "No Completed Orders Today"
+                    : runTimeframe === '7days'
+                    ? "No Completed Orders in Last 7 Days"
+                    : "No Completed Orders in Last 30 Days"
                 }
                 subtitle={
                   activeTab === 'assigned'
@@ -543,7 +676,7 @@ export default function AgentDashboard() {
                       : 'You are currently offline. Turn your status online to receive deliveries.'
                     : activeTab === 'out'
                     ? 'Orders marked as picked up will appear here.'
-                    : 'Delivered orders will appear here for your daily cash handover.'
+                    : 'Delivered orders will appear here for your cash handover.'
                 }
               />
             }
@@ -556,80 +689,142 @@ export default function AgentDashboard() {
           snapPoints={['55%', '85%']}
           title="Earnings & Cash Handover"
         >
-          {agentPerf && (
-            <ScrollView
-              style={s.sheetScroll}
-              contentContainerStyle={s.sheetContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {/* Cash Handover Notice */}
-              <View style={s.cashHeroCard}>
-                <Ionicons name="cash" size={28} color={Colors.green700} />
-                <View style={{ flex: 1 }}>
-                  <Text style={s.cashHeroLabel}>Cash to Hand Over Today</Text>
-                  <Text style={s.cashHeroAmount}>
-                    ₹{agentPerf.todayCash.toLocaleString('en-IN')}
-                  </Text>
-                  <Text style={s.cashHeroSub}>
-                    COD Collected from {agentPerf.todayDeliveries} completed run
-                    {agentPerf.todayDeliveries !== 1 ? 's' : ''}
-                  </Text>
-                </View>
+          <ScrollView
+            style={s.sheetScroll}
+            contentContainerStyle={s.sheetContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Cash Handover Notice */}
+            <View style={s.cashHeroCard}>
+              <Ionicons name="cash" size={28} color={Colors.green700} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.cashHeroLabel}>
+                  {runTimeframe === 'today'
+                    ? 'Cash to Hand Over Today'
+                    : runTimeframe === 'week' || runTimeframe === '7days'
+                    ? 'Weekly COD Total'
+                    : 'Monthly COD Total'}
+                </Text>
+                <Text style={s.cashHeroAmount}>
+                  ₹{(runTimeframe === 'today'
+                    ? effectiveTodayCash
+                    : runTimeframe === 'week' || runTimeframe === '7days'
+                    ? weeklyCashFromOrders
+                    : monthlyCashFromOrders
+                  ).toLocaleString('en-IN')}
+                </Text>
+                <Text style={s.cashHeroSub}>
+                  COD Collected from {filteredCompletedOrders.length} completed run
+                  {filteredCompletedOrders.length !== 1 ? 's' : ''}
+                </Text>
+              </View>
+            </View>
+
+            {/* Delivery Counts Grid — Interactive Timeframe Switcher */}
+            <View style={s.perfGrid}>
+              <TouchableOpacity
+                style={[s.perfBox, runTimeframe === 'today' && s.perfBoxActive]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setClickTime(new Date());
+                  setRunTimeframe('today');
+                }}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`Filter today runs from 12 AM, total ${effectiveTodayDeliveries}`}
+              >
+                <Text style={[s.perfLabel, runTimeframe === 'today' && s.perfLabelActive]}>Today</Text>
+                <Text style={[s.perfVal, runTimeframe === 'today' && s.perfValActive]}>{effectiveTodayDeliveries}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[s.perfBox, (runTimeframe === 'week' || runTimeframe === '7days') && s.perfBoxActive]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setClickTime(new Date());
+                  setRunTimeframe('week');
+                }}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`Filter weekly runs, total ${effectiveWeeklyDeliveries}`}
+              >
+                <Text style={[s.perfLabel, (runTimeframe === 'week' || runTimeframe === '7days') && s.perfLabelActive]}>Weekly</Text>
+                <Text style={[s.perfVal, (runTimeframe === 'week' || runTimeframe === '7days') && s.perfValActive]}>{effectiveWeeklyDeliveries}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[s.perfBox, (runTimeframe === 'month' || runTimeframe === '30days') && s.perfBoxActive]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setClickTime(new Date());
+                  setRunTimeframe('month');
+                }}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`Filter monthly runs, total ${effectiveMonthlyDeliveries}`}
+              >
+                <Text style={[s.perfLabel, (runTimeframe === 'month' || runTimeframe === '30days') && s.perfLabelActive]}>Monthly</Text>
+                <Text style={[s.perfVal, (runTimeframe === 'month' || runTimeframe === '30days') && s.perfValActive]}>{effectiveMonthlyDeliveries}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Today's Completed Runs with Cash Breakdown */}
+            <View style={s.todayRunsSection}>
+              <View style={s.runsSectionHeaderRow}>
+                <Text style={s.todayRunsTitle}>
+                  {runTimeframe === 'today'
+                    ? "Today's Deliveries"
+                    : runTimeframe === 'week' || runTimeframe === '7days'
+                    ? "Weekly Runs"
+                    : "Monthly Runs"}
+                </Text>
+                <Text style={s.periodCashTxt}>
+                  ₹{(runTimeframe === 'today'
+                    ? effectiveTodayCash
+                    : runTimeframe === 'week' || runTimeframe === '7days'
+                    ? weeklyCashFromOrders
+                    : monthlyCashFromOrders
+                  ).toLocaleString('en-IN')} Total
+                </Text>
               </View>
 
-              {/* Delivery Counts Grid */}
-              <View style={s.perfGrid}>
-                <View style={s.perfBox}>
-                  <Text style={s.perfLabel}>Today's Runs</Text>
-                  <Text style={s.perfVal}>{agentPerf.todayDeliveries}</Text>
+              {filteredCompletedOrders.length === 0 ? (
+                <View style={s.noRunsBox}>
+                  <Text style={s.noRunsTxt}>
+                    No runs completed {runTimeframe === 'today' ? 'today' : runTimeframe === 'week' || runTimeframe === '7days' ? 'this week' : 'this month'}.
+                  </Text>
                 </View>
-
-                <View style={s.perfBox}>
-                  <Text style={s.perfLabel}>7-Day Runs</Text>
-                  <Text style={s.perfVal}>{agentPerf.weeklyDeliveries}</Text>
-                </View>
-
-                <View style={s.perfBox}>
-                  <Text style={s.perfLabel}>30-Day Runs</Text>
-                  <Text style={s.perfVal}>{agentPerf.monthlyDeliveries}</Text>
-                </View>
-              </View>
-
-              {/* Today's Completed Runs with Cash Breakdown */}
-              <View style={s.todayRunsSection}>
-                <Text style={s.todayRunsTitle}>Today's Completed Deliveries</Text>
-
-                {completedOrders.length === 0 ? (
-                  <View style={s.noRunsBox}>
-                    <Text style={s.noRunsTxt}>No runs completed yet today.</Text>
-                  </View>
-                ) : (
-                  <View style={s.runsList}>
-                    {completedOrders.map(order => (
-                      <View key={order.id} style={s.runItemRow}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={s.runOrderNo}>{order.orderNo}</Text>
-                          <Text style={s.runCustomer}>
-                            {order.customerName}{' '}
-                            {order.addressSnapshot?.locality ? `• ${order.addressSnapshot.locality}` : ''}
-                          </Text>
-                        </View>
-                        <View style={{ alignItems: 'flex-end' }}>
-                          <Text style={s.runTotal}>₹{order.total}</Text>
-                          <Text style={s.runCod}>COD Collected</Text>
-                        </View>
+              ) : (
+                <View style={s.runsList}>
+                  {filteredCompletedOrders.map(order => (
+                    <View key={order.id} style={s.runItemRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.runOrderNo}>{order.orderNo}</Text>
+                        <Text style={s.runCustomer}>
+                          {order.customerName}{' '}
+                          {order.addressSnapshot?.locality ? `• ${order.addressSnapshot.locality}` : ''}
+                        </Text>
                       </View>
-                    ))}
-                  </View>
-                )}
-              </View>
-            </ScrollView>
-          )}
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={s.runTotal}>₹{order.total}</Text>
+                        <Text style={s.runCod}>COD Collected</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          </ScrollView>
         </BottomSheet>
 
         {/* New Assignment Modal Banner (sync row 5) */}
         {newAssignmentAlert && (
-          <Modal transparent animationType="fade">
+          <Modal
+            transparent
+            animationType="fade"
+            statusBarTranslucent   // Android: render over status bar correctly
+            onRequestClose={() => setNewAssignmentAlert(null)}
+          >
             <View style={s.alertOverlay}>
               <View style={s.alertCard}>
                 <Text style={s.alertBell}>🔔</Text>
@@ -1063,6 +1258,36 @@ const s = StyleSheet.create({
     color: Colors.inkSoft,
     marginTop: 2,
   },
+  timeframeRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.xs,
+    backgroundColor: Colors.cream,
+  },
+  timeframeChip: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: Radius.chip,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timeframeChipActive: {
+    backgroundColor: Colors.green700,
+    borderColor: Colors.green700,
+  },
+  timeframeChipTxt: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_600SemiBold',
+    color: Colors.inkSoft,
+  },
+  timeframeChipTxtActive: {
+    color: '#FFFFFF',
+    fontFamily: 'Manrope_700Bold',
+  },
   perfGrid: {
     flexDirection: 'row',
     gap: Spacing.sm,
@@ -1076,10 +1301,18 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.line,
   },
+  perfBoxActive: {
+    backgroundColor: '#E8F5E9',
+    borderColor: Colors.green700,
+  },
   perfLabel: {
     fontSize: FontSize.xs - 2,
     fontFamily: 'Manrope_600SemiBold',
     color: Colors.inkSoft,
+  },
+  perfLabelActive: {
+    color: Colors.green700,
+    fontFamily: 'Manrope_700Bold',
   },
   perfVal: {
     fontSize: FontSize.md,
@@ -1087,14 +1320,27 @@ const s = StyleSheet.create({
     color: Colors.ink,
     marginTop: 2,
   },
+  perfValActive: {
+    color: Colors.green700,
+  },
   todayRunsSection: {
     gap: Spacing.sm,
     marginTop: Spacing.xs,
+  },
+  runsSectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   todayRunsTitle: {
     fontSize: FontSize.sm,
     fontFamily: 'Manrope_700Bold',
     color: Colors.ink,
+  },
+  periodCashTxt: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: Colors.green700,
   },
   noRunsBox: {
     paddingVertical: Spacing.lg,

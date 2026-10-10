@@ -10,10 +10,10 @@ export default function CustomerLayout() {
   const { uid, role, status, isLoading } = useSession();
 
   // Still restoring session — render nothing (root layout shows branded splash)
-  if (isLoading) return null;
+  if (isLoading) return <View style={{ flex: 1, backgroundColor: Colors.green900 }} />;
 
   if (!uid || role !== 'customer') {
-    return <View style={{ flex: 1, backgroundColor: Colors.green900 }} />;
+    return <Redirect href="/auth/login" />;
   }
 
   return (

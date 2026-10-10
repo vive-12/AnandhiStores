@@ -14,41 +14,16 @@ import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, Radius, FontSize, Shadow } from '../../theme';
 import { useSettings } from '../../hooks/useSettings';
-import { useSession } from '../../hooks/useSession';
 import { saveSettings } from '../../services/settings';
-import { logout } from '../../services/auth';
 import { ScreenHeader, Button, useToast } from '../../components/ui';
 import type { Settings } from '../../types';
 
 export default function AdminSettingsScreen() {
   const router = useRouter();
   const { showToast } = useToast();
-  const { clearSession } = useSession();
   const { settings, loading, error } = useSettings();
 
   const [saving, setSaving] = useState(false);
-
-  const handleLogout = () => {
-    Alert.alert(
-      'Admin Log Out',
-      'Are you sure you want to sign out of the Admin panel?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Log Out',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await logout();
-              clearSession();
-            } catch (err) {
-              console.error('Logout error:', err);
-            }
-          },
-        },
-      ],
-    );
-  };
 
   // Form states
   const [minOrderValue, setMinOrderValue] = useState('99');
@@ -460,18 +435,6 @@ export default function AdminSettingsScreen() {
               />
             </View>
 
-            {/* ─── Admin Session / Logout Card ───────────────────────────── */}
-            <View style={[styles.card, { borderColor: '#FCA5A5', backgroundColor: '#FEF2F2', marginTop: Spacing.md }]}>
-              <Text style={[styles.cardTitle, { color: '#B91C1C' }]}>Administrator Session</Text>
-              <Text style={styles.cardSubtitle}>
-                Log out of the Store Administrator session and return to the main login screen.
-              </Text>
-              <Button
-                label="Log Out as Admin"
-                variant="danger"
-                onPress={handleLogout}
-              />
-            </View>
           </>
         )}
       </ScrollView>

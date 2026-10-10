@@ -13,9 +13,11 @@ import {
   RefreshControl,
   Modal,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import RNBottomSheet from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, Radius, FontSize, Shadow, StatusColors } from '../../theme';
+import AdminAgents from './agents';
 import { useSession } from '../../hooks/useSession';
 import { useCustomers } from '../../hooks/useCustomers';
 import { useAdminOrders } from '../../hooks/useOrders';
@@ -45,6 +47,7 @@ export default function AdminProfiles() {
   const { orders } = useAdminOrders();
 
   // Local UI State
+  const [activeRole, setActiveRole] = useState<'customers' | 'agents'>('customers');
   const [tab, setTab] = useState<ProfileTab>('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -210,12 +213,69 @@ export default function AdminProfiles() {
   return (
     <View style={styles.container}>
       <ScreenHeader
-        title="Customer Profiles"
-        subtitle="Customer approvals, addresses & purchase history"
+        title={activeRole === 'customers' ? 'Customer Profiles' : 'Delivery Agents'}
+        subtitle={
+          activeRole === 'customers'
+            ? 'Customer approvals, addresses & purchase history'
+            : 'Fleet onboarding, status & delivery performance'
+        }
       />
 
-      <ScrollView
-        style={styles.scroll}
+      {/* Top Role Switcher: Customers vs Delivery Agents */}
+      <View style={styles.roleSwitcher}>
+        <TouchableOpacity
+          style={[styles.roleTab, activeRole === 'customers' && styles.roleTabActive]}
+          onPress={() => {
+            Haptics.selectionAsync();
+            setActiveRole('customers');
+          }}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name="people-outline"
+            size={16}
+            color={activeRole === 'customers' ? Colors.green700 : Colors.inkSoft}
+          />
+          <Text
+            style={[
+              styles.roleTabTxt,
+              activeRole === 'customers' && styles.roleTabTxtActive,
+            ]}
+          >
+            Customers ({customers.length})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.roleTab, activeRole === 'agents' && styles.roleTabActive]}
+          onPress={() => {
+            Haptics.selectionAsync();
+            setActiveRole('agents');
+          }}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name="bicycle-outline"
+            size={16}
+            color={activeRole === 'agents' ? Colors.green700 : Colors.inkSoft}
+          />
+          <Text
+            style={[
+              styles.roleTabTxt,
+              activeRole === 'agents' && styles.roleTabTxtActive,
+            ]}
+          >
+            Delivery Agents
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {activeRole === 'agents' ? (
+        <AdminAgents showHeader={false} />
+      ) : (
+        <>
+          <ScrollView
+            style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -437,6 +497,33 @@ export default function AdminProfiles() {
                     ) : null}
                   </View>
 
+                  {/* Account Fees & Assigned Fleet (if configured) */}
+                  {(cust.deliveryFee !== undefined || cust.canDeposit !== undefined || cust.assignedAgentName) && (
+                    <View style={styles.feeBadgeRow}>
+                      {cust.deliveryFee !== undefined && (
+                        <View style={styles.feeBadge}>
+                          <Text style={styles.feeBadgeTxt}>
+                            🚚 Delivery Fee: ₹{cust.deliveryFee}
+                          </Text>
+                        </View>
+                      )}
+                      {cust.canDeposit !== undefined && (
+                        <View style={styles.feeBadge}>
+                          <Text style={styles.feeBadgeTxt}>
+                            💧 Can Deposit: ₹{cust.canDeposit}
+                          </Text>
+                        </View>
+                      )}
+                      {cust.assignedAgentName && (
+                        <View style={styles.feeBadge}>
+                          <Text style={styles.feeBadgeTxt}>
+                            🚴 Agent: {cust.assignedAgentName}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+
                   {/* ─── P16 Lifetime Stats ─────────────────────────────────── */}
                   <View style={styles.statsBanner}>
                     <View style={styles.statMetric}>
@@ -568,7 +655,13 @@ export default function AdminProfiles() {
       </BottomSheet>
 
       {/* ─── PIN Setup / Reset Modal ───────────────────────────────────────── */}
-      <Modal visible={!!pinModalUser} transparent animationType="fade">
+      <Modal
+        visible={!!pinModalUser}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setPinModalUser(null)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>
@@ -613,6 +706,8 @@ export default function AdminProfiles() {
           </View>
         </View>
       </Modal>
+        </>
+      )}
     </View>
   );
 }
@@ -621,6 +716,37 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.cream,
+  },
+  // Role Switcher
+  roleSwitcher: {
+    flexDirection: 'row',
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.sm,
+    padding: 3,
+    borderRadius: Radius.chip,
+  },
+  roleTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: Radius.chip,
+    gap: 6,
+  },
+  roleTabActive: {
+    backgroundColor: '#FFFFFF',
+    ...Shadow.card,
+  },
+  roleTabTxt: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_700Bold',
+    color: Colors.inkSoft,
+  },
+  roleTabTxtActive: {
+    color: Colors.green700,
   },
   scroll: {
     flex: 1,
@@ -1056,5 +1182,24 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontFamily: 'Manrope_800ExtraBold',
     color: '#ffffff',
+  },
+  feeBadgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+    marginTop: Spacing.xs,
+  },
+  feeBadge: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.chip,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  feeBadgeTxt: {
+    fontSize: FontSize.xs - 1,
+    fontFamily: 'Manrope_700Bold',
+    color: Colors.green700,
   },
 });

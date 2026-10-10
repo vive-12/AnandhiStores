@@ -884,6 +884,7 @@ export default function CustomerHomeScreen() {
         visible={showSortModal}
         transparent
         animationType="fade"
+        statusBarTranslucent
         onRequestClose={() => setShowSortModal(false)}
       >
         <TouchableOpacity

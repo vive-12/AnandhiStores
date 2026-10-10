@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Dimensions,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, Radius, FontSize, Shadow, StatusColors } from '../../theme';
@@ -25,21 +26,26 @@ import {
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function AnalyticsScreen() {
+  const router = useRouter();
   const [range, setRange] = useState<AnalyticsRange>('today');
   const [selectedDay, setSelectedDay] = useState<DailyBreakdownItem | null>(null);
+  const [clickTime, setClickTime] = useState<Date>(new Date());
 
   const { loading: statsLoading, error: statsError, refresh, computeMetrics } = useStats(30);
   const { items, loading: itemsLoading } = useItems();
 
   const metrics = useMemo(() => {
-    return computeMetrics(range);
-  }, [computeMetrics, range]);
+    return computeMetrics(range, clickTime);
+  }, [computeMetrics, range, clickTime]);
 
   const {
     revenue,
     deliveredCount,
     cancelledCount,
     aov,
+    upiRevenue = 0,
+    upiOrders = 0,
+    codRevenue = 0,
     itemQtyMap,
     dailyBreakdown,
   } = metrics;
@@ -79,8 +85,14 @@ export default function AnalyticsScreen() {
 
   const handleRangeChange = (newRange: AnalyticsRange) => {
     Haptics.selectionAsync();
+    setClickTime(new Date());
     setRange(newRange);
     setSelectedDay(null);
+  };
+
+  const handleRefresh = async () => {
+    setClickTime(new Date());
+    await refresh();
   };
 
   const totalAttempted = deliveredCount + cancelledCount;
@@ -93,7 +105,7 @@ export default function AnalyticsScreen() {
       <View style={s.container}>
         <ScreenHeader title="Analytics & Insights" subtitle="Track store performance" />
         <View style={s.content}>
-          <ErrorState message="Could not load analytics data." onRetry={refresh} />
+          <ErrorState message="Could not load analytics data." onRetry={handleRefresh} />
         </View>
       </View>
     );
@@ -112,7 +124,7 @@ export default function AnalyticsScreen() {
         refreshControl={
           <RefreshControl
             refreshing={statsLoading && !dailyBreakdown.length}
-            onRefresh={refresh}
+            onRefresh={handleRefresh}
             tintColor={Colors.green700}
           />
         }
@@ -124,6 +136,8 @@ export default function AnalyticsScreen() {
             style={[s.rangeChip, range === 'today' && s.rangeChipActive]}
             onPress={() => handleRangeChange('today')}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Filter sales for Today"
           >
             <Text style={[s.rangeText, range === 'today' && s.rangeTextActive]}>
               Today
@@ -131,22 +145,26 @@ export default function AnalyticsScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[s.rangeChip, range === '7days' && s.rangeChipActive]}
-            onPress={() => handleRangeChange('7days')}
+            style={[s.rangeChip, (range === 'week' || range === '7days') && s.rangeChipActive]}
+            onPress={() => handleRangeChange('week')}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Filter sales for Weekly"
           >
-            <Text style={[s.rangeText, range === '7days' && s.rangeTextActive]}>
-              7 Days
+            <Text style={[s.rangeText, (range === 'week' || range === '7days') && s.rangeTextActive]}>
+              Weekly
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[s.rangeChip, range === '30days' && s.rangeChipActive]}
-            onPress={() => handleRangeChange('30days')}
+            style={[s.rangeChip, (range === 'month' || range === '30days') && s.rangeChipActive]}
+            onPress={() => handleRangeChange('month')}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Filter sales for Monthly"
           >
-            <Text style={[s.rangeText, range === '30days' && s.rangeTextActive]}>
-              30 Days
+            <Text style={[s.rangeText, (range === 'month' || range === '30days') && s.rangeTextActive]}>
+              Monthly
             </Text>
           </TouchableOpacity>
         </View>
@@ -164,13 +182,15 @@ export default function AnalyticsScreen() {
               {/* Revenue Card */}
               <View style={[s.kpiCard, { borderLeftColor: Colors.green700, borderLeftWidth: 4 }]}>
                 <View style={s.kpiHeader}>
-                  <Text style={s.kpiLabel}>Revenue (Delivered)</Text>
+                  <Text style={s.kpiLabel}>Total Revenue</Text>
                   <View style={[s.iconBadge, { backgroundColor: '#E8F5E9' }]}>
                     <Ionicons name="cash-outline" size={18} color={Colors.green700} />
                   </View>
                 </View>
                 <Text style={s.kpiValue}>₹{revenue.toLocaleString('en-IN')}</Text>
-                <Text style={s.kpiNote}>COD Cash earned</Text>
+                <Text style={s.kpiNote}>
+                  COD ₹{codRevenue.toLocaleString('en-IN')} • UPI ₹{upiRevenue.toLocaleString('en-IN')}
+                </Text>
               </View>
 
               {/* Delivered Orders */}
@@ -212,6 +232,50 @@ export default function AnalyticsScreen() {
               </View>
             </View>
 
+            {/* Payment Mode Breakdown Card (Cash vs UPI QR) */}
+            <Card style={s.paymentSplitCard}>
+              <View style={s.sectionHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.sectionTitle}>Payment Breakdown</Text>
+                  <Text style={s.sectionSubtitle}>
+                    {range === 'today'
+                      ? 'Today sales distribution by payment method'
+                      : range === 'week' || range === '7days'
+                      ? 'Weekly sales distribution by payment method'
+                      : 'Monthly sales distribution by payment method'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={s.paymentSplitRow}>
+                {/* Cash COD */}
+                <View style={s.paymentSplitBox}>
+                  <View style={s.paymentSplitIcon}>
+                    <Ionicons name="cash-outline" size={20} color={Colors.green700} />
+                  </View>
+                  <Text style={s.paymentSplitAmount}>₹{codRevenue.toLocaleString('en-IN')}</Text>
+                  <Text style={s.paymentSplitLabel}>Cash on Delivery</Text>
+                  <Text style={s.paymentSplitSub}>
+                    {revenue > 0 ? `${Math.round((codRevenue / revenue) * 100)}% of sales` : '0%'}
+                  </Text>
+                </View>
+
+                <View style={s.paymentSplitDivider} />
+
+                {/* UPI QR */}
+                <View style={s.paymentSplitBox}>
+                  <View style={[s.paymentSplitIcon, { backgroundColor: '#EDE9FE' }]}>
+                    <Ionicons name="qr-code-outline" size={20} color="#7C3AED" />
+                  </View>
+                  <Text style={s.paymentSplitAmount}>₹{upiRevenue.toLocaleString('en-IN')}</Text>
+                  <Text style={s.paymentSplitLabel}>Store UPI QR</Text>
+                  <Text style={s.paymentSplitSub}>
+                    {upiOrders} orders {revenue > 0 ? `(${Math.round((upiRevenue / revenue) * 100)}%)` : ''}
+                  </Text>
+                </View>
+              </View>
+            </Card>
+
             {/* Performance Highlights Bar */}
             <Card style={s.highlightCard}>
               <View style={s.highlightRow}>
@@ -228,36 +292,46 @@ export default function AnalyticsScreen() {
                 </View>
                 <View style={s.highlightDivider} />
                 <View style={s.highlightItem}>
-                  <Text style={s.highlightTitle}>Period Range</Text>
-                  <Text style={s.highlightValue}>
-                    {range === 'today' ? '1 Day' : range === '7days' ? '7 Days' : '30 Days'}
+                  <Text style={s.highlightTitle}>Timeframe</Text>
+                  <Text style={s.highlightValue} numberOfLines={1}>
+                    {range === 'today'
+                      ? 'Today'
+                      : range === 'week' || range === '7days'
+                      ? 'Weekly'
+                      : 'Monthly'}
                   </Text>
                 </View>
               </View>
             </Card>
 
-            {/* Daily Trend Chart (for 7days / 30days) */}
+            {/* Daily Trend Chart (Per-day figures starting from 12 AM) */}
             <Card style={s.chartCard}>
               <View style={s.sectionHeader}>
                 <View>
                   <Text style={s.sectionTitle}>
-                    {range === 'today' ? "Today's Delivery Output" : 'Daily Revenue Trend'}
+                    {range === 'today'
+                      ? "Today's Delivery Sales"
+                      : range === 'week' || range === '7days'
+                      ? 'Weekly Daily Sales'
+                      : 'Monthly Daily Sales'}
                   </Text>
                   <Text style={s.sectionSubtitle}>
                     {range === 'today'
-                      ? 'Delivered revenue recorded today'
-                      : 'Tap any day bar to view breakdown'}
+                      ? 'Per-day sales recorded today'
+                      : range === 'week' || range === '7days'
+                      ? '7-Day breakdown (Sun to Sat)'
+                      : `Per-day breakdown (${dailyBreakdown.length} days recorded)`}
                   </Text>
                 </View>
                 <Ionicons name="bar-chart-outline" size={20} color={Colors.green700} />
               </View>
 
-              {/* Selected Day Tooltip (7days / 30days only) */}
-              {selectedDay && range !== 'today' && (
+              {/* Selected Day Tooltip */}
+              {selectedDay && (
                 <View style={s.dayTooltip}>
-                  <Text style={s.tooltipDate}>{selectedDay.date} ({selectedDay.label})</Text>
+                  <Text style={s.tooltipDate}>{selectedDay.fullLabel || selectedDay.date}</Text>
                   <Text style={s.tooltipDetails}>
-                    Revenue: <Text style={s.bold}>₹{selectedDay.revenue.toLocaleString('en-IN')}</Text> | Orders: <Text style={s.bold}>{selectedDay.orders}</Text>
+                    Total: <Text style={s.bold}>₹{selectedDay.revenue.toLocaleString('en-IN')}</Text> | COD: <Text style={s.bold}>₹{selectedDay.codRevenue.toLocaleString('en-IN')}</Text> | UPI: <Text style={s.bold}>₹{selectedDay.upiRevenue.toLocaleString('en-IN')}</Text> | Orders: <Text style={s.bold}>{selectedDay.orders}</Text>
                   </Text>
                 </View>
               )}
@@ -436,9 +510,10 @@ const s = StyleSheet.create({
   },
   rangeChip: {
     flex: 1,
-    paddingVertical: 7,
+    paddingVertical: 9,
     borderRadius: Radius.chip - 2,
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: 'transparent',
   },
   rangeChipActive: {
@@ -463,6 +538,53 @@ const s = StyleSheet.create({
   },
   loadingContainer: {
     gap: Spacing.md,
+  },
+
+  // Payment Breakdown Card
+  paymentSplitCard: {
+    padding: Spacing.md,
+  },
+  paymentSplitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Spacing.xs,
+  },
+  paymentSplitBox: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  paymentSplitIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#E8F5E9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+  },
+  paymentSplitAmount: {
+    fontSize: FontSize.lg,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: Colors.ink,
+  },
+  paymentSplitLabel: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_600SemiBold',
+    color: Colors.inkSoft,
+    marginTop: 2,
+  },
+  paymentSplitSub: {
+    fontSize: FontSize.xs - 2,
+    fontFamily: 'Manrope_500Medium',
+    color: Colors.inkSoft,
+    marginTop: 1,
+  },
+  paymentSplitDivider: {
+    width: 1,
+    height: 50,
+    backgroundColor: Colors.line,
+    marginHorizontal: Spacing.md,
   },
 
   // KPI Grid
@@ -753,5 +875,55 @@ const s = StyleSheet.create({
   itemProgressFill: {
     height: '100%',
     borderRadius: 3,
+  },
+  qrBannerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: Colors.green700,
+    borderRadius: Radius.card,
+    padding: Spacing.md,
+    ...Shadow.card,
+  },
+  qrBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    flex: 1,
+  },
+  qrBannerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.green700,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qrBannerTitle: {
+    fontSize: FontSize.sm,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: Colors.green900,
+  },
+  qrBannerSub: {
+    fontSize: FontSize.xs - 2,
+    fontFamily: 'Manrope_500Medium',
+    color: Colors.inkSoft,
+    marginTop: 2,
+  },
+  qrBannerAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: Colors.amber,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.chip,
+  },
+  qrBannerActionTxt: {
+    fontSize: FontSize.xs - 1,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: Colors.green900,
   },
 });

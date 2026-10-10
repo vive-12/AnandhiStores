@@ -21,7 +21,9 @@ export function openMapChoice(lat, lng, label) {
     const url = lat && lng
       ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
       : `https://www.google.com/maps/search/?api=1&query=${encodedLabel}`;
-    Linking.openURL(url);
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Maps Error', 'Could not open Google Maps.');
+    });
   };
 
   const openWaze = () => {
@@ -29,8 +31,10 @@ export function openMapChoice(lat, lng, label) {
       ? `waze://?ll=${lat},${lng}&navigate=yes`
       : `waze://?q=${encodedLabel}`;
     Linking.canOpenURL(url).then(ok => {
-      if (ok) Linking.openURL(url);
-      else Linking.openURL(`https://www.waze.com/ul?q=${encodedLabel}`);
+      if (ok) Linking.openURL(url).catch(() => Alert.alert('Maps Error', 'Could not open Waze.'));
+      else Linking.openURL(`https://www.waze.com/ul?q=${encodedLabel}`).catch(() => Alert.alert('Maps Error', 'Could not open Waze web.'));
+    }).catch(() => {
+      Alert.alert('Maps Error', 'Could not launch maps application.');
     });
   };
 

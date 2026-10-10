@@ -61,9 +61,9 @@ export default function AdminAlerts() {
           style: 'destructive',
           onPress: async () => {
             try {
+              router.replace('/auth/login');
               await logout();
               clearSession();
-              router.replace('/auth/login');
             } catch (err) {
               console.error('Logout error:', err);
             }
@@ -84,6 +84,7 @@ export default function AdminAlerts() {
   const [segment, setSegment] = useState<SegmentFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [adminMenuVisible, setAdminMenuVisible] = useState(false);
 
   // Selected Order for Action Sheets
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -274,9 +275,21 @@ export default function AdminAlerts() {
         'success',
       );
       assignSheetRef.current?.close();
+      setSelectedOrder(null);
     } catch (err: any) {
       console.error('Assign agent error:', err);
-      showToast(err.message || 'Could not assign agent.', 'error');
+      const isMissing =
+        err?.message?.includes('No document to update') ||
+        err?.message?.includes('not found') ||
+        err?.code === 'not-found';
+
+      if (isMissing) {
+        showToast('This order has been completed or removed.', 'info');
+        assignSheetRef.current?.close();
+        setSelectedOrder(null);
+      } else {
+        showToast(err.message || 'Could not assign agent.', 'error');
+      }
     } finally {
       setActionLoading(false);
     }
@@ -514,39 +527,22 @@ export default function AdminAlerts() {
     <View style={styles.container}>
       {/* ─── Top Admin Header (supports Notch & Dynamic Island) ──────────── */}
       <View style={[styles.topHeader, { paddingTop: insets.top + Spacing.xs }]}>
-        <View>
-          <Text style={styles.adminTitle}>Anandhi Stores</Text>
+        <TouchableOpacity
+          style={styles.storeHeaderLeft}
+          onPress={() => setAdminMenuVisible(true)}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Anandhi Stores Options & Log Out"
+        >
+          <View style={styles.storeTitleRow}>
+            <Text style={styles.adminTitle}>Anandhi Stores</Text>
+            <Ionicons name="chevron-down" size={16} color={Colors.green900} style={{ marginLeft: 4 }} />
+          </View>
           <Text style={styles.adminSub}>Live Store Operations & Orders</Text>
-        </View>
+        </TouchableOpacity>
 
-        <View style={styles.headerRightBtns}>
-          <TouchableOpacity
-            style={styles.manualOrderBtn}
-            onPress={() => setManualOrderVisible(true)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.manualOrderBtnText}>+ New Order</Text>
-          </TouchableOpacity>
-
-          <NotificationBell color="#FFFFFF" />
-
-          <TouchableOpacity
-            style={styles.settingsIconBtn}
-            onPress={() => router.push('/admin/settings')}
-            hitSlop={8}
-          >
-            <Text style={{ fontSize: 20 }}>⚙️</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.logoutIconBtn}
-            onPress={handleLogout}
-            hitSlop={8}
-            activeOpacity={0.8}
-            accessibilityLabel="Log Out"
-          >
-            <Ionicons name="log-out-outline" size={18} color="#EF4444" />
-          </TouchableOpacity>
+        <View style={styles.bellWrap}>
+          <NotificationBell color={Colors.green900} size={22} />
         </View>
       </View>
 
@@ -569,6 +565,8 @@ export default function AdminAlerts() {
             style={[styles.statBox, segment === 'all' && styles.statBoxActive]}
             onPress={() => setSegment('all')}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Filter all orders, total ${stats.total}`}
           >
             <Text style={[styles.statVal, { color: '#0ea5e9' }]}>{stats.total}</Text>
             <Text style={styles.statLabel}>Total Orders</Text>
@@ -578,6 +576,8 @@ export default function AdminAlerts() {
             style={[styles.statBox, segment === 'active' && styles.statBoxActive]}
             onPress={() => setSegment('active')}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Filter active orders, total ${stats.active}`}
           >
             <Text style={[styles.statVal, { color: '#6366f1' }]}>{stats.active}</Text>
             <Text style={styles.statLabel}>Active Orders</Text>
@@ -587,6 +587,8 @@ export default function AdminAlerts() {
             style={[styles.statBox, segment === 'delivered' && styles.statBoxActive]}
             onPress={() => setSegment('delivered')}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Filter delivered orders, total ${stats.deliveredToday}`}
           >
             <Text style={[styles.statVal, { color: '#10b981' }]}>{stats.deliveredToday}</Text>
             <Text style={styles.statLabel}>Today Delivered</Text>
@@ -596,6 +598,8 @@ export default function AdminAlerts() {
             style={[styles.statBox, segment === 'unassigned' && styles.statBoxActive]}
             onPress={() => setSegment('unassigned')}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Filter unassigned orders, total ${unassignedOrders.length}`}
           >
             <Text style={[styles.statVal, { color: Colors.amber }]}>{unassignedOrders.length}</Text>
             <Text style={styles.statLabel}>Unassigned</Text>
@@ -639,19 +643,24 @@ export default function AdminAlerts() {
         </View>
 
         {/* ─── Filter Segments Pills ──────────────────────────────────────── */}
-        <View style={styles.segmentsRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.segmentsRow}
+        >
           {(['all', 'unassigned', 'active', 'delivered', 'cancelled'] as SegmentFilter[]).map(seg => (
             <TouchableOpacity
               key={seg}
               style={[styles.segChip, segment === seg && styles.segChipActive]}
               onPress={() => setSegment(seg)}
+              activeOpacity={0.8}
             >
               <Text style={[styles.segChipText, segment === seg && styles.segChipTextActive]}>
                 {seg.charAt(0).toUpperCase() + seg.slice(1)}
               </Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
 
         {/* ─── Loading Skeletons ───────────────────────────────────────────── */}
         {ordersLoading && (
@@ -852,6 +861,10 @@ export default function AdminAlerts() {
         ref={assignSheetRef}
         title={selectedOrder?.agentId ? 'Reassign Delivery Agent' : 'Assign Delivery Agent'}
         snapPoints={['55%', '85%']}
+        onClose={() => {
+          assignSheetRef.current?.close();
+          setSelectedOrder(null);
+        }}
       >
         <View style={styles.sheetContent}>
           {selectedOrder && (
@@ -928,6 +941,16 @@ export default function AdminAlerts() {
                 onPress={() => handleConfirmAssign(true)}
               />
             )}
+
+            <Button
+              label="Close"
+              variant="ghost"
+              disabled={actionLoading}
+              onPress={() => {
+                assignSheetRef.current?.close();
+                setSelectedOrder(null);
+              }}
+            />
           </View>
         </View>
       </BottomSheet>
@@ -937,6 +960,10 @@ export default function AdminAlerts() {
         ref={detailSheetRef}
         title="Order Details"
         snapPoints={['65%', '90%']}
+        onClose={() => {
+          detailSheetRef.current?.close();
+          setSelectedOrder(null);
+        }}
       >
         <View style={styles.sheetContent}>
           {selectedOrder && (
@@ -1044,7 +1071,13 @@ export default function AdminAlerts() {
       </BottomSheet>
 
       {/* ─── Cancel Order Modal ───────────────────────────────────────────── */}
-      <Modal visible={cancelModalVisible} transparent animationType="fade">
+      <Modal
+        visible={cancelModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setCancelModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Cancel Order #{selectedOrder?.orderNo}</Text>
@@ -1085,7 +1118,11 @@ export default function AdminAlerts() {
       </Modal>
 
       {/* ─── Manual Order Modal (P15) ─────────────────────────────────────── */}
-      <Modal visible={manualOrderVisible} animationType="slide">
+      <Modal
+        visible={manualOrderVisible}
+        animationType="slide"
+        onRequestClose={() => setManualOrderVisible(false)}
+      >
         <View style={styles.manualModalContainer}>
           <ScreenHeader
             title="Create Manual Order"
@@ -1276,6 +1313,105 @@ export default function AdminAlerts() {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* ─── Store & Admin Options Modal (Logout & Settings) ───────────── */}
+      <Modal
+        visible={adminMenuVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setAdminMenuVisible(false)}
+      >
+        <View style={styles.menuOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setAdminMenuVisible(false)}
+          />
+          <View style={styles.menuSheet}>
+            {/* Store Header */}
+            <View style={styles.menuHeader}>
+              <View style={styles.menuStoreBadge}>
+                <Text style={{ fontSize: 24 }}>🏬</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuStoreTitle}>Anandhi Stores</Text>
+                <Text style={styles.menuStoreSub}>
+                  Logged in as {adminName || 'Store Admin'} • 9876543219
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setAdminMenuVisible(false)}
+                style={styles.menuCloseBtn}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Close menu"
+              >
+                <Ionicons name="close" size={20} color={Colors.inkSoft} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Menu Options */}
+            <View style={styles.menuList}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setAdminMenuVisible(false);
+                  setManualOrderVisible(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuItemIcon, { backgroundColor: '#FEF3C7' }]}>
+                  <Ionicons name="add-circle-outline" size={20} color={Colors.amber} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.menuItemTitle}>Create Manual Order</Text>
+                  <Text style={styles.menuItemSub}>Place walk-in or customer phone orders</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Colors.inkSoft} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setAdminMenuVisible(false);
+                  router.push('/admin/settings');
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuItemIcon, { backgroundColor: '#EAF8F0' }]}>
+                  <Ionicons name="settings-outline" size={20} color={Colors.green900} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.menuItemTitle}>Store Settings & Hours</Text>
+                  <Text style={styles.menuItemSub}>Delivery slots, timings, store address</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Colors.inkSoft} />
+              </TouchableOpacity>
+
+              <View style={styles.menuDivider} />
+
+              <TouchableOpacity
+                style={[styles.menuItem, styles.menuItemLogout]}
+                onPress={() => {
+                  setAdminMenuVisible(false);
+                  setTimeout(() => handleLogout(), 250);
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuItemIcon, { backgroundColor: '#FEE2E2' }]}>
+                  <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.menuItemTitle, { color: '#EF4444' }]}>Log Out</Text>
+                  <Text style={styles.menuItemSub}>Sign out of Admin Dashboard safely</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#EF4444" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1295,6 +1431,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.line,
   },
+  storeHeaderLeft: {
+    flex: 1,
+    paddingRight: Spacing.xs,
+  },
+  storeTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   adminTitle: {
     fontSize: FontSize.lg,
     fontFamily: 'Manrope_800ExtraBold',
@@ -1306,41 +1450,105 @@ const styles = StyleSheet.create({
     color: Colors.inkSoft,
     marginTop: 1,
   },
-  headerRightBtns: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  manualOrderBtn: {
-    backgroundColor: Colors.green700,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
-    borderRadius: Radius.button,
-  },
-  manualOrderBtnText: {
-    color: '#ffffff',
-    fontFamily: 'Manrope_600SemiBold',
-    fontSize: FontSize.xs,
-  },
-  settingsIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  bellWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: Colors.cream,
-    alignItems: 'center',
-    justifyContent: 'center',
     borderWidth: 1,
     borderColor: Colors.line,
-  },
-  logoutIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FEE2E2',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
+  },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  },
+  menuSheet: {
+    backgroundColor: Colors.card,
+    borderRadius: 24,
+    padding: Spacing.lg,
+    width: '100%',
+    maxWidth: 420,
+    ...Shadow.card,
+    elevation: 12,
+  },
+  menuHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingBottom: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.line,
+  },
+  menuStoreBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#EAF8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuStoreTitle: {
+    fontSize: FontSize.md,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: Colors.green900,
+  },
+  menuStoreSub: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_500Medium',
+    color: Colors.inkSoft,
+    marginTop: 2,
+  },
+  menuCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.cream,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuList: {
+    paddingTop: Spacing.md,
+    gap: Spacing.xs,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: Radius.card,
+  },
+  menuItemLogout: {
+    backgroundColor: '#FEF2F2',
+    marginTop: 4,
+  },
+  menuItemIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuItemTitle: {
+    fontSize: FontSize.sm,
+    fontFamily: 'Manrope_700Bold',
+    color: Colors.ink,
+  },
+  menuItemSub: {
+    fontSize: 11,
+    fontFamily: 'Manrope_500Medium',
+    color: Colors.inkSoft,
+    marginTop: 1,
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: Colors.line,
+    marginVertical: Spacing.xs,
   },
   scroll: {
     flex: 1,
@@ -1439,7 +1647,8 @@ const styles = StyleSheet.create({
   },
   segmentsRow: {
     flexDirection: 'row',
-    gap: Spacing.xs,
+    gap: Spacing.xs + 2,
+    paddingRight: Spacing.lg,
   },
   segChip: {
     paddingHorizontal: Spacing.md,

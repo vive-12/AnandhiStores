@@ -10,6 +10,7 @@ import {
   Linking,
   Platform,
   Modal,
+  Image,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +18,8 @@ import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Spacing, Radius, FontSize, Shadow, StatusColors } from '../../../theme';
 import { useSession } from '../../../hooks/useSession';
+import { useQRCodes } from '../../../hooks/useQRCodes';
+import { generateUPIUri, getQRCodeImageUrl } from '../../../services/qr';
 import { listenOrder, transitionOrder, updateOrderChecklist } from '../../../services/orders';
 import { openMapChoice } from '../../../utils/openMap';
 import {
@@ -28,13 +31,14 @@ import {
   CardSkeleton,
   useToast,
 } from '../../../components/ui';
-import type { Order, Actor } from '../../../types';
+import type { Order, Actor, PaymentMethod } from '../../../types';
 
 export default function ActiveDeliveryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { uid, name: sessionName } = useSession();
   const { showToast } = useToast();
+  const { defaultQR } = useQRCodes();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,8 +51,10 @@ export default function ActiveDeliveryScreen() {
   // Empty cans tracking
   const [emptyCansCollected, setEmptyCansCollected] = useState(0);
 
-  // Delivery confirmation modal
+  // Delivery confirmation & QR modal
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [deliveryPaymentMethod, setDeliveryPaymentMethod] = useState<PaymentMethod>('cash');
 
   // Subscribe to order
   useEffect(() => {
@@ -60,7 +66,14 @@ export default function ActiveDeliveryScreen() {
       .then(raw => {
         if (raw) {
           try {
-            setCheckedItems(JSON.parse(raw));
+            const parsed = JSON.parse(raw);
+            const loaded: Record<string | number, boolean> = {};
+            Object.entries(parsed).forEach(([k, v]) => {
+              loaded[k] = Boolean(v);
+              const numKey = Number(k);
+              if (!isNaN(numKey)) loaded[numKey] = Boolean(v);
+            });
+            setCheckedItems(loaded);
           } catch (_) {}
         }
       })
@@ -74,8 +87,14 @@ export default function ActiveDeliveryScreen() {
           setEmptyCansCollected(orderData.pendingCansToCollect);
         }
         if (orderData?.checkedItems) {
-          setCheckedItems(orderData.checkedItems);
-          AsyncStorage.setItem(`@order_checklist_${id}`, JSON.stringify(orderData.checkedItems)).catch(() => {});
+          const loaded: Record<string | number, boolean> = {};
+          Object.entries(orderData.checkedItems).forEach(([k, v]) => {
+            loaded[k] = Boolean(v);
+            const numKey = Number(k);
+            if (!isNaN(numKey)) loaded[numKey] = Boolean(v);
+          });
+          setCheckedItems(loaded);
+          AsyncStorage.setItem(`@order_checklist_${id}`, JSON.stringify(loaded)).catch(() => {});
         }
         setLoading(false);
       },
@@ -134,11 +153,21 @@ export default function ActiveDeliveryScreen() {
     openMapChoice(lat, lng, label);
   };
 
-  // Toggle item checklist (persisted to AsyncStorage & Firestore)
+  // Toggle item checklist (persisted to AsyncStorage & Firestore, editable ONLY before delivered)
   const toggleItemCheck = async (idx: number) => {
+    if (isDelivered) {
+      showToast('Order is delivered. Checklist is locked.', 'info');
+      return;
+    }
     Haptics.selectionAsync();
-    const updated = { ...checkedItems, [idx]: !checkedItems[idx] };
-    setCheckedItems(updated);
+    const currentVal = !!checkedItems[idx] || !!(checkedItems as any)[String(idx)];
+    const newVal = !currentVal;
+    const updated: Record<string | number, boolean> = {
+      ...checkedItems,
+      [idx]: newVal,
+      [String(idx)]: newVal,
+    };
+    setCheckedItems(loaded => ({ ...loaded, [idx]: newVal, [String(idx)]: newVal }));
     if (order?.id) {
       AsyncStorage.setItem(`@order_checklist_${order.id}`, JSON.stringify(updated)).catch(() => {});
       try {
@@ -184,23 +213,33 @@ export default function ActiveDeliveryScreen() {
   };
 
   // Action: Confirm and Mark Delivered
-  const handleConfirmDelivered = async () => {
+  const handleConfirmDelivered = async (method: PaymentMethod = deliveryPaymentMethod) => {
     if (!order) return;
 
     try {
       setUpdating(true);
       setShowConfirmModal(false);
+      setShowQRModal(false);
 
+      const isUpi = method === 'upi_qr';
       await transitionOrder({
         orderId: order.id,
         order,
         toStatus: 'delivered',
         actor,
         emptyCansCollected: hasWaterCans ? emptyCansCollected : undefined,
+        paymentMethod: method,
+        qrId: isUpi ? (defaultQR?.id || null) : null,
+        qrLabel: isUpi ? (defaultQR?.name || 'Store UPI QR') : null,
       });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast('Order Delivered Successfully! 🎉', 'success');
+      showToast(
+        isUpi
+          ? 'Order Delivered & UPI QR Payment Recorded! 🎉'
+          : 'Order Delivered & Cash Collected! 🎉',
+        'success',
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to mark delivered';
       showToast(msg, 'error');
@@ -398,11 +437,14 @@ export default function ActiveDeliveryScreen() {
                     setEmptyCansCollected(prev => Math.max(0, prev - 1));
                   }}
                   disabled={emptyCansCollected <= 0 || isDelivered}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Decrease empty cans collected"
                 >
                   <Text style={s.stepBtnTxt}>−</Text>
                 </TouchableOpacity>
 
-                <Text style={s.stepValue}>{emptyCansCollected}</Text>
+                <Text style={s.stepValue} accessibilityLabel={`${emptyCansCollected} empty cans collected`}>{emptyCansCollected}</Text>
 
                 <TouchableOpacity
                   style={s.stepBtn}
@@ -411,6 +453,9 @@ export default function ActiveDeliveryScreen() {
                     setEmptyCansCollected(prev => prev + 1);
                   }}
                   disabled={isDelivered}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Increase empty cans collected"
                 >
                   <Text style={s.stepBtnTxt}>+</Text>
                 </TouchableOpacity>
@@ -424,18 +469,28 @@ export default function ActiveDeliveryScreen() {
           <Card style={s.card}>
             <View style={s.sectionHeader}>
               <Text style={s.sectionTitle}>Order Checklist ({order.items.length} items)</Text>
-              <Text style={s.sectionSubtitle}>Tap items to check off before run</Text>
+              <Text style={s.sectionSubtitle}>
+                {isDelivered ? 'Checklist locked (Order delivered)' : 'Tap items to check off before delivery'}
+              </Text>
             </View>
 
             <View style={s.checklist}>
               {order.items.map((item, idx) => {
-                const isChecked = !!checkedItems[idx];
+                const isChecked = !!checkedItems[idx] || !!(checkedItems as any)[String(idx)];
                 return (
                   <TouchableOpacity
                     key={`${item.itemId}-${idx}`}
-                    style={[s.checkItemRow, isChecked && s.checkItemRowChecked]}
+                    style={[
+                      s.checkItemRow,
+                      isChecked && s.checkItemRowChecked,
+                      isDelivered && { opacity: 0.8 },
+                    ]}
                     onPress={() => toggleItemCheck(idx)}
+                    disabled={isDelivered}
                     activeOpacity={0.8}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: isChecked }}
+                    accessibilityLabel={`Item ${item.name}, quantity ${item.qty}`}
                   >
                     <View style={[s.checkbox, isChecked && s.checkboxChecked]}>
                       {isChecked && (
@@ -498,6 +553,34 @@ export default function ActiveDeliveryScreen() {
 
           {isOut && (
             <View style={s.swipeContainer}>
+              {/* QR Button Requested by User */}
+              <TouchableOpacity
+                style={s.qrTriggerBtn}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  setShowQRModal(true);
+                }}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Show QR code for customer to scan and pay"
+              >
+                <View style={s.qrTriggerLeft}>
+                  <View style={s.qrIconCircle}>
+                    <Ionicons name="qr-code" size={22} color="#FFFFFF" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.qrTriggerTitle}>Customer paying online via UPI?</Text>
+                    <Text style={s.qrTriggerSub}>
+                      Tap for Store QR Code (GPay / PhonePe / Paytm)
+                    </Text>
+                  </View>
+                </View>
+                <View style={s.qrActionBadge}>
+                  <Text style={s.qrActionBadgeTxt}>QR</Text>
+                  <Ionicons name="chevron-forward" size={14} color={Colors.green900} />
+                </View>
+              </TouchableOpacity>
+
               <Text style={s.swipeInstruction}>
                 Slide right after arriving at customer's doorstep:
               </Text>
@@ -521,6 +604,10 @@ export default function ActiveDeliveryScreen() {
                       minute: '2-digit',
                     })
                   : 'just now'}
+                {' • '}
+                {order.paymentMethod === 'upi_qr'
+                  ? `📱 UPI QR (${order.qrLabel || 'Store QR'})`
+                  : '💵 Cash Collected'}
               </Text>
               {hasWaterCans && order.emptyCansCollected !== undefined && (
                 <Text style={s.deliveredCans}>
@@ -532,18 +619,61 @@ export default function ActiveDeliveryScreen() {
         </View>
       </ScrollView>
 
-      {/* Delivery Cash Confirmation Modal */}
-      <Modal visible={showConfirmModal} transparent animationType="fade">
+      {/* Customer Scan-to-Pay QR Modal */}
+      <Modal
+        visible={showQRModal}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setShowQRModal(false)}
+      >
         <View style={s.modalOverlay}>
-          <View style={s.modalCard}>
-            <View style={s.modalIconCircle}>
-              <Ionicons name="cash" size={36} color={Colors.green700} />
+          <View style={s.qrSheetCard}>
+            <View style={s.qrSheetHeader}>
+              <View>
+                <Text style={s.qrSheetTitle}>Scan to Pay UPI</Text>
+                <Text style={s.qrSheetSub}>
+                  {defaultQR?.name || 'Primary Store QR'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowQRModal(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close QR sheet"
+              >
+                <Ionicons name="close" size={24} color={Colors.ink} />
+              </TouchableOpacity>
             </View>
-            <Text style={s.modalTitle}>Confirm Cash Collection</Text>
-            <Text style={s.modalMsg}>
-              Did you collect <Text style={s.modalBold}>₹{order.total}</Text> in cash from{' '}
-              <Text style={s.modalBold}>{order.customerName}</Text>?
-            </Text>
+
+            <View style={s.qrAmountBanner}>
+              <Text style={s.qrAmountLabel}>EXACT AMOUNT TO COLLECT</Text>
+              <Text style={s.qrAmountVal}>₹{order.total}</Text>
+            </View>
+
+            <View style={s.qrCodeWrapper}>
+              <Image
+                source={{
+                  uri:
+                    defaultQR?.imageUrl ||
+                    getQRCodeImageUrl(
+                      generateUPIUri({
+                        upiId: defaultQR?.upiId || 'anandhistores@okaxis',
+                        merchantName: defaultQR?.merchantName || 'Anandhi Stores',
+                        amount: order.total,
+                        orderNo: order.orderNo,
+                      }),
+                      320,
+                    ),
+                }}
+                style={s.qrCodeImg}
+              />
+              <Text style={s.qrUpiText}>UPI: {defaultQR?.upiId || 'anandhistores@okaxis'}</Text>
+              <Text style={s.qrPayeeText}>Payee: {defaultQR?.merchantName || 'Anandhi Stores'}</Text>
+              <Text style={s.qrAppHint}>
+                Ask customer to scan using Google Pay, PhonePe, Paytm, or any UPI app
+              </Text>
+            </View>
 
             {hasWaterCans && (
               <View style={s.modalCanBanner}>
@@ -556,8 +686,129 @@ export default function ActiveDeliveryScreen() {
 
             <View style={s.modalBtnStack}>
               <Button
-                label={updating ? 'Confirming...' : 'Yes, Cash Collected'}
-                onPress={handleConfirmDelivered}
+                label={updating ? 'Confirming...' : 'Customer Paid via QR • Complete Run'}
+                onPress={() => handleConfirmDelivered('upi_qr')}
+                loading={updating}
+                variant="primary"
+              />
+
+              <TouchableOpacity
+                style={s.modalCancelBtn}
+                onPress={() => setShowQRModal(false)}
+              >
+                <Text style={s.modalCancelTxt}>Cancel (Customer will pay cash)</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delivery Confirmation Modal with Payment Choice */}
+      <Modal
+        visible={showConfirmModal}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setShowConfirmModal(false)}
+      >
+        <View style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <View style={s.modalIconCircle}>
+              <Ionicons
+                name={deliveryPaymentMethod === 'upi_qr' ? 'qr-code' : 'cash'}
+                size={36}
+                color={Colors.green700}
+              />
+            </View>
+            <Text style={s.modalTitle}>Confirm Order Delivery</Text>
+            <Text style={s.modalMsg}>
+              Collect <Text style={s.modalBold}>₹{order.total}</Text> from{' '}
+              <Text style={s.modalBold}>{order.customerName}</Text>
+            </Text>
+
+            {/* Payment Mode Selector */}
+            <View style={s.paymentMethodToggleRow}>
+              <TouchableOpacity
+                style={[
+                  s.paymentToggleBtn,
+                  deliveryPaymentMethod === 'cash' && s.paymentToggleBtnActive,
+                ]}
+                onPress={() => setDeliveryPaymentMethod('cash')}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="cash-outline"
+                  size={16}
+                  color={deliveryPaymentMethod === 'cash' ? Colors.green900 : Colors.inkSoft}
+                />
+                <Text
+                  style={[
+                    s.paymentToggleTxt,
+                    deliveryPaymentMethod === 'cash' && s.paymentToggleTxtActive,
+                  ]}
+                >
+                  💵 Cash
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  s.paymentToggleBtn,
+                  deliveryPaymentMethod === 'upi_qr' && s.paymentToggleBtnActive,
+                ]}
+                onPress={() => setDeliveryPaymentMethod('upi_qr')}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="qr-code-outline"
+                  size={16}
+                  color={deliveryPaymentMethod === 'upi_qr' ? Colors.green900 : Colors.inkSoft}
+                />
+                <Text
+                  style={[
+                    s.paymentToggleTxt,
+                    deliveryPaymentMethod === 'upi_qr' && s.paymentToggleTxtActive,
+                  ]}
+                >
+                  📱 UPI QR
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {deliveryPaymentMethod === 'upi_qr' && (
+              <TouchableOpacity
+                style={s.modalQrPrompt}
+                onPress={() => {
+                  setShowConfirmModal(false);
+                  setShowQRModal(true);
+                }}
+              >
+                <Ionicons name="scan-circle-outline" size={20} color={Colors.green700} />
+                <Text style={s.modalQrPromptTxt}>
+                  Need to show QR? Tap to open QR Code Screen
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {hasWaterCans && (
+              <View style={s.modalCanBanner}>
+                <Ionicons name="water" size={16} color="#0284C7" />
+                <Text style={s.modalCanTxt}>
+                  Empty cans collected: <Text style={s.modalBold}>{emptyCansCollected}</Text>
+                </Text>
+              </View>
+            )}
+
+            <View style={s.modalBtnStack}>
+              <Button
+                label={
+                  updating
+                    ? 'Confirming...'
+                    : deliveryPaymentMethod === 'upi_qr'
+                    ? 'Confirm UPI QR Payment'
+                    : 'Confirm Cash Collected'
+                }
+                onPress={() => handleConfirmDelivered(deliveryPaymentMethod)}
                 loading={updating}
                 variant="primary"
               />
@@ -1036,5 +1287,184 @@ const s = StyleSheet.create({
     fontSize: FontSize.xs,
     fontFamily: 'Manrope_600SemiBold',
     color: Colors.inkSoft,
+  },
+
+  // QR Button & Modal Styles
+  qrTriggerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: Colors.green700,
+    borderRadius: Radius.card,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    ...Shadow.card,
+  },
+  qrTriggerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    flex: 1,
+  },
+  qrIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.green700,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qrTriggerTitle: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_700Bold',
+    color: Colors.green900,
+  },
+  qrTriggerSub: {
+    fontSize: FontSize.xs - 2,
+    fontFamily: 'Manrope_500Medium',
+    color: Colors.inkSoft,
+    marginTop: 2,
+  },
+  qrActionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: Colors.amber,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.chip,
+  },
+  qrActionBadgeTxt: {
+    fontSize: FontSize.xs - 2,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: Colors.green900,
+  },
+
+  // QR Modal Sheet
+  qrSheetCard: {
+    width: '100%',
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: Spacing.lg,
+    alignItems: 'center',
+    gap: Spacing.md,
+    maxHeight: '92%',
+  },
+  qrSheetHeader: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  qrSheetTitle: {
+    fontSize: FontSize.lg,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: Colors.ink,
+  },
+  qrSheetSub: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_500Medium',
+    color: Colors.inkSoft,
+    marginTop: 2,
+  },
+  qrAmountBanner: {
+    width: '100%',
+    backgroundColor: Colors.green900,
+    borderRadius: Radius.card,
+    padding: Spacing.md,
+    alignItems: 'center',
+  },
+  qrAmountLabel: {
+    fontSize: FontSize.xs - 2,
+    fontFamily: 'Manrope_700Bold',
+    color: Colors.amber,
+    letterSpacing: 0.8,
+  },
+  qrAmountVal: {
+    fontSize: 28,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: '#FFFFFF',
+    marginTop: 2,
+  },
+  qrCodeWrapper: {
+    alignItems: 'center',
+    padding: Spacing.sm,
+    backgroundColor: '#FFFFFF',
+    borderRadius: Radius.card,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    width: '100%',
+  },
+  qrCodeImg: {
+    width: 220,
+    height: 220,
+    marginBottom: Spacing.sm,
+    borderRadius: Radius.sm,
+  },
+  qrUpiText: {
+    fontSize: FontSize.sm,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: Colors.green900,
+  },
+  qrPayeeText: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_500Medium',
+    color: Colors.inkSoft,
+    marginTop: 2,
+  },
+  qrAppHint: {
+    fontSize: FontSize.xs - 2,
+    fontFamily: 'Manrope_500Medium',
+    color: Colors.inkSoft,
+    marginTop: 6,
+    textAlign: 'center',
+  },
+
+  // Payment Toggle in Confirm Modal
+  paymentMethodToggleRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    width: '100%',
+    marginTop: Spacing.xs,
+  },
+  paymentToggleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: Radius.button,
+    borderWidth: 1.5,
+    borderColor: Colors.line,
+    backgroundColor: Colors.cream,
+  },
+  paymentToggleBtnActive: {
+    borderColor: Colors.green700,
+    backgroundColor: '#F0FDF4',
+  },
+  paymentToggleTxt: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_600SemiBold',
+    color: Colors.inkSoft,
+  },
+  paymentToggleTxtActive: {
+    color: Colors.green900,
+    fontFamily: 'Manrope_800ExtraBold',
+  },
+  modalQrPrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    padding: Spacing.xs,
+  },
+  modalQrPromptTxt: {
+    fontSize: FontSize.xs - 1,
+    fontFamily: 'Manrope_600SemiBold',
+    color: Colors.green700,
+    textDecorationLine: 'underline',
   },
 });

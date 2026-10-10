@@ -46,6 +46,8 @@ export function QtyStepper({
         <TouchableOpacity
           onPress={handleAdd}
           disabled={disabled}
+          accessibilityRole="button"
+          accessibilityLabel="Add to cart"
           style={[styles.addBtn, disabled && styles.disabledBtn]}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -61,16 +63,20 @@ export function QtyStepper({
       <View style={styles.stepper}>
         <TouchableOpacity
           onPress={handleDecrement}
+          accessibilityRole="button"
+          accessibilityLabel="Decrease quantity"
           style={styles.stepTouch}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Text style={styles.stepBtn}>−</Text>
         </TouchableOpacity>
-        <Text style={styles.qty}>{qty}</Text>
+        <Text style={styles.qty} accessibilityLabel={`Current quantity ${qty}`}>{qty}</Text>
         <TouchableOpacity
           onPress={handleIncrement}
           disabled={qty >= max}
+          accessibilityRole="button"
+          accessibilityLabel="Increase quantity"
           style={styles.stepTouch}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}

@@ -38,6 +38,7 @@ import {
 } from '../../components/ui';
 import { getProductImage, getSuggestedPreset } from '../../utils/productImages';
 import type { Item } from '../../types';
+import OffersScreen from './offers';
 
 const CATEGORIES = ['All', 'Vegetables', 'Fruits', 'Groceries', 'Water', 'Other'];
 const UNITS = ['kg', 'g', 'ltr', 'ml', 'piece', 'bunch', 'can', 'packet'];
@@ -46,6 +47,7 @@ export default function InventoryScreen() {
   const { items, loading, error, refresh } = useItems(false);
   const { showToast } = useToast();
 
+  const [activeSection, setActiveSection] = useState<'products' | 'offers'>('products');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -340,12 +342,69 @@ export default function InventoryScreen() {
   return (
     <View style={s.container}>
       <ScreenHeader
-        title="Inventory & Stock"
-        subtitle="Manage product availability & prices"
+        title={activeSection === 'products' ? 'Inventory & Stock' : 'Offers & Banners'}
+        subtitle={
+          activeSection === 'products'
+            ? 'Manage product availability & prices'
+            : 'Configure promo banners & discount offers'
+        }
       />
 
-      {/* Summary Strip */}
-      <View style={s.summaryStrip}>
+      {/* Top Section Switcher: Products vs Offers */}
+      <View style={s.sectionSwitcher}>
+        <TouchableOpacity
+          style={[s.sectionTab, activeSection === 'products' && s.sectionTabActive]}
+          onPress={() => {
+            Haptics.selectionAsync();
+            setActiveSection('products');
+          }}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name="cube-outline"
+            size={16}
+            color={activeSection === 'products' ? Colors.green700 : Colors.inkSoft}
+          />
+          <Text
+            style={[
+              s.sectionTabTxt,
+              activeSection === 'products' && s.sectionTabTxtActive,
+            ]}
+          >
+            Products ({items.length})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[s.sectionTab, activeSection === 'offers' && s.sectionTabActive]}
+          onPress={() => {
+            Haptics.selectionAsync();
+            setActiveSection('offers');
+          }}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name="pricetag-outline"
+            size={16}
+            color={activeSection === 'offers' ? Colors.green700 : Colors.inkSoft}
+          />
+          <Text
+            style={[
+              s.sectionTabTxt,
+              activeSection === 'offers' && s.sectionTabTxtActive,
+            ]}
+          >
+            Offers & Banners
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {activeSection === 'offers' ? (
+        <OffersScreen showHeader={false} />
+      ) : (
+        <>
+          {/* Summary Strip */}
+          <View style={s.summaryStrip}>
         <View style={s.summaryItem}>
           <Text style={s.summaryVal}>{summary.total}</Text>
           <Text style={s.summaryLabel}>Total Items</Text>
@@ -456,7 +515,13 @@ export default function InventoryScreen() {
       )}
 
       {/* Add / Edit Modal */}
-      <Modal visible={modalVisible} transparent animationType="slide">
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setModalVisible(false)}
+      >
         <KeyboardAvoidingView
           style={s.modalOverlay}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -686,6 +751,8 @@ export default function InventoryScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+        </>
+      )}
     </View>
   );
 }
@@ -694,6 +761,38 @@ const s = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.cream,
+  },
+
+  // Section Switcher
+  sectionSwitcher: {
+    flexDirection: 'row',
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.sm,
+    padding: 3,
+    borderRadius: Radius.chip,
+  },
+  sectionTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: Radius.chip,
+    gap: 6,
+  },
+  sectionTabActive: {
+    backgroundColor: '#FFFFFF',
+    ...Shadow.card,
+  },
+  sectionTabTxt: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_700Bold',
+    color: Colors.inkSoft,
+  },
+  sectionTabTxtActive: {
+    color: Colors.green700,
   },
 
   // Summary

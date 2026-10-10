@@ -33,7 +33,6 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
           "color": "#123524"
         }
       ]
@@ -41,6 +40,13 @@
     "scheme": "anandhistores",
     "experiments": {
       "typedRoutes": false
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "89170e22-3b73-4828-a94e-172135ffe4f9"
+      }
+    },
+    "owner": "shivani2"
   }
 }

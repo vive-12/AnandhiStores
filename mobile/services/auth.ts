@@ -31,6 +31,7 @@ import {
   createUser, updateUser, getUser, resetPin as resetPinInDb,
 } from './users';
 import type { User, UserRole, UserStatus, Address } from '../types';
+import { log } from '../utils/logger';
 
 const SESSION_KEY = 'anandhi_session';
 
@@ -72,23 +73,28 @@ export async function clearStoredSession(): Promise<void> {
  */
 export async function restoreSession(): Promise<User | null> {
   const stored = await loadStoredSession();
-  if (!stored) return null;
+  if (!stored) {
+    log.auth.debug('restoreSession: no stored session');
+    return null;
+  }
 
-  // Re-read from Firestore to get latest status/role
+  log.auth.info('restoreSession: found stored session', { uid: stored.id, role: stored.role });
+
   const user = await getUser(stored.id);
   if (!user) {
+    log.auth.warn('restoreSession: user doc missing in Firestore — clearing session', { uid: stored.id });
     await clearStoredSession();
     return null;
   }
 
-  // If blocked, clear session
   if (user.status === 'blocked') {
+    log.auth.warn('restoreSession: account blocked — clearing session', { uid: user.id });
     await clearStoredSession();
     return null;
   }
 
-  // Refresh stored session
   await saveSession({ id: user.id, role: user.role, name: user.name, phone: user.phone, status: user.status });
+  log.auth.info('restoreSession: session restored OK', { uid: user.id, role: user.role, status: user.status });
   return user;
 }
 
@@ -163,6 +169,7 @@ export async function loginWithPhone(params: {
     } as User;
 
     if (userData.status === 'blocked') {
+      log.auth.warn('loginWithPhone: account blocked', { phone });
       throw new Error('Your account has been blocked. Contact the store.');
     }
 
@@ -170,7 +177,10 @@ export async function loginWithPhone(params: {
     const hashed = await hashPin(pin, phone);
     const pinOk  = userData.pin === hashed || userData.pin === pin;
 
-    if (!pinOk) throw new Error('Incorrect PIN.');
+    if (!pinOk) {
+      log.auth.warn('loginWithPhone: incorrect PIN', { phone, role: userData.role });
+      throw new Error('Incorrect PIN.');
+    }
 
     // 3. Optional Firebase Auth sign in
     const email = toEmail(phone);
@@ -182,6 +192,7 @@ export async function loginWithPhone(params: {
 
     // 4. Persist session
     await saveSession({ id: userData.id, role: userData.role, name: userData.name, phone, status: userData.status });
+    log.auth.info('loginWithPhone: success', { uid: userData.id, role: userData.role, status: userData.status });
     return userData;
   }
 
@@ -195,7 +206,10 @@ export async function loginWithPhone(params: {
     const agentHashed = await hashPin(pin, phone);
     const pinOk = String(agentData.pin) === pin || String(agentData.plainPin) === pin || String(agentData.pin) === agentHashed;
 
-    if (!pinOk) throw new Error('Incorrect PIN.');
+    if (!pinOk) {
+      log.auth.warn('loginWithPhone (legacy agent): incorrect PIN', { phone });
+      throw new Error('Incorrect PIN.');
+    }
 
     const agentUser: User = {
       id: String(agentDoc.id),
@@ -207,9 +221,11 @@ export async function loginWithPhone(params: {
     };
 
     await saveSession({ id: agentUser.id, role: 'agent', name: agentUser.name, phone, status: 'approved' });
+    log.auth.info('loginWithPhone (legacy agent): success', { uid: agentUser.id, name: agentUser.name });
     return agentUser;
   }
 
+  log.auth.warn('loginWithPhone: no account found', { phone });
   throw new Error('No account found with this phone number.');
 }
 
@@ -240,14 +256,17 @@ export async function loginAsAdmin(pin: string): Promise<User> {
   }
 
   await saveSession({ id: userData.id, role: 'admin', name: userData.name, phone: userData.phone, status: 'approved' });
+  log.auth.info('loginAsAdmin: success', { uid: userData.id });
   return userData;
 }
 
 // ─── Logout ───────────────────────────────────────────────────────────────────
 
 export async function logout(): Promise<void> {
+  log.auth.info('logout: clearing session and signing out of Firebase Auth');
   await clearStoredSession();
   try { await fbSignOut(auth); } catch { /* ignore if already signed out */ }
+  log.auth.info('logout: done');
 }
 
 // ─── Admin: reset a user's PIN ────────────────────────────────────────────────
@@ -292,4 +311,17 @@ export async function createAgent(params: {
   });
 
   return uid;
+}
+
+/** User self-service change PIN (login with reset/temp pwd and change pwd) */
+export async function changePin(uid: string, phone: string, oldPin: string, newPin: string): Promise<void> {
+  const user = await getUser(uid);
+  if (!user) throw new Error('User not found.');
+  const cleanPhone = phone ? String(phone).replace(/\D/g, '').slice(-10) : '';
+  const hashedOld = cleanPhone ? await hashPin(oldPin, cleanPhone) : oldPin;
+  const pinOk = user.pin === hashedOld || user.pin === oldPin || user.plainPin === oldPin;
+  if (!pinOk) throw new Error('Incorrect current PIN.');
+
+  const hashedNew = cleanPhone ? await hashPin(newPin, cleanPhone) : newPin;
+  await resetPinInDb(uid, hashedNew, newPin);
 }

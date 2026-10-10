@@ -15,8 +15,9 @@ import { db } from '../config/firebase';
 import type {
   Order, OrderStatus, OrderItem, Actor,
   AddressSnapshot, OrderSlot, OrderSource,
-  AppNotification, NotificationType,
+  AppNotification, NotificationType, PaymentMethod,
 } from '../types';
+import { log } from '../utils/logger';
 
 const ORDERS_COL       = 'orders';
 const COUNTERS_COL     = 'counters';
@@ -50,9 +51,9 @@ function validateTransition(from: OrderStatus, to: OrderStatus, actor: Actor): v
     t => t.to === to && t.from.includes(from) && t.allowedRoles.includes(actor.role),
   );
   if (!match) {
-    throw new Error(
-      `Invalid transition: ${from} → ${to} by role ${actor.role}`,
-    );
+    const msg = `Invalid transition: ${from} → ${to} by role ${actor.role}`;
+    log.orders.warn(msg, { from, to, actorRole: actor.role, actorUid: actor.uid });
+    throw new Error(msg);
   }
 }
 
@@ -249,6 +250,14 @@ export async function createOrder(params: {
       `${params.customerName} placed an order for Rs ${params.total}`,
     ));
 
+    log.orders.info(`Order created: ${orderNo}`, {
+      orderId: newOrderRef.id,
+      customer: params.customerName,
+      total: params.total,
+      type: params.type ?? 'order',
+      source: params.source,
+    });
+
     return newOrderRef.id;
   });
 }
@@ -311,6 +320,13 @@ export async function assignAgent(params: {
   }
 
   await batch.commit();
+  log.admin.info(`Agent assigned to order`, {
+    orderNo:   params.order.orderNo,
+    orderId:   params.orderId,
+    agentName: params.agent.name,
+    agentUid:  params.agent.uid,
+    reassigned: !!params.oldAgentUid && params.oldAgentUid !== params.agent.uid,
+  });
 }
 
 /**
@@ -326,6 +342,9 @@ export async function transitionOrder(params: {
   cancelReason?:        string;
   adminUid?:           string;
   emptyCansCollected?: number;
+  paymentMethod?:      PaymentMethod;
+  qrId?:               string | null;
+  qrLabel?:            string | null;
 }): Promise<void> {
   const { orderId, order, toStatus, actor } = params;
 
@@ -346,6 +365,9 @@ export async function transitionOrder(params: {
     ...(toStatus === 'out_for_delivery' ? { pickedUpAt: now }  : {}),
     ...(toStatus === 'delivered'        ? {
       deliveredAt: now,
+      paymentMethod: params.paymentMethod || order.paymentMethod || 'COD',
+      ...(params.qrId !== undefined ? { qrId: params.qrId } : {}),
+      ...(params.qrLabel !== undefined ? { qrLabel: params.qrLabel } : {}),
       ...(params.emptyCansCollected !== undefined ? { emptyCansCollected: params.emptyCansCollected } : {}),
     } : {}),
   };
@@ -378,18 +400,43 @@ export async function transitionOrder(params: {
     if (params.adminUid) addNotif(params.adminUid, 'admin', 'order_delivered', `Order ${order.orderNo} delivered`, `${order.agentName} delivered to ${order.customerName}`);
 
     // Row 8: increment stats_daily in same batch
+    const isUpi = params.paymentMethod === 'upi_qr';
     const statsRef = doc(db, STATS_COL, today);
     batch.set(statsRef, {
       orders:  increment(1),
       revenue: increment(order.total),
+      ...(isUpi ? {
+        upiRevenue: increment(order.total),
+        upiOrders:  increment(1),
+        ...(params.qrId ? {
+          [`qrSales.${params.qrId}`]: increment(order.total),
+          [`qrOrders.${params.qrId}`]: increment(1),
+        } : {}),
+      } : {
+        cashRevenue: increment(order.total),
+        cashOrders:  increment(1),
+        ...(order.agentId ? {
+          [`cashCollectedByAgent.${order.agentId}`]: increment(order.total),
+        } : {}),
+      }),
       ...(order.agentId ? {
-        [`cashCollectedByAgent.${order.agentId}`]: increment(order.total),
-        [`deliveriesByAgent.${order.agentId}`]:    increment(1),
+        [`deliveriesByAgent.${order.agentId}`]: increment(1),
       } : {}),
       ...Object.fromEntries(
         order.items.map(i => [`itemQty.${i.itemId}`, increment(i.qty)]),
       ),
     }, { merge: true });
+
+    // Chain to specific QR code document metrics
+    if (params.qrId) {
+      const qrRef = doc(db, 'qr_codes', params.qrId);
+      batch.set(qrRef, {
+        totalSales: increment(order.total),
+        orderCount: increment(1),
+        lastUsedAt: now,
+        updatedAt:  now,
+      }, { merge: true });
+    }
 
     // Can recovery tracking — adjust customer's pending cans
     if (params.emptyCansCollected !== undefined && order.customerId) {
@@ -433,6 +480,12 @@ export async function transitionOrder(params: {
   }
 
   await batch.commit();
+  log.orders.info(`Status transition: ${order.status} → ${toStatus}`, {
+    orderNo:   order.orderNo,
+    orderId,
+    actorRole: actor.role,
+    actorUid:  actor.uid,
+  });
 }
 
 /** Update order item checklist (persisted across sessions & devices) */

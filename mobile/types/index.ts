@@ -31,8 +31,12 @@ export interface User {
   status:       UserStatus;
   address?:     Address;
   isOnline?:    boolean;          // agents only
-  pendingCans?: number;           // water can recovery tracking
-  createdAt?:   Timestamp | string | any;
+  pendingCans?:       number;           // water can recovery tracking
+  deliveryFee?:       number;           // custom customer delivery fee
+  canDeposit?:        number;           // water can security deposit
+  assignedAgentId?:   string;           // designated fleet agent
+  assignedAgentName?: string;
+  createdAt?:         Timestamp | string | any;
 }
 
 // ─── Item ─────────────────────────────────────────────────────────────────────
@@ -95,6 +99,22 @@ export interface StatusHistoryEntry {
   byRole: UserRole;
 }
 
+export type PaymentMethod = 'COD' | 'cash' | 'upi_qr';
+
+export interface QRCodeItem {
+  id: string;
+  name: string;
+  upiId: string;
+  merchantName?: string;
+  imageUrl?: string;
+  isDefault: boolean;
+  totalSales: number;
+  orderCount: number;
+  lastUsedAt?: Timestamp | null;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
 export interface Order {
   id:              string;
   orderNo:         string;           // e.g. AS-1042
@@ -106,7 +126,9 @@ export interface Order {
   subtotal:        number;
   deliveryFee:     number;
   total:           number;
-  paymentMethod:   'COD';
+  paymentMethod:   PaymentMethod;
+  qrId?:           string | null;
+  qrLabel?:        string | null;
   slot:            OrderSlot;
   notes:           string;
   status:          OrderStatus;
@@ -189,6 +211,10 @@ export interface DailyStats {
   date:                 string;   // YYYY-MM-DD
   orders:               number;
   revenue:              number;
+  upiRevenue?:          number;
+  upiOrders?:           number;
+  qrSales?:             Record<string, number>;
+  qrOrders?:            Record<string, number>;
   cashCollectedByAgent: Record<string, number>;
   deliveriesByAgent:    Record<string, number>;
   itemQty:              Record<string, number>;

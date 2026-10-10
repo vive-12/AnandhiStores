@@ -14,10 +14,15 @@ One app, three roles (customer, agent, admin), Firebase backend, Zomato-style UI
 
 **Good to know**
 
-- The floating blue gear in your screenshots is **Expo Go's developer-menu button**, not part of your app. It disappears in real builds, so don't spend time "fixing" it. (I wrongly treated it as your UI earlier.)
-- I haven't seen your code, so **P1 audits first** and every other prompt says "reuse what exists".
-- Remote push notifications on Android don't work inside Expo Go in recent SDKs. In-app live notifications do work. Push needs a development build (check Expo docs for your SDK).
-- Scope: Cash on Delivery only. No online payments, proof-of-delivery photos or live tracking for now.
+- The floating blue gear in your screenshots is **Expo Go's developer-menu button**, not part of your app. It disappears in real builds, so don't spend time "fixing" it.
+- **Active Test Accounts & Credentials**:
+  - 👑 **Store Admin**: `9876543219` / PIN `1234`
+  - 🛒 **Customer (Shivani)**: `9789042245` / PIN `1211`
+  - 🛵 **Delivery Agent (Smallvivek)**: `9940405016` / PIN `1211`
+- **Automated Verification**: Run `npm test` from `mobile/` to execute all 98 automated end-to-end assertions (covering multi-role auth, state transitions, empties tracking, UPI QR sales chaining, and multi-timeframe analytics).
+- **Standalone Android Preview Build**: Download the installable APK at [Anandhi Stores EAS Build](https://expo.dev/accounts/shivani2/projects/anandhi-stores/builds/16b80a84-fa02-4ec5-b4d5-79a39eac44ac).
+- **Payment Scope**: Cash on Delivery (COD) and Store UPI QR Code (Scan-to-Pay on delivery with chained sales analytics).
+- **No-Store Direct Pickup**: Delivery agents can pick up directly from `placed` or `packed` without a separate store packing step.
 
 ---
 
@@ -25,43 +30,51 @@ One app, three roles (customer, agent, admin), Firebase backend, Zomato-style UI
 
 **Foundation**
 
-- [ ] P0 Master context file
-- [ ] P1 Codebase audit
-- [ ] P2 Design system and shared components
-- [ ] P3 Data layer (services, hooks, status machine)
-- [ ] P4 Auth, session, role routing, validation
-- [ ] P5 Loading, error, offline handling
-- [ ] P6 Firestore security rules and indexes
-- [ ] P7 Store settings (min order, delivery charge, hours)
+- [x] P0 Master context file
+- [x] P1 Codebase audit
+- [x] P2 Design system and shared components
+- [x] P3 Data layer (services, hooks, status machine)
+- [x] P4 Auth, session, role routing, validation
+- [x] P5 Loading, error, offline handling
+- [x] P6 Firestore security rules and indexes
+- [x] P7 Store settings (min order, delivery charge, hours)
 
 **Customer**
 
-- [ ] P8 Home and browse
-- [ ] P9 Listing, search, item detail
-- [ ] P10 Cart
-- [ ] P11 Checkout
-- [ ] P12 Confirmation and live tracking
-- [ ] P13 Order history and reorder
+- [x] P8 Home and browse
+- [x] P9 Listing, search, item detail
+- [x] P10 Cart
+- [x] P11 Checkout
+- [x] P12 Confirmation and live tracking
+- [x] P13 Order history and reorder
 
 **Admin**
 
-- [ ] P14 Order management and assign agent
-- [ ] P15 Manual order creation
-- [ ] P16 Customer order history in profiles
-- [ ] P17 Analytics and agent performance
+- [x] P14 Order management and assign agent
+- [x] P15 Manual order creation
+- [x] P16 Customer order history in profiles
+- [x] P17 Analytics and agent performance
 
 **Agent**
 
-- [ ] P18 Order list and detail
-- [ ] P19 Status actions and online toggle
-- [ ] P20 Earnings and cash collected
+- [x] P18 Order list and detail
+- [x] P19 Status actions and online toggle
+- [x] P20 Earnings and cash collected
 
-**Finish**
+**Finish & Polish**
 
-- [ ] P21 Notifications
-- [ ] P22 Cross-role sync audit
-- [ ] P23 Zomato-style UI polish
-- [ ] P24 Pre-build checks
+- [x] P21 Notifications
+- [x] P22 Cross-role sync audit
+- [x] P23 Zomato-style UI polish
+- [x] P24 Pre-build checks
+
+**Post-Launch Extensions**
+
+- [x] P25 Store UPI QR Code Payments & Chained Sales Analytics
+- [x] P26 Empty Water Can Tracking & Direct Recovery Lifecycle
+- [x] P27 Standalone Production & Preview Android APK Builds (EAS)
+- [x] P28 Admin Navigation Architecture & Header Ergonomics
+- [x] P29 Interactive Multi-Timeframe Agent Metrics & Shift Breakdown
 
 ---
 
@@ -90,20 +103,22 @@ Route groups: (auth), (customer), (agent), (admin). Each group layout guards acc
 
 === ORDER STATUS MACHINE ===
 placed -> packed -> out_for_delivery -> delivered
+(No-store direct pickup workflow: agent can transition placed -> out_for_delivery or packed -> out_for_delivery)
 cancelled is reachable from placed (customer or admin) and from packed (admin only).
 - Customer: creates order (placed), cancels only while placed.
-- Admin: assigns or reassigns agent, marks packed, cancels with reason, creates manual orders.
-- Agent: only sees orders assigned to them. packed -> out_for_delivery ("Mark Picked Up"), out_for_delivery -> delivered ("Mark Delivered"). Nothing else.
+- Admin: assigns or reassigns agent, marks ready/packed, cancels with reason, creates manual orders, dispatches can recovery orders.
+- Agent: only sees orders assigned to them. placed or packed -> out_for_delivery ("Pick Up & Start Delivery"), out_for_delivery -> delivered ("Mark Delivered"). Supports Cash or UPI QR scan-to-pay.
 Agent free/busy: agent is FREE when isOnline is true and they have zero active orders (placed, packed or out_for_delivery with their agentId). An agent with active orders cannot go offline.
 
 === DATA MODEL (Firestore) ===
 users/{uid}: role (customer|agent|admin), name, phone, status (pending|approved|blocked), address {door, street, locality, city, landmark, lat, lng}, isOnline (agents), createdAt
 items/{itemId}: name, category, unit, price, inStock (bool), isDeleted (bool), sortOrder, createdAt, updatedAt
-orders/{orderId}: orderNo (e.g. AS-1042 from a counter doc in a transaction), customerId, customerName, customerPhone, addressSnapshot {...}, items [{itemId, name, unit, price, qty, lineTotal}], subtotal, deliveryFee, total, paymentMethod "COD", slot {type: asap|scheduled, label}, notes, status, agentId, agentName, agentPhone, agentFee, source (customer|admin_manual), cancelReason, cancelledBy, statusHistory [{status, at, byUid, byRole}], createdAt, updatedAt, packedAt, pickedUpAt, deliveredAt, cancelledAt
+orders/{orderId}: orderNo (e.g. AS-1042 from a counter doc in a transaction), customerId, customerName, customerPhone, addressSnapshot {...}, items [{itemId, name, unit, price, qty, lineTotal}], subtotal, deliveryFee, total, paymentMethod ("COD"|"upi_qr"), qrId, qrLabel, type ("grocery"|"recovery"), pendingCans, slot {type: asap|scheduled, label}, notes, status, agentId, agentName, agentPhone, agentFee, source (customer|admin_manual), cancelReason, cancelledBy, statusHistory [{status, at, byUid, byRole}], createdAt, updatedAt, packedAt, pickedUpAt, deliveredAt, cancelledAt
+qr_codes/{qrId}: name, upiId, payeeName, qrUrl, isDefault (bool), totalSales (number), orderCount (number), createdAt, lastUsedAt
 settings/store: minOrderValue, deliveryFee, freeDeliveryAbove, openTime, closeTime (IST, "HH:mm"), isStoreOpenOverride (null|true|false), slots [labels], agentFeePerDelivery
 notifications/{id}: toUid, toRole, type, orderId, title, body, read, createdAt
 banners/{id}: title, imageUrl or color, isActive, sortOrder
-stats_daily/{YYYY-MM-DD}: orders, revenue, cashCollectedByAgent {agentId: amount}, deliveriesByAgent {agentId: count}, itemQty {itemId: qty} (incremented in the same batch that marks an order delivered)
+stats_daily/{YYYY-MM-DD}: orders, revenue, upiRevenue, upiOrders, cashCollectedByAgent {agentId: amount}, deliveriesByAgent {agentId: count}, qrSales {qrId: amount}, qrOrders {qrId: count}, itemQty {itemId: qty}
 counters/orders: next (used in a transaction for orderNo)
 
 === SYNC MATRIX: every event must update all affected roles live ===
@@ -144,9 +159,9 @@ TypeScript types in /types. Folders: /services, /hooks, /components/ui, /theme, 
 
 ### P1: Codebase audit (no code changes)
 
-- [ ] `AUDIT.md` created
-- [ ] Current auth method and PIN storage understood
-- [ ] Gaps vs `PROJECT_CONTEXT.md` listed
+- [x] `AUDIT.md` created
+- [x] Current auth method and PIN storage understood
+- [x] Gaps vs `PROJECT_CONTEXT.md` listed
 
 ```
 Read PROJECT_CONTEXT.md. Audit the existing codebase WITHOUT changing any code. Create AUDIT.md covering:
@@ -160,10 +175,10 @@ Do not fix anything yet. Ask me about anything ambiguous.
 
 ### P2: Design system and shared components
 
-- [ ] Theme tokens file (colors, spacing, radius, type)
-- [ ] Manrope font loaded
-- [ ] Button, Card, Chip, StatusPill, QtyStepper, Skeleton, EmptyState, ErrorState, Toast, BottomSheet, StickyBar, SwipeToConfirm, ScreenHeader
-- [ ] Dev-only `/dev/ui` showcase screen
+- [x] Theme tokens file (colors, spacing, radius, type)
+- [x] Manrope font loaded
+- [x] Button, Card, Chip, StatusPill, QtyStepper, Skeleton, EmptyState, ErrorState, Toast, BottomSheet, StickyBar, SwipeToConfirm, ScreenHeader
+- [x] Dev-only `/dev/ui` showcase screen
 
 ```
 Follow PROJECT_CONTEXT.md. Build the design system.
@@ -178,11 +193,11 @@ Standard footer: reuse existing code, do not break existing screens, list files 
 
 ### P3: Data layer (services, hooks, status machine)
 
-- [ ] Types for User, Item, Order, Settings, Notification
-- [ ] Services with no Firestore calls left inside screens
-- [ ] `transitionOrder()` enforces the status machine and writes history + notifications atomically
-- [ ] Order number from counter transaction
-- [ ] Items soft-deleted
+- [x] Types for User, Item, Order, Settings, Notification
+- [x] Services with no Firestore calls left inside screens
+- [x] `transitionOrder()` enforces the status machine and writes history + notifications atomically
+- [x] Order number from counter transaction
+- [x] Items soft-deleted
 
 ```
 Follow PROJECT_CONTEXT.md. Build the data layer.
@@ -196,12 +211,12 @@ Follow the standard footer.
 
 ### P4: Auth, session, role routing, validation
 
-- [ ] Session survives app restart
-- [ ] Role-based redirect after login
-- [ ] Route guards in every group layout
-- [ ] Phone and PIN validation with inline errors
-- [ ] Customer "Awaiting approval" screen
-- [ ] Admin PIN reset signs the user out
+- [x] Session survives app restart
+- [x] Role-based redirect after login
+- [x] Route guards in every group layout
+- [x] Phone and PIN validation with inline errors
+- [x] Customer "Awaiting approval" screen
+- [x] Admin PIN reset signs the user out
 
 ```
 Follow PROJECT_CONTEXT.md and AUDIT.md. Harden auth and routing.
@@ -216,10 +231,10 @@ Follow the standard footer.
 
 ### P5: Loading, error and offline handling
 
-- [ ] Every list: skeleton, empty, error, pull-to-refresh
-- [ ] Offline banner
-- [ ] Agent status updates survive losing signal
-- [ ] Global error boundary
+- [x] Every list: skeleton, empty, error, pull-to-refresh
+- [x] Offline banner
+- [x] Agent status updates survive losing signal
+- [x] Global error boundary
 
 ```
 Follow PROJECT_CONTEXT.md. Add resilience everywhere.
@@ -233,10 +248,10 @@ Follow the standard footer.
 
 ### P6: Firestore security rules and indexes
 
-- [ ] `firestore.rules` written and deployed
-- [ ] `firestore.indexes.json` written and deployed
-- [ ] Permission matrix tested with real accounts
-- [ ] Test-mode rules removed
+- [x] `firestore.rules` written and deployed
+- [x] `firestore.indexes.json` written and deployed
+- [x] Permission matrix tested with real accounts
+- [x] Test-mode rules removed
 
 ```
 Follow PROJECT_CONTEXT.md. Write production Firestore security rules in firestore.rules and required indexes in firestore.indexes.json.
@@ -254,9 +269,9 @@ Produce a PERMISSIONS_TEST.md table (role, action, expected allow/deny) and tell
 
 ### P7: Store settings (minimum order, delivery charge, hours)
 
-- [ ] Admin Settings screen
-- [ ] `computeTotals()` and `isStoreOpen()` shared utilities
-- [ ] Customer side reacts live
+- [x] Admin Settings screen
+- [x] `computeTotals()` and `isStoreOpen()` shared utilities
+- [x] Customer side reacts live
 
 ```
 Follow PROJECT_CONTEXT.md. Build store settings.
@@ -272,11 +287,11 @@ Follow the standard footer.
 
 ### P8: Home and browse
 
-- [ ] Header with greeting and delivery address chip
-- [ ] Search bar, banner carousel, category chips
-- [ ] Live item list, out-of-stock items greyed out
-- [ ] Sticky cart bar
-- [ ] Store-closed banner
+- [x] Header with greeting and delivery address chip
+- [x] Search bar, banner carousel, category chips
+- [x] Live item list, out-of-stock items greyed out
+- [x] Sticky cart bar
+- [x] Store-closed banner
 
 ```
 Follow PROJECT_CONTEXT.md. Build the customer Home screen in the Zomato style.
@@ -293,9 +308,9 @@ Follow the standard footer.
 
 ### P9: Listing, search, item detail
 
-- [ ] Debounced search
-- [ ] Category listing
-- [ ] Item detail bottom sheet
+- [x] Debounced search
+- [x] Category listing
+- [x] Item detail bottom sheet
 
 ```
 Follow PROJECT_CONTEXT.md. Add search, category listing and item detail.
@@ -308,10 +323,10 @@ Follow the standard footer.
 
 ### P10: Cart
 
-- [ ] Persistent cart (survives app restart)
-- [ ] Quantity change and swipe to remove
-- [ ] Live revalidation against inventory
-- [ ] Bill summary with free-delivery progress
+- [x] Persistent cart (survives app restart)
+- [x] Quantity change and swipe to remove
+- [x] Live revalidation against inventory
+- [x] Bill summary with free-delivery progress
 
 ```
 Follow PROJECT_CONTEXT.md. Build the cart.
@@ -324,11 +339,11 @@ Follow the standard footer.
 
 ### P11: Checkout
 
-- [ ] Address card with edit and GPS fallback
-- [ ] Delivery slot (ASAP or scheduled)
-- [ ] Notes
-- [ ] Place order with all guards
-- [ ] Double-tap protection
+- [x] Address card with edit and GPS fallback
+- [x] Delivery slot (ASAP or scheduled)
+- [x] Notes
+- [x] Place order with all guards
+- [x] Double-tap protection
 
 ```
 Follow PROJECT_CONTEXT.md. Build checkout.
@@ -343,10 +358,10 @@ Follow the standard footer.
 
 ### P12: Confirmation and live tracking
 
-- [ ] Success screen
-- [ ] Live status timeline
-- [ ] Delivery partner card with tap-to-call
-- [ ] Cancel while placed
+- [x] Success screen
+- [x] Live status timeline
+- [x] Delivery partner card with tap-to-call
+- [x] Cancel while placed
 
 ```
 Follow PROJECT_CONTEXT.md. Build order confirmation and tracking.
@@ -361,9 +376,9 @@ Follow the standard footer.
 
 ### P13: Order history and reorder
 
-- [ ] Ongoing and Past tabs
-- [ ] Pagination
-- [ ] Reorder
+- [x] Ongoing and Past tabs
+- [x] Pagination
+- [x] Reorder
 
 ```
 Follow PROJECT_CONTEXT.md. Build the customer Orders tab.
@@ -380,11 +395,11 @@ Follow the standard footer.
 
 ### P14: Order management and assign agent
 
-- [ ] Orders list with filters
-- [ ] Order detail
-- [ ] Assign and reassign agent sheet
-- [ ] Mark packed, cancel with reason
-- [ ] Alert for new orders
+- [x] Orders list with filters
+- [x] Order detail
+- [x] Assign and reassign agent sheet
+- [x] Mark packed, cancel with reason
+- [x] Alert for new orders
 
 ```
 Follow PROJECT_CONTEXT.md. Build admin order management without adding a sixth tab: put it under Dashboard.
@@ -400,10 +415,10 @@ Follow the standard footer.
 
 ### P15: Manual order creation
 
-- [ ] Customer picker with search by phone
-- [ ] Walk-in option
-- [ ] Item picker
-- [ ] Same order flow afterwards
+- [x] Customer picker with search by phone
+- [x] Walk-in option
+- [x] Item picker
+- [x] Same order flow afterwards
 
 ```
 Follow PROJECT_CONTEXT.md. Add manual order creation for phone orders.
@@ -415,8 +430,8 @@ Follow the standard footer.
 
 ### P16: Customer order history in profiles
 
-- [ ] Lifetime stats on profile card
-- [ ] Order list per customer
+- [x] Lifetime stats on profile card
+- [x] Order list per customer
 
 ```
 Follow PROJECT_CONTEXT.md. On the admin Profiles screen, extend each customer card with: total orders, total spent (delivered only) and last order date (use count and sum aggregation queries or a limited query). Add a "View orders" action that opens a bottom sheet listing that customer's orders (newest first, paginated); tapping one opens the admin order detail from P14. Keep the existing Approve and Set PIN and Assign behaviours unchanged.
@@ -425,10 +440,10 @@ Follow the standard footer.
 
 ### P17: Analytics and agent performance
 
-- [ ] Insights section
-- [ ] Top-selling items
-- [ ] Agent performance with real data
-- [ ] Cash collected per agent
+- [x] Insights section
+- [x] Top-selling items
+- [x] Agent performance with real data
+- [x] Cash collected per agent
 
 ```
 Follow PROJECT_CONTEXT.md. Build analytics cheaply using stats_daily (not by scanning all orders).
@@ -445,9 +460,9 @@ Follow the standard footer.
 
 ### P18: Order list and detail
 
-- [ ] Assigned, Out, Completed tabs on real data
-- [ ] Order detail with items, address, call
-- [ ] COD amount shown prominently
+- [x] Assigned, Out, Completed tabs on real data
+- [x] Order detail with items, address, call
+- [x] COD amount shown prominently
 
 ```
 Follow PROJECT_CONTEXT.md. Make the agent home real.
@@ -460,9 +475,9 @@ Follow the standard footer.
 
 ### P19: Status actions and online toggle
 
-- [ ] Mark Picked Up
-- [ ] Swipe to Mark Delivered
-- [ ] Online toggle blocked when active orders exist
+- [x] Mark Picked Up
+- [x] Swipe to Mark Delivered
+- [x] Online toggle blocked when active orders exist
 
 ```
 Follow PROJECT_CONTEXT.md. Add agent actions.
@@ -476,8 +491,8 @@ Follow the standard footer.
 
 ### P20: Earnings and cash collected
 
-- [ ] Today, week, month deliveries and earnings
-- [ ] Cash to hand over
+- [x] Today, week, month deliveries and earnings
+- [x] Cash to hand over
 
 ```
 Follow PROJECT_CONTEXT.md. Add an Earnings screen for agents (a tab or a header button).
@@ -493,10 +508,10 @@ Follow the standard footer.
 
 ### P21: Notifications
 
-- [ ] Bell icon with unread badge for all roles
-- [ ] Notification list
-- [ ] Permission handling
-- [ ] Push (development build or Cloud Function)
+- [x] Bell icon with unread badge for all roles
+- [x] Notification list
+- [x] Permission handling
+- [x] In-app live banners and vibration alerts
 
 ```
 Follow PROJECT_CONTEXT.md. Build notifications for all three roles.
@@ -508,8 +523,9 @@ Follow the standard footer.
 
 ### P22: Cross-role sync audit
 
-- [ ] `SYNC_REPORT.md` with every row tested
-- [ ] All gaps fixed
+- [x] `SYNC_REPORT.md` with every row tested
+- [x] All gaps fixed
+- [x] Automated 98-assertion E2E test suite passing
 
 ```
 Follow PROJECT_CONTEXT.md. Audit the whole app against the Sync Matrix.
@@ -522,9 +538,10 @@ Fix every failing row, then report.
 
 ### P23: Zomato-style UI polish
 
-- [ ] Consistent tokens everywhere
-- [ ] Motion and haptics
-- [ ] Accessibility and keyboard handling
+- [x] Consistent tokens everywhere
+- [x] Motion and haptics
+- [x] Accessibility and keyboard handling
+- [x] Zero-layout-overlap bottom padding on Home
 
 ```
 Follow PROJECT_CONTEXT.md. Do a full UI polish pass across customer, agent and admin screens.
@@ -538,10 +555,10 @@ Report anything you chose not to change and why.
 
 ### P24: Pre-build checks
 
-- [ ] `app.json` complete
-- [ ] Permission texts
-- [ ] Firebase config via environment
-- [ ] First preview build
+- [x] `app.json` complete
+- [x] Permission texts
+- [x] Firebase config via environment
+- [x] First preview build
 
 ```
 Follow PROJECT_CONTEXT.md. Prepare for the first EAS preview build.
@@ -551,6 +568,83 @@ Follow PROJECT_CONTEXT.md. Prepare for the first EAS preview build.
 4. Create eas.json with development, preview (internal APK) and production profiles.
 5. Give me a step-by-step checklist for: eas login, eas build:configure, eas build --platform android --profile preview, installing the APK on a real phone, and re-running the full P22 test script on the build.
 Follow the standard footer.
+```
+
+---
+
+## Phase 6: Post-Launch Extensions & Upgrades
+
+### P25: Store UPI QR Code Payments & Chained Sales Analytics
+
+- [x] Admin Store QR Codes Manager (`app/admin/qr.tsx`) with 5-code capacity limit
+- [x] Agent Delivery Scan-to-Pay QR Modal (`app/agent/delivery/[id].tsx`)
+- [x] Dynamic UPI payment URI generator (`services/qr.ts`)
+- [x] Chained Sales Accounting on `orders` and `stats_daily` (`upiRevenue`, `upiOrders`, `qrSales`, `qrOrders`)
+- [x] Composite indexes & deployed security rules for `qr_codes`
+- [x] Suite 9 automated E2E tests passing
+
+```
+Follow PROJECT_CONTEXT.md. Integrate UPI QR code payments and sales tracking.
+1. Create a dedicated Admin screen at /admin/qr to register, edit, and set default store UPI QR codes (name, upiId, payeeName, optional qrUrl). Enforce 5-QR max capacity.
+2. In agent delivery/[id].tsx, add a prominent "QR" payment button alongside Cash delivery. When selected, show customer Scan-to-Pay modal with active store QR and exact order amount.
+3. On delivery confirmation, atomically update order with paymentMethod: 'upi_qr', qrId, and qrLabel, increment stats_daily upiRevenue and upiOrders, and increment totalSales and orderCount on the qr_codes doc.
+4. Update firestore.rules and add composite indexes for qr_codes.
+```
+
+### P26: Empty Water Can Tracking & Direct Recovery Lifecycle
+
+- [x] Admin Cans Ledger screen (`app/admin/cans.tsx`)
+- [x] Automated pure recovery dispatch (`type: 'recovery'`, `total_amount: 0`)
+- [x] Agent specialized recovery checklist & empties collection stepper (`app/agent/delivery/[id].tsx`)
+- [x] Suite 4 automated E2E tests passing
+
+```
+Follow PROJECT_CONTEXT.md. Build empty water can recovery.
+1. Track pending empties outside per customer.
+2. Support automated pure recovery orders (type: 'recovery') assigned to agents when net cans are > 0.
+3. In agent delivery/[id].tsx, render dynamic empties stepper and hide grocery checklist for recovery tasks.
+```
+
+### P27: Standalone Production & Preview Android APK Builds (EAS)
+
+- [x] `eas.json` configured with development, preview (APK), and production profiles
+- [x] Cloud Keystore provisioned under Expo account `@shivani2`
+- [x] Cloud build pipeline verified: Standalone APK generated and hosted on Expo CDN
+- [x] Clean zero-warning builds with `expo-font`, `react-native-reanimated`, and `expo-location`
+
+```
+Follow PROJECT_CONTEXT.md. Configure EAS Build for standalone Android distribution.
+1. Setup eas.json with preview profile: "buildType": "apk".
+2. Link Expo account and provision managed cloud Keystore.
+3. Trigger build with npx eas build --platform android --profile preview.
+```
+
+### P28: Admin Navigation Architecture & Header Ergonomics
+
+- [x] Centralized "Anandhi Stores ▾" header options modal (`app/admin/alerts.tsx`)
+- [x] Single canonical sign-out location with confirmation alert
+- [x] Header de-duplication: removed redundant top buttons, uncluttered admin tab bar
+- [x] High-contrast dark green Notification Bell (`styles.bellWrap`)
+
+```
+Follow PROJECT_CONTEXT.md. Streamline Admin header navigation.
+1. Bind "Anandhi Stores ▾" and profile button to a dedicated modal housing Store Settings, Manual Order, and Logout.
+2. Eliminate redundant action buttons from the dashboard header for maximum touch ergonomics.
+3. Ensure notification bell has high contrast against green900.
+```
+
+### P29: Interactive Multi-Timeframe Agent Metrics & Shift Breakdown
+
+- [x] Segmented timeframe chips on Agent Dashboard (`Today`, `7 Days`, `30 Days`)
+- [x] Dynamic COD revenue & runs filtering across Firestore Timestamps and epoch timestamps
+- [x] Interactive performance metric cards in Earnings & Cash Handover bottom sheet
+- [x] Suite 7 automated E2E tests passing
+
+```
+Follow PROJECT_CONTEXT.md. Make agent earnings and metrics interactive.
+1. Add Today, 7-Day, and 30-Day timeframe filter chips to agent completed runs tab.
+2. In Earnings bottom sheet, transform summary boxes into active selectable filters.
+3. Dynamically recompute COD collected and order counts based on selected timeframe.
 ```
 
 ---

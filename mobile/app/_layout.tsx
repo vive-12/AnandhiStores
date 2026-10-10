@@ -19,6 +19,7 @@ import { restoreSession } from '../services/auth';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { OfflineBanner } from '../components/ui/OfflineBanner';
 import { initOutboxListener } from '../services/outbox';
+import { initLogger, log } from '../utils/logger';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -77,7 +78,11 @@ function SessionRestorer() {
   const { setSession, clearSession, setLoading } = useSession();
 
   useEffect(() => {
-    restoreSession().then(user => {
+    // Load previous-session logs from AsyncStorage FIRST, then restore auth.
+    initLogger().then(() => {
+      log.auth.info('App started — logger initialised');
+      return restoreSession();
+    }).then(user => {
       if (user) {
         setSession({ id: user.id, role: user.role, name: user.name, phone: user.phone, status: user.status });
       } else {

@@ -5,6 +5,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { User, UserRole, UserStatus, Address } from '../types';
+import { log } from '../utils/logger';
 
 const COL = 'users';
 
@@ -146,7 +147,7 @@ export async function resetPin(uid: string, newPin: string, plainPin?: string): 
       await updateDoc(agentRef, { pin: plainPin || newPin });
     }
   } catch (err) {
-    console.warn('Could not update legacy agents doc:', err);
+    log.agent.warn('Could not update legacy agents doc during PIN reset', err);
   }
 }
 
@@ -158,6 +159,7 @@ export async function updateAddress(uid: string, address: Address): Promise<void
 /** Agent: toggle online status */
 export async function setAgentOnline(uid: string, isOnline: boolean): Promise<void> {
   const sUid = String(uid);
+  log.agent.info(`setAgentOnline: uid=${sUid} → ${isOnline ? 'ONLINE' : 'OFFLINE'}`);
   const userRef = doc(db, COL, sUid);
   const snap = await getDoc(userRef);
   if (snap.exists()) {
