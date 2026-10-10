@@ -1,5 +1,5 @@
 // app/(customer)/index.tsx — Customer Home / Shop screen
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   RefreshControl,
   Platform,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -195,6 +196,17 @@ export default function CustomerHomeScreen() {
 
     return list;
   }, [items, selectedCategory, searchQuery, sortBy, offerItemNames, itemPopularityMap]);
+
+  // Dynamic batch slicing for ultra-fast 60 FPS scrolling through large inventories (500+ items)
+  const [visibleCount, setVisibleCount] = useState(30);
+
+  useEffect(() => {
+    setVisibleCount(30);
+  }, [selectedCategory, searchQuery, sortBy]);
+
+  const displayedItems = useMemo(() => {
+    return filteredItems.slice(0, visibleCount);
+  }, [filteredItems, visibleCount]);
 
   // Cart totals
   const defaultSettings = useMemo(
@@ -447,6 +459,15 @@ export default function CustomerHomeScreen() {
           { paddingBottom: totalCartCount > 0 ? 120 : Spacing.xl },
         ]}
         showsVerticalScrollIndicator={false}
+        onScroll={e => {
+          const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+          const isCloseToBottom =
+            layoutMeasurement.height + contentOffset.y >= contentSize.height - 400;
+          if (isCloseToBottom && visibleCount < filteredItems.length) {
+            setVisibleCount(prev => Math.min(prev + 30, filteredItems.length));
+          }
+        }}
+        scrollEventThrottle={64}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -735,7 +756,7 @@ export default function CustomerHomeScreen() {
         {/* Items List */}
         {!itemsLoading && !itemsError && filteredItems.length > 0 && (
           <View style={styles.itemsGrid}>
-            {filteredItems.map(item => {
+            {displayedItems.map(item => {
               const inStock = item.inStock;
               const cartLine = lines.find(l => l.itemId === item.id);
               const qty = cartLine ? cartLine.qty : 0;
@@ -841,6 +862,23 @@ export default function CustomerHomeScreen() {
                 </View>
               );
             })}
+
+            {/* Load More Indicator for large catalogs */}
+            {visibleCount < filteredItems.length && (
+              <TouchableOpacity
+                style={styles.loadMoreBtn}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setVisibleCount(prev => Math.min(prev + 40, filteredItems.length));
+                }}
+                activeOpacity={0.8}
+              >
+                <ActivityIndicator size="small" color={Colors.green700} />
+                <Text style={styles.loadMoreText}>
+                  Loaded {displayedItems.length} of {filteredItems.length} products • Tap to show more
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </ScrollView>
@@ -1782,6 +1820,25 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontFamily: 'Manrope_600SemiBold',
     color: Colors.coral,
+  },
+  loadMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.card,
+    borderRadius: Radius.button,
+    paddingVertical: 14,
+    paddingHorizontal: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    marginTop: Spacing.xs,
+    gap: 8,
+    ...Shadow.card,
+  },
+  loadMoreText: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_700Bold',
+    color: Colors.green700,
   },
   sheetContent: {
     padding: Spacing.lg,
