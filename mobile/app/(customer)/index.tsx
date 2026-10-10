@@ -52,6 +52,7 @@ import type { Item, OrderItem, AddressSnapshot, OrderSlot } from '../../types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BANNER_WIDTH = SCREEN_WIDTH - Spacing.lg * 2;
+const GRID_CARD_WIDTH = Math.floor((SCREEN_WIDTH - Spacing.lg * 2 - Spacing.sm) / 2);
 
 const SORT_LABELS: Record<'popular' | 'price_asc' | 'price_desc' | 'offers' | 'recent', string> = {
   popular: 'Popular',
@@ -93,6 +94,7 @@ export default function CustomerHomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [sortBy, setSortBy] = useState<'popular' | 'price_asc' | 'price_desc' | 'offers' | 'recent'>('popular');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showSortModal, setShowSortModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<string>('ASAP');
@@ -703,20 +705,38 @@ export default function CustomerHomeScreen() {
             </Text>
           </View>
 
-          <TouchableOpacity
-            style={styles.sortByBtn}
-            onPress={() => {
-              Haptics.selectionAsync();
-              setShowSortModal(true);
-            }}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="swap-vertical" size={14} color={Colors.green700} />
-            <Text style={styles.sortByBtnText}>
-              {SORT_LABELS[sortBy] || 'Sort'}
-            </Text>
-            <Ionicons name="chevron-down" size={13} color={Colors.inkSoft} />
-          </TouchableOpacity>
+          <View style={styles.catalogueHeaderRight}>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setViewMode(prev => (prev === 'grid' ? 'list' : 'grid'));
+              }}
+              activeOpacity={0.7}
+              accessibilityLabel={`Switch to ${viewMode === 'grid' ? 'list' : 'grid'} view`}
+            >
+              <Ionicons
+                name={viewMode === 'grid' ? 'list' : 'grid'}
+                size={16}
+                color={Colors.ink}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.sortByBtn}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setShowSortModal(true);
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="swap-vertical" size={14} color={Colors.green700} />
+              <Text style={styles.sortByBtnText}>
+                {SORT_LABELS[sortBy] || 'Sort'}
+              </Text>
+              <Ionicons name="chevron-down" size={13} color={Colors.inkSoft} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Loading State */}
@@ -753,115 +773,218 @@ export default function CustomerHomeScreen() {
           />
         )}
 
-        {/* Items List */}
+        {/* Items List (2-column Grid or 1-column List) */}
         {!itemsLoading && !itemsError && filteredItems.length > 0 && (
-          <View style={styles.itemsGrid}>
-            {displayedItems.map(item => {
-              const inStock = item.inStock;
-              const cartLine = lines.find(l => l.itemId === item.id);
-              const qty = cartLine ? cartLine.qty : 0;
-              const isCan =
-                item.name.toLowerCase().includes('can') ||
-                item.category.toLowerCase().includes('water');
-              const isOffer = offerItemNames.has(item.name.toLowerCase().trim());
-              const isPopular = (itemPopularityMap[item.id] || 0) >= 2;
+          <View>
+            {viewMode === 'grid' ? (
+              <View style={styles.itemsGridTwoCol}>
+                {displayedItems.map(item => {
+                  const inStock = item.inStock;
+                  const cartLine = lines.find(l => l.itemId === item.id);
+                  const qty = cartLine ? cartLine.qty : 0;
+                  const isCan =
+                    item.name.toLowerCase().includes('can') ||
+                    item.category.toLowerCase().includes('water');
+                  const isOffer = offerItemNames.has(item.name.toLowerCase().trim());
+                  const isPopular = (itemPopularityMap[item.id] || 0) >= 2;
 
-              return (
-                <View
-                  key={item.id}
-                  style={[
-                    styles.productCard,
-                    qty > 0 && styles.productCardInCart,
-                    !inStock && styles.productCardOutOfStock,
-                  ]}
-                >
-                  {/* In-Cart Top Ribbon */}
-                  {qty > 0 && (
-                    <View style={styles.inCartIndicator}>
-                      <Ionicons name="cart" size={13} color={Colors.green700} />
-                      <Text style={styles.inCartIndicatorText}>
-                        {qty} in cart • Subtotal ₹{item.price * qty}
-                      </Text>
-                    </View>
-                  )}
+                  return (
+                    <View
+                      key={item.id}
+                      style={[
+                        styles.gridCard,
+                        qty > 0 && styles.gridCardInCart,
+                        !inStock && styles.productCardOutOfStock,
+                      ]}
+                    >
+                      {/* In-Cart Pill */}
+                      {qty > 0 && (
+                        <View style={styles.gridInCartIndicator}>
+                          <Ionicons name="cart" size={11} color={Colors.green700} />
+                          <Text style={styles.gridInCartIndicatorText}>
+                            {qty} in cart
+                          </Text>
+                        </View>
+                      )}
 
-                  <View style={styles.productMainRow}>
-                    {/* Left: Product Thumbnail with floating tag badges */}
-                    <View style={styles.productImgWrapper}>
-                      <Image
-                        source={{ uri: getProductImage(item) }}
-                        style={styles.productImg}
-                        contentFit="cover"
-                        transition={200}
-                      />
-                      {!inStock ? (
-                        <View style={styles.imgBadgeSoldOut}>
-                          <Text style={styles.imgBadgeSoldOutText}>SOLD OUT</Text>
-                        </View>
-                      ) : isOffer ? (
-                        <View style={styles.imgBadgeOffer}>
-                          <Text style={styles.imgBadgeText}>🔥 DEAL</Text>
-                        </View>
-                      ) : isCan ? (
-                        <View style={styles.imgBadgeCan}>
-                          <Text style={styles.imgBadgeText}>💧 20L</Text>
-                        </View>
-                      ) : isPopular ? (
-                        <View style={styles.imgBadgePopular}>
-                          <Text style={styles.imgBadgeText}>⭐ TOP</Text>
-                        </View>
-                      ) : null}
-                    </View>
+                      {/* Product Thumbnail with Badges */}
+                      <View style={styles.gridImgWrapper}>
+                        <Image
+                          source={{ uri: getProductImage(item) }}
+                          style={styles.gridImg}
+                          contentFit="cover"
+                          transition={200}
+                        />
+                        {!inStock ? (
+                          <View style={styles.imgBadgeSoldOut}>
+                            <Text style={styles.imgBadgeSoldOutText}>SOLD OUT</Text>
+                          </View>
+                        ) : isOffer ? (
+                          <View style={styles.imgBadgeOffer}>
+                            <Text style={styles.imgBadgeText}>🔥 DEAL</Text>
+                          </View>
+                        ) : isCan ? (
+                          <View style={styles.imgBadgeCan}>
+                            <Text style={styles.imgBadgeText}>💧 20L</Text>
+                          </View>
+                        ) : isPopular ? (
+                          <View style={styles.imgBadgePopular}>
+                            <Text style={styles.imgBadgeText}>⭐ TOP</Text>
+                          </View>
+                        ) : null}
+                      </View>
 
-                    {/* Middle: Details */}
-                    <View style={styles.productInfo}>
-                      <View style={styles.productMetaRow}>
-                        <Text style={styles.categoryBadge}>
+                      {/* Product Details */}
+                      <View style={styles.gridInfo}>
+                        <Text style={styles.categoryBadge} numberOfLines={1}>
                           {item.category.toUpperCase()}
                         </Text>
-                        {inStock && (
-                          <Text style={styles.deliverySpeedTag}>⚡ In Stock</Text>
-                        )}
-                      </View>
 
-                      <Text style={styles.productName} numberOfLines={2}>
-                        {item.name}
-                      </Text>
+                        <Text style={styles.gridProductName} numberOfLines={2}>
+                          {item.name}
+                        </Text>
 
-                      <View style={styles.unitBadge}>
-                        <Text style={styles.unitBadgeText}>{item.unit}</Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Bottom: Price and Stepper */}
-                  <View style={styles.productBottomRow}>
-                    <View style={styles.productPriceWrap}>
-                      <Text style={styles.productPrice}>₹{item.price}</Text>
-                      <Text style={styles.productPriceSub}>
-                        {item.unit ? ` per ${item.unit}` : ''}
-                      </Text>
-                    </View>
-
-                    <View style={styles.productActionWrap}>
-                      {!inStock ? (
-                        <View style={styles.outOfStockBadge}>
-                          <Text style={styles.outOfStockText}>Unavailable</Text>
+                        <View style={styles.unitBadge}>
+                          <Text style={styles.unitBadgeText}>{item.unit}</Text>
                         </View>
-                      ) : (
-                        <QtyStepper
-                          qty={qty}
-                          onAdd={() => addItem(item.id)}
-                          onIncrement={() => addItem(item.id)}
-                          onDecrement={() => removeItem(item.id)}
-                          max={20}
-                        />
-                      )}
+                      </View>
+
+                      {/* Price & Stepper Row */}
+                      <View style={styles.gridBottomRow}>
+                        <View style={styles.gridPriceWrap}>
+                          <Text style={styles.gridPrice}>₹{item.price}</Text>
+                        </View>
+
+                        <View style={styles.gridActionWrap}>
+                          {!inStock ? (
+                            <View style={styles.gridOutOfStockBadge}>
+                              <Text style={styles.outOfStockText}>Unavailable</Text>
+                            </View>
+                          ) : (
+                            <QtyStepper
+                              qty={qty}
+                              onAdd={() => addItem(item.id)}
+                              onIncrement={() => addItem(item.id)}
+                              onDecrement={() => removeItem(item.id)}
+                              max={20}
+                            />
+                          )}
+                        </View>
+                      </View>
                     </View>
-                  </View>
-                </View>
-              );
-            })}
+                  );
+                })}
+              </View>
+            ) : (
+              <View style={styles.itemsGrid}>
+                {displayedItems.map(item => {
+                  const inStock = item.inStock;
+                  const cartLine = lines.find(l => l.itemId === item.id);
+                  const qty = cartLine ? cartLine.qty : 0;
+                  const isCan =
+                    item.name.toLowerCase().includes('can') ||
+                    item.category.toLowerCase().includes('water');
+                  const isOffer = offerItemNames.has(item.name.toLowerCase().trim());
+                  const isPopular = (itemPopularityMap[item.id] || 0) >= 2;
+
+                  return (
+                    <View
+                      key={item.id}
+                      style={[
+                        styles.productCard,
+                        qty > 0 && styles.productCardInCart,
+                        !inStock && styles.productCardOutOfStock,
+                      ]}
+                    >
+                      {/* In-Cart Top Ribbon */}
+                      {qty > 0 && (
+                        <View style={styles.inCartIndicator}>
+                          <Ionicons name="cart" size={13} color={Colors.green700} />
+                          <Text style={styles.inCartIndicatorText}>
+                            {qty} in cart • Subtotal ₹{item.price * qty}
+                          </Text>
+                        </View>
+                      )}
+
+                      <View style={styles.productMainRow}>
+                        {/* Left: Product Thumbnail with floating tag badges */}
+                        <View style={styles.productImgWrapper}>
+                          <Image
+                            source={{ uri: getProductImage(item) }}
+                            style={styles.productImg}
+                            contentFit="cover"
+                            transition={200}
+                          />
+                          {!inStock ? (
+                            <View style={styles.imgBadgeSoldOut}>
+                              <Text style={styles.imgBadgeSoldOutText}>SOLD OUT</Text>
+                            </View>
+                          ) : isOffer ? (
+                            <View style={styles.imgBadgeOffer}>
+                              <Text style={styles.imgBadgeText}>🔥 DEAL</Text>
+                            </View>
+                          ) : isCan ? (
+                            <View style={styles.imgBadgeCan}>
+                              <Text style={styles.imgBadgeText}>💧 20L</Text>
+                            </View>
+                          ) : isPopular ? (
+                            <View style={styles.imgBadgePopular}>
+                              <Text style={styles.imgBadgeText}>⭐ TOP</Text>
+                            </View>
+                          ) : null}
+                        </View>
+
+                        {/* Middle: Details */}
+                        <View style={styles.productInfo}>
+                          <View style={styles.productMetaRow}>
+                            <Text style={styles.categoryBadge}>
+                              {item.category.toUpperCase()}
+                            </Text>
+                            {inStock && (
+                              <Text style={styles.deliverySpeedTag}>⚡ In Stock</Text>
+                            )}
+                          </View>
+
+                          <Text style={styles.productName} numberOfLines={2}>
+                            {item.name}
+                          </Text>
+
+                          <View style={styles.unitBadge}>
+                            <Text style={styles.unitBadgeText}>{item.unit}</Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Bottom: Price and Stepper */}
+                      <View style={styles.productBottomRow}>
+                        <View style={styles.productPriceWrap}>
+                          <Text style={styles.productPrice}>₹{item.price}</Text>
+                          <Text style={styles.productPriceSub}>
+                            {item.unit ? ` per ${item.unit}` : ''}
+                          </Text>
+                        </View>
+
+                        <View style={styles.productActionWrap}>
+                          {!inStock ? (
+                            <View style={styles.outOfStockBadge}>
+                              <Text style={styles.outOfStockText}>Unavailable</Text>
+                            </View>
+                          ) : (
+                            <QtyStepper
+                              qty={qty}
+                              onAdd={() => addItem(item.id)}
+                              onIncrement={() => addItem(item.id)}
+                              onDecrement={() => removeItem(item.id)}
+                              max={20}
+                            />
+                          )}
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
 
             {/* Load More Indicator for large catalogs */}
             {visibleCount < filteredItems.length && (
@@ -1550,6 +1673,22 @@ const styles = StyleSheet.create({
     color: Colors.inkSoft,
     marginTop: 2,
   },
+  catalogueHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  viewToggleBtn: {
+    width: 36,
+    height: 34,
+    borderRadius: Radius.button,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: Colors.line,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Shadow.card,
+  },
   sortByBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1641,6 +1780,96 @@ const styles = StyleSheet.create({
   },
   itemsGrid: {
     gap: Spacing.md,
+  },
+  itemsGridTwoCol: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: Spacing.md,
+  },
+  gridCard: {
+    width: GRID_CARD_WIDTH,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.card,
+    padding: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    justifyContent: 'space-between',
+    ...Shadow.card,
+  },
+  gridCardInCart: {
+    borderColor: Colors.green500,
+    borderWidth: 1.5,
+    backgroundColor: '#FAFCF9',
+  },
+  gridInCartIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginBottom: 6,
+    gap: 3,
+  },
+  gridInCartIndicatorText: {
+    fontSize: 9,
+    fontFamily: 'Manrope_700Bold',
+    color: Colors.green700,
+  },
+  gridImgWrapper: {
+    position: 'relative',
+    width: '100%',
+    height: 114,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.cream,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    overflow: 'hidden',
+    marginBottom: Spacing.xs,
+  },
+  gridImg: {
+    width: '100%',
+    height: '100%',
+  },
+  gridInfo: {
+    flex: 1,
+    marginBottom: Spacing.xs,
+  },
+  gridProductName: {
+    fontSize: FontSize.xs + 1,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: Colors.ink,
+    lineHeight: 18,
+    marginTop: 2,
+    marginBottom: 4,
+    minHeight: 36,
+  },
+  gridBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: Spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: Colors.line,
+  },
+  gridPriceWrap: {
+    flex: 1,
+  },
+  gridPrice: {
+    fontSize: FontSize.md,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: Colors.green700,
+  },
+  gridActionWrap: {
+    alignItems: 'flex-end',
+  },
+  gridOutOfStockBadge: {
+    backgroundColor: 'rgba(225, 96, 74, 0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: Radius.chip,
   },
   productCard: {
     backgroundColor: Colors.card,
