@@ -52,6 +52,26 @@ import type { Item, OrderItem, AddressSnapshot, OrderSlot } from '../../types';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BANNER_WIDTH = SCREEN_WIDTH - Spacing.lg * 2;
 
+const SORT_LABELS: Record<'popular' | 'price_asc' | 'price_desc' | 'offers' | 'recent', string> = {
+  popular: 'Popular',
+  price_asc: 'Price: Low → High',
+  price_desc: 'Price: High → Low',
+  offers: 'Deals & Offers',
+  recent: 'New Arrivals',
+};
+
+const QUICK_SORT_OPTIONS: Array<{
+  id: 'popular' | 'price_asc' | 'price_desc' | 'offers' | 'recent';
+  label: string;
+  icon: string;
+}> = [
+  { id: 'popular', label: 'Popular', icon: '🔥' },
+  { id: 'price_asc', label: 'Price: Low → High', icon: '💰' },
+  { id: 'price_desc', label: 'Price: High → Low', icon: '💎' },
+  { id: 'offers', label: 'Deals & Offers', icon: '🏷️' },
+  { id: 'recent', label: 'New Arrivals', icon: '✨' },
+];
+
 export default function CustomerHomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -71,7 +91,7 @@ export default function CustomerHomeScreen() {
   // Local UI State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [sortBy, setSortBy] = useState<'popular' | 'offers' | 'recent'>('popular');
+  const [sortBy, setSortBy] = useState<'popular' | 'price_asc' | 'price_desc' | 'offers' | 'recent'>('popular');
   const [showSortModal, setShowSortModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<string>('ASAP');
@@ -141,6 +161,14 @@ export default function CustomerHomeScreen() {
       // In-stock items always appear before out-of-stock items
       if (a.inStock && !b.inStock) return -1;
       if (!a.inStock && b.inStock) return 1;
+
+      if (sortBy === 'price_asc') {
+        return (a.price || 0) - (b.price || 0);
+      }
+
+      if (sortBy === 'price_desc') {
+        return (b.price || 0) - (a.price || 0);
+      }
 
       if (sortBy === 'offers') {
         const aIsOffer = offerItemNames.has(a.name.toLowerCase().trim());
@@ -540,40 +568,106 @@ export default function CustomerHomeScreen() {
           </ScrollView>
         </View>
 
-        {/* WhatsApp & Call Quick Ordering Section */}
-        <View style={styles.waSection}>
-          <View style={styles.waHeader}>
-            <Text style={styles.waTitle}>Have a big list? 📝</Text>
-            <Text style={styles.waSub}>
-              Send a photo of your list or audio message directly to our store!
-            </Text>
-          </View>
-          <View style={styles.waButtons}>
+        {/* Quick Sort & Filter Chips Bar */}
+        <View style={styles.sortChipsSection}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.sortChipsList}
+          >
             <TouchableOpacity
-              style={[styles.waBtn, { backgroundColor: '#25D366' }]}
-              onPress={() =>
-                Linking.openURL(
-                  'whatsapp://send?phone=919600102028&text=Hi%20Anandhi%20Stores,%20I%20would%20like%20to%20place%20an%20order.',
-                ).catch(() =>
-                  Alert.alert('Error', 'WhatsApp is not installed on this device'),
-                )
-              }
+              style={styles.sortFilterBtn}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setShowSortModal(true);
+              }}
+              activeOpacity={0.7}
             >
-              <Text style={styles.waBtnIcon}>💬</Text>
-              <Text style={styles.waBtnTxt}>WhatsApp Us</Text>
+              <Ionicons name="options-outline" size={14} color={Colors.ink} />
+              <Text style={styles.sortFilterBtnText}>All Filters</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.waBtn, { backgroundColor: Colors.green700 }]}
-              onPress={() =>
-                Linking.openURL('tel:9600102028').catch(() =>
-                  Alert.alert('Error', 'Calling not supported'),
-                )
-              }
-            >
-              <Text style={styles.waBtnIcon}>📞</Text>
-              <Text style={styles.waBtnTxt}>Call Us</Text>
-            </TouchableOpacity>
+            {QUICK_SORT_OPTIONS.map(opt => {
+              const isActive = sortBy === opt.id;
+              return (
+                <TouchableOpacity
+                  key={opt.id}
+                  style={[
+                    styles.sortQuickChip,
+                    isActive && styles.sortQuickChipActive,
+                  ]}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setSortBy(opt.id);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.sortQuickChipIcon}>{opt.icon}</Text>
+                  <Text
+                    style={[
+                      styles.sortQuickChipText,
+                      isActive && styles.sortQuickChipTextActive,
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                  {isActive && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={14}
+                      color="#ffffff"
+                      style={{ marginLeft: 3 }}
+                    />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {/* Compact WhatsApp & Call Quick Ordering Ribbon */}
+        <View style={styles.waSection}>
+          <View style={styles.waHeaderRow}>
+            <View style={styles.waTextContainer}>
+              <View style={styles.waTitleRow}>
+                <View style={styles.waBadge}>
+                  <Text style={styles.waBadgeText}>QUICK ORDER</Text>
+                </View>
+                <Text style={styles.waTitle}>Have a grocery list? 📝</Text>
+              </View>
+              <Text style={styles.waSub}>
+                Send photo or voice note directly to our store
+              </Text>
+            </View>
+            <View style={styles.waButtons}>
+              <TouchableOpacity
+                style={[styles.waBtn, { backgroundColor: '#25D366' }]}
+                onPress={() =>
+                  Linking.openURL(
+                    'whatsapp://send?phone=919600102028&text=Hi%20Anandhi%20Stores,%20I%20would%20like%20to%20place%20an%20order.',
+                  ).catch(() =>
+                    Alert.alert('Error', 'WhatsApp is not installed on this device'),
+                  )
+                }
+                activeOpacity={0.8}
+              >
+                <Ionicons name="logo-whatsapp" size={15} color="#ffffff" />
+                <Text style={styles.waBtnTxt}>WhatsApp</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.waBtn, { backgroundColor: Colors.green700 }]}
+                onPress={() =>
+                  Linking.openURL('tel:9600102028').catch(() =>
+                    Alert.alert('Error', 'Calling not supported'),
+                  )
+                }
+                activeOpacity={0.8}
+              >
+                <Ionicons name="call" size={13} color="#ffffff" />
+                <Text style={styles.waBtnTxt}>Call</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -584,7 +678,7 @@ export default function CustomerHomeScreen() {
               {selectedCategory === 'All' ? 'All Products' : selectedCategory}
             </Text>
             <Text style={styles.itemCountBadge}>
-              {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'}
+              {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'} available
             </Text>
           </View>
 
@@ -598,7 +692,7 @@ export default function CustomerHomeScreen() {
           >
             <Ionicons name="swap-vertical" size={14} color={Colors.green700} />
             <Text style={styles.sortByBtnText}>
-              Sort: {sortBy === 'popular' ? 'Popular' : sortBy === 'offers' ? 'Offers' : 'Recent'}
+              {SORT_LABELS[sortBy] || 'Sort'}
             </Text>
             <Ionicons name="chevron-down" size={13} color={Colors.inkSoft} />
           </TouchableOpacity>
@@ -645,46 +739,104 @@ export default function CustomerHomeScreen() {
               const inStock = item.inStock;
               const cartLine = lines.find(l => l.itemId === item.id);
               const qty = cartLine ? cartLine.qty : 0;
+              const isCan =
+                item.name.toLowerCase().includes('can') ||
+                item.category.toLowerCase().includes('water');
+              const isOffer = offerItemNames.has(item.name.toLowerCase().trim());
+              const isPopular = (itemPopularityMap[item.id] || 0) >= 2;
 
               return (
                 <View
                   key={item.id}
                   style={[
                     styles.productCard,
+                    qty > 0 && styles.productCardInCart,
                     !inStock && styles.productCardOutOfStock,
                   ]}
                 >
-                  <View style={styles.productTop}>
-                    <Image
-                      source={{ uri: getProductImage(item) }}
-                      style={styles.productImg}
-                      contentFit="cover"
-                      transition={200}
-                    />
+                  {/* In-Cart Top Ribbon */}
+                  {qty > 0 && (
+                    <View style={styles.inCartIndicator}>
+                      <Ionicons name="cart" size={13} color={Colors.green700} />
+                      <Text style={styles.inCartIndicatorText}>
+                        {qty} in cart • Subtotal ₹{item.price * qty}
+                      </Text>
+                    </View>
+                  )}
 
+                  <View style={styles.productMainRow}>
+                    {/* Left: Product Thumbnail with floating tag badges */}
+                    <View style={styles.productImgWrapper}>
+                      <Image
+                        source={{ uri: getProductImage(item) }}
+                        style={styles.productImg}
+                        contentFit="cover"
+                        transition={200}
+                      />
+                      {!inStock ? (
+                        <View style={styles.imgBadgeSoldOut}>
+                          <Text style={styles.imgBadgeSoldOutText}>SOLD OUT</Text>
+                        </View>
+                      ) : isOffer ? (
+                        <View style={styles.imgBadgeOffer}>
+                          <Text style={styles.imgBadgeText}>🔥 DEAL</Text>
+                        </View>
+                      ) : isCan ? (
+                        <View style={styles.imgBadgeCan}>
+                          <Text style={styles.imgBadgeText}>💧 20L</Text>
+                        </View>
+                      ) : isPopular ? (
+                        <View style={styles.imgBadgePopular}>
+                          <Text style={styles.imgBadgeText}>⭐ TOP</Text>
+                        </View>
+                      ) : null}
+                    </View>
+
+                    {/* Middle: Details */}
                     <View style={styles.productInfo}>
+                      <View style={styles.productMetaRow}>
+                        <Text style={styles.categoryBadge}>
+                          {item.category.toUpperCase()}
+                        </Text>
+                        {inStock && (
+                          <Text style={styles.deliverySpeedTag}>⚡ In Stock</Text>
+                        )}
+                      </View>
+
                       <Text style={styles.productName} numberOfLines={2}>
                         {item.name}
                       </Text>
-                      <Text style={styles.productUnit}>{item.unit}</Text>
-                      <Text style={styles.productPrice}>₹{item.price}</Text>
+
+                      <View style={styles.unitBadge}>
+                        <Text style={styles.unitBadgeText}>{item.unit}</Text>
+                      </View>
                     </View>
                   </View>
 
-                  <View style={styles.productBottom}>
-                    {!inStock ? (
-                      <View style={styles.outOfStockBadge}>
-                        <Text style={styles.outOfStockText}>Out of stock</Text>
-                      </View>
-                    ) : (
-                      <QtyStepper
-                        qty={qty}
-                        onAdd={() => addItem(item.id)}
-                        onIncrement={() => addItem(item.id)}
-                        onDecrement={() => removeItem(item.id)}
-                        max={20}
-                      />
-                    )}
+                  {/* Bottom: Price and Stepper */}
+                  <View style={styles.productBottomRow}>
+                    <View style={styles.productPriceWrap}>
+                      <Text style={styles.productPrice}>₹{item.price}</Text>
+                      <Text style={styles.productPriceSub}>
+                        {item.unit ? ` per ${item.unit}` : ''}
+                      </Text>
+                    </View>
+
+                    <View style={styles.productActionWrap}>
+                      {!inStock ? (
+                        <View style={styles.outOfStockBadge}>
+                          <Text style={styles.outOfStockText}>Unavailable</Text>
+                        </View>
+                      ) : (
+                        <QtyStepper
+                          qty={qty}
+                          onAdd={() => addItem(item.id)}
+                          onIncrement={() => addItem(item.id)}
+                          onDecrement={() => removeItem(item.id)}
+                          max={20}
+                        />
+                      )}
+                    </View>
                   </View>
                 </View>
               );
@@ -922,6 +1074,52 @@ export default function CustomerHomeScreen() {
                 </View>
               </View>
               {sortBy === 'popular' && (
+                <Ionicons name="checkmark-circle" size={22} color={Colors.green700} />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.sortOptionRow, sortBy === 'price_asc' && styles.sortOptionRowActive]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setSortBy('price_asc');
+                setShowSortModal(false);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.sortOptionLeft}>
+                <Text style={styles.sortOptionIcon}>💰</Text>
+                <View style={styles.sortOptionTextWrap}>
+                  <Text style={[styles.sortOptionTitle, sortBy === 'price_asc' && styles.sortOptionTitleActive]}>
+                    Price: Low to High
+                  </Text>
+                  <Text style={styles.sortOptionSub}>Affordable & everyday grocery essentials first</Text>
+                </View>
+              </View>
+              {sortBy === 'price_asc' && (
+                <Ionicons name="checkmark-circle" size={22} color={Colors.green700} />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.sortOptionRow, sortBy === 'price_desc' && styles.sortOptionRowActive]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setSortBy('price_desc');
+                setShowSortModal(false);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.sortOptionLeft}>
+                <Text style={styles.sortOptionIcon}>💎</Text>
+                <View style={styles.sortOptionTextWrap}>
+                  <Text style={[styles.sortOptionTitle, sortBy === 'price_desc' && styles.sortOptionTitleActive]}>
+                    Price: High to Low
+                  </Text>
+                  <Text style={styles.sortOptionSub}>Premium cans, family packs & large combos first</Text>
+                </View>
+              </View>
+              {sortBy === 'price_desc' && (
                 <Ionicons name="checkmark-circle" size={22} color={Colors.green700} />
               )}
             </TouchableOpacity>
@@ -1175,50 +1373,124 @@ const styles = StyleSheet.create({
   categoryPillsList: {
     gap: Spacing.sm,
   },
+  sortChipsSection: {
+    marginBottom: Spacing.md,
+  },
+  sortChipsList: {
+    gap: Spacing.xs,
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  sortFilterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: Colors.ink,
+    borderRadius: Radius.chip,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    gap: 5,
+    marginRight: 4,
+    ...Shadow.card,
+  },
+  sortFilterBtnText: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_700Bold',
+    color: Colors.ink,
+  },
+  sortQuickChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.cream,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.chip,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    gap: 4,
+  },
+  sortQuickChipActive: {
+    backgroundColor: Colors.green700,
+    borderColor: Colors.green700,
+  },
+  sortQuickChipIcon: {
+    fontSize: 13,
+  },
+  sortQuickChipText: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_600SemiBold',
+    color: Colors.inkSoft,
+  },
+  sortQuickChipTextActive: {
+    color: '#FFFFFF',
+    fontFamily: 'Manrope_700Bold',
+  },
   waSection: {
     backgroundColor: Colors.card,
     borderRadius: Radius.card,
-    padding: Spacing.lg,
-    marginBottom: Spacing.xl,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.line,
     ...Shadow.card,
   },
-  waHeader: {
-    marginBottom: Spacing.md,
+  waHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
+  waTextContainer: {
+    flex: 1,
+  },
+  waTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 2,
+  },
+  waBadge: {
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  waBadgeText: {
+    fontSize: 9,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: Colors.green700,
+    letterSpacing: 0.5,
   },
   waTitle: {
-    fontSize: FontSize.md,
+    fontSize: FontSize.sm,
     fontFamily: 'Manrope_800ExtraBold',
     color: Colors.ink,
-    marginBottom: 2,
   },
   waSub: {
     fontSize: FontSize.xs,
     fontFamily: 'Manrope_500Medium',
     color: Colors.inkSoft,
-    lineHeight: 18,
+    lineHeight: 16,
   },
   waButtons: {
     flexDirection: 'row',
-    gap: Spacing.md,
+    gap: 6,
   },
   waBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
     borderRadius: Radius.button,
-    gap: 6,
-  },
-  waBtnIcon: {
-    fontSize: 16,
+    gap: 4,
   },
   waBtnTxt: {
     color: '#ffffff',
-    fontFamily: 'Manrope_600SemiBold',
-    fontSize: FontSize.sm,
+    fontFamily: 'Manrope_700Bold',
+    fontSize: FontSize.xs,
   },
   catalogueHeader: {
     flexDirection: 'row',
@@ -1340,47 +1612,165 @@ const styles = StyleSheet.create({
     borderColor: Colors.line,
     ...Shadow.card,
   },
-  productCardOutOfStock: {
-    opacity: 0.65,
+  productCardInCart: {
+    borderColor: Colors.green500,
+    borderWidth: 1.5,
+    backgroundColor: '#FAFCF9',
   },
-  productTop: {
+  productCardOutOfStock: {
+    opacity: 0.6,
+  },
+  inCartIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: Spacing.sm,
+    gap: 5,
+  },
+  inCartIndicatorText: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_700Bold',
+    color: Colors.green700,
+  },
+  productMainRow: {
     flexDirection: 'row',
     gap: Spacing.md,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
-  productImg: {
-    width: 64,
-    height: 64,
+  productImgWrapper: {
+    position: 'relative',
+    width: 82,
+    height: 82,
     borderRadius: Radius.md,
     backgroundColor: Colors.cream,
     borderWidth: 1,
     borderColor: Colors.line,
+    overflow: 'hidden',
+  },
+  productImg: {
+    width: '100%',
+    height: '100%',
+  },
+  imgBadgeOffer: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  imgBadgeCan: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    backgroundColor: '#0284C7',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  imgBadgePopular: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    backgroundColor: '#D97706',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  imgBadgeText: {
+    fontSize: 9,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  imgBadgeSoldOut: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imgBadgeSoldOutText: {
+    fontSize: 10,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
   productInfo: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+  },
+  productMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  categoryBadge: {
+    fontSize: 10,
+    fontFamily: 'Manrope_700Bold',
+    color: Colors.inkSoft,
+    letterSpacing: 0.5,
+  },
+  deliverySpeedTag: {
+    fontSize: 10,
+    fontFamily: 'Manrope_700Bold',
+    color: Colors.green700,
   },
   productName: {
     fontSize: FontSize.md,
     fontFamily: 'Manrope_800ExtraBold',
     color: Colors.ink,
-    marginBottom: 2,
-  },
-  productUnit: {
-    fontSize: FontSize.xs,
-    fontFamily: 'Manrope_500Medium',
-    color: Colors.inkSoft,
+    lineHeight: 20,
     marginBottom: 4,
   },
+  unitBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.cream,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: Colors.line,
+  },
+  unitBadgeText: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_600SemiBold',
+    color: Colors.inkSoft,
+  },
+  productBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.line,
+  },
+  productPriceWrap: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+  },
   productPrice: {
-    fontSize: FontSize.md,
+    fontSize: FontSize.lg,
     fontFamily: 'Manrope_800ExtraBold',
     color: Colors.green700,
   },
-  productBottom: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
+  productPriceSub: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_500Medium',
+    color: Colors.inkSoft,
+  },
+  productActionWrap: {
+    alignItems: 'flex-end',
   },
   outOfStockBadge: {
     backgroundColor: 'rgba(225, 96, 74, 0.1)',
