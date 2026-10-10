@@ -13,6 +13,7 @@ import {
   RefreshControl,
   Modal,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import RNBottomSheet from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
@@ -41,6 +42,7 @@ type ProfileTab = 'pending' | 'approved' | 'all';
 export default function AdminProfiles() {
   const { showToast } = useToast();
   const { uid: adminUid } = useSession();
+  const insets = useSafeAreaInsets();
 
   // Data hooks
   const { customers, loading: customersLoading } = useCustomers();
@@ -222,7 +224,7 @@ export default function AdminProfiles() {
       />
 
       {/* Top Role Switcher: Customers vs Delivery Agents */}
-      <View style={styles.roleSwitcher}>
+      <View style={[styles.roleSwitcher, { marginHorizontal: Math.max(insets.left, insets.right, Spacing.lg) }]}>
         <TouchableOpacity
           style={[styles.roleTab, activeRole === 'customers' && styles.roleTabActive]}
           onPress={() => {
@@ -276,8 +278,15 @@ export default function AdminProfiles() {
         <>
           <ScrollView
             style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
+            contentContainerStyle={[
+              styles.content,
+              {
+                paddingBottom: Math.max(insets.bottom, 16) + 120,
+                paddingLeft: Math.max(insets.left, Spacing.lg),
+                paddingRight: Math.max(insets.right, Spacing.lg),
+              },
+            ]}
+            showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

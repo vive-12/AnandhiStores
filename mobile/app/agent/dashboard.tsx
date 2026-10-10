@@ -439,7 +439,16 @@ export default function AgentDashboard() {
       <Stack.Screen options={{ headerShown: false }} />
       <View style={s.container}>
         {/* Top Header Bar (supports Notch & Dynamic Island) */}
-        <View style={[s.header, { paddingTop: insets.top + Spacing.xs }]}>
+        <View
+          style={[
+            s.header,
+            {
+              paddingTop: insets.top + Spacing.xs,
+              paddingLeft: Math.max(insets.left, Spacing.lg),
+              paddingRight: Math.max(insets.right, Spacing.lg),
+            },
+          ]}
+        >
           <View style={s.headerLeft}>
             <Text style={s.greeting}>Hello, {agentName} 👋</Text>
             <Text style={s.headerSubtitle}>Ready for your delivery runs</Text>
@@ -654,8 +663,15 @@ export default function AgentDashboard() {
             data={currentTabOrders}
             keyExtractor={item => item.id}
             renderItem={renderOrderCard}
-            contentContainerStyle={s.listContent}
             showsVerticalScrollIndicator={false}
+            contentContainerStyle={[
+              s.listContent,
+              {
+                paddingBottom: Math.max(insets.bottom, 16) + 80,
+                paddingLeft: Math.max(insets.left, Spacing.lg),
+                paddingRight: Math.max(insets.right, Spacing.lg),
+              },
+            ]}
             ListEmptyComponent={
               <EmptyState
                 title={

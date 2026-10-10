@@ -25,7 +25,17 @@ export function StickyBar({ itemCount, total, onPress }: StickyBarProps) {
   if (itemCount === 0) return null;
 
   return (
-    <Animated.View style={[styles.wrapper, { paddingBottom: insets.bottom + Spacing.sm }, animStyle]}>
+    <Animated.View
+      style={[
+        styles.wrapper,
+        {
+          paddingBottom: Math.max(insets.bottom, 14) + Spacing.sm,
+          paddingLeft: Math.max(insets.left, Spacing.lg),
+          paddingRight: Math.max(insets.right, Spacing.lg),
+        },
+        animStyle,
+      ]}
+    >
       <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={styles.bar}>
         <View style={styles.left}>
           <View style={styles.badge}>

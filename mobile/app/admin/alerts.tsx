@@ -548,7 +548,14 @@ export default function AdminAlerts() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingBottom: Math.max(insets.bottom, 16) + 120,
+            paddingLeft: Math.max(insets.left, Spacing.lg),
+            paddingRight: Math.max(insets.right, Spacing.lg),
+          },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

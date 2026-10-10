@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Text, View, StyleSheet, TouchableOpacity, Modal, PanResponder, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Redirect, Tabs, usePathname, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useSession } from '../../hooks/useSession';
@@ -110,6 +111,10 @@ export default function AdminLayout() {
   if (isLoading) return <View style={{ flex: 1, backgroundColor: Colors.green900 }} />;
   if (!uid || role !== 'admin') return <Redirect href="/auth/login" />;
 
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 14);
+  const tabHeight = 58 + bottomInset;
+
   return (
     <View style={{ flex: 1 }} {...panResponder.panHandlers}>
       <Tabs screenOptions={{
@@ -119,9 +124,11 @@ export default function AdminLayout() {
         tabBarStyle: {
           backgroundColor: Colors.green900,
           borderTopColor: Colors.green700,
-          height: Platform.OS === 'ios' ? 88 : 66,
-          paddingBottom: Platform.OS === 'ios' ? 24 : 8,
+          height: tabHeight,
+          paddingBottom: bottomInset,
           paddingTop: 8,
+          paddingLeft: Math.max(insets.left, 4),
+          paddingRight: Math.max(insets.right, 4),
         },
         tabBarLabelStyle: {
           fontSize: 11,
