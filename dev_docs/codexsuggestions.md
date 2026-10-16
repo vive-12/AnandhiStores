@@ -1,21 +1,22 @@
 # Codex Codebase Review and Production Checklist
 
 **Review date:** 2026-10-10  
+**Planning context updated:** 2026-10-17  
 **Reviewer:** Codex  
 **Scope:** Static, line-oriented review of the application source, Firebase configuration/rules/functions, test scripts, and project docs in this repository.  
-**Target:** Development nearing production, initially serving about 2,000 users.
+**Target:** Development only today; design for 2,000–3,000 users and approximately 100–1,000 orders per day. No separate production environment currently exists.
 
 ## How to use this review
 
 This is a source review, not a claim that every line or button was exercised on a device. The repository contains roughly 75 tracked runtime/configuration files and about 20,000 lines. I traced the main app entry and role routes, service and hook boundaries, Firestore reads/writes/rules, order and recovery transitions, auth flows, and test scripts. Each finding below points to the relevant file/line area so it can be checked directly. Line numbers may move as code changes; use the named function/symbol as the stable locator.
 
-**Priority:** P0 = block production; P1 = fix before broad rollout; P2 = planned hardening/scale improvement. “Existing safeguard” describes what source currently does; “recommended fix” is proposed work and has not been applied by this documentation-only review.
+**Priority:** P0 = must be resolved before production data or public access; P1 = fix before a broader pilot; P2 = measured hardening/scale improvement. Because the app is currently development-only, some P0 items are release gates rather than reasons to stop isolated development testing. “Existing safeguard” describes what source currently does; “recommended fix” is proposed work and has not been applied by this documentation-only review.
 
 ## Executive summary
 
-The app has recognizable customer, admin, and agent workflows, and the order transition helpers have useful transactional checks. The biggest production blocker is that Firestore rules permit unauthenticated reads/writes to sensitive and financially important collections. Client-side checks cannot compensate for those rules. Other high-priority items are resolving Auth/PIN identity consistently, validating order totals on a trusted server, reconciling seeded duplicate user profiles, and removing production access to development diagnostics.
+The app has recognizable customer, admin, and agent workflows, and the order transition helpers have useful transactional checks. The largest pre-production blocker is that Firestore rules permit unauthenticated reads/writes to sensitive and financially important collections. Client-side checks cannot compensate for those rules. Other important pre-production items are resolving Auth/PIN identity consistently, validating order totals on a trusted server, reconciling seeded duplicate user profiles, and ensuring development diagnostics cannot ship unintentionally.
 
-For 2,000 users, the current bounded queries and Firestore listeners are a reasonable starting point if traffic is moderate. The code should still get a small concurrency/load exercise: order IDs and daily statistics currently funnel writes through shared documents. A production launch needs a real staging project and a deploy/rollback checklist, not just a successful local test suite.
+For 2,000–3,000 users and 100–1,000 orders per day, the current bounded queries and Firestore listeners are a reasonable starting point, subject to measurement. Do not build distributed infrastructure preemptively. First exercise realistic bursts and observe transaction retries, listener reads, latency, and cost; order IDs and daily statistics currently funnel writes through shared documents. Until a production environment is created, keep development isolated, use development data, and document the point at which production credentials/rules are introduced. Before launch, prepare a deploy/rollback checklist and preferably a staging validation path.
 
 ## Release blockers and high-priority findings
 
@@ -27,17 +28,17 @@ For 2,000 users, the current bounded queries and Firestore listeners are a reaso
 
 **Fix before production:** Replace broad allows with default-deny, authenticated role- and document-owner-specific reads. Permit only narrowly scoped self-profile changes. Put order creation, assignment, status transitions, payment confirmation, inventory/can ledger changes, stats aggregation, and privileged notifications behind callable Cloud Functions or another trusted backend. Check role claims and ownership inside the backend and in rules as a second layer. Add Firestore Emulator rule tests for anonymous, customer, agent, and admin attempts, including cross-user document IDs and field-level changes. Do not deploy until these tests pass.
 
-**Temporary development exception:** The user previously requested open rules temporarily for testing. That is a development convenience only; confirm the Firebase project/rules before every test and close the exception before any production data or real users are present.
+**Current development context:** The user has confirmed this is the only environment and development is the focus. If rules remain open for rapid testing, use only disposable/development data and keep access limited to the intended development project. These rules are not safe for public access or real customer data. Tighten and emulator-test them before a production environment or external pilot is introduced.
 
-### P0 — Separate development and production Firebase projects
+### P0 before launch — Keep Firebase environment selection explicit
 
 **Evidence:** [mobile/config/firebase.ts](mobile/config/firebase.ts), around lines 12–19, contains a hard-coded project/config fallback. The demo login is development-gated in [mobile/app.config.js](mobile/app.config.js) and [mobile/config/demoCredentials.ts](mobile/config/demoCredentials.ts), but that does not isolate Firestore writes.
 
-**Impact:** A development build or a missing environment variable can point a developer/test action at the production Firebase project. Hidden demo UI is not a data boundary.
+**Impact:** There is no separate production environment today, so the immediate task is to confirm every development build and test targets the intended development Firebase project. When production is introduced, a missing environment value or development build must not silently target production. Hidden demo UI is not a data boundary.
 
-**Fix:** Use separate Firebase projects for local/dev, staging, and production. Make project selection explicit per build profile; fail closed if the required configuration is missing. Add a startup-visible environment label in non-production builds, and assert the expected project ID in deploy scripts and smoke tests. Do not put service-account secrets in the mobile app.
+**Fix:** For now, make the development project explicit and fail closed when its required configuration is missing; show a clear development label and assert the expected project ID in test/deploy scripts. When a production environment is actually planned, create a separate Firebase project (and staging if useful), with separate build profiles and rules. Do not put service-account secrets in the mobile app.
 
-### P0 — Make sign-in, PIN resets, and account identity agree
+### P0 before real users — Make sign-in, PIN resets, and account identity agree
 
 **Evidence:** [mobile/services/auth.ts](mobile/services/auth.ts), around lines 44, 66, 138–151, 191 onward, and 288–329. PIN verification hashes a short PIN with the phone number and compares a profile value client-side. Registration calls Firebase Email/Password Auth. Admin/agent creation and PIN reset depend on callable Functions. [functions/index.js](functions/index.js) resolves Firestore profiles and Firebase Auth users through different lookup paths; the reset path needs an explicit invariant that Auth UID, profile document ID, normalized phone, and role refer to the same person. Duplicate phone/profile records exist in the development data, and selecting the first matching profile is ambiguous.
 
@@ -45,7 +46,7 @@ For 2,000 users, the current bounded queries and Firestore listeners are a reaso
 
 **Fix:** Decide and document the production sign-in provider, enable it in the correct Firebase project, deploy callable functions, and verify the admin custom claim. Normalize phone numbers and enforce uniqueness in a trusted transaction. Migrate duplicate profiles and legacy PIN fields. Do not store a low-entropy PIN verifier in a client-readable profile; use Firebase Auth or a server-side verifier with rate limiting, lockout, and audited reset tokens. Enforce that the caller is authorized to reset the exact UID/phone/role. Add signup, approval, first-login reset, self-reset, admin reset, disabled-account, duplicate-phone, and wrong-role tests.
 
-### P0 — Prevent production access to development routes and logs
+### P0 before release — Prevent production access to development routes and logs
 
 **Evidence:** [mobile/app/_layout.tsx](mobile/app/_layout.tsx), around lines 43 and 71, allows `/dev/*` through route-guard logic for a logged-out user. [mobile/app/dev/logs.tsx](mobile/app/dev/logs.tsx) exposes stored logs; [mobile/utils/logger.ts](mobile/utils/logger.ts) persists serialized diagnostic details, while service logs can contain UIDs, order IDs, phones, errors, or stacks. The UI showcase is in [mobile/app/dev/ui.tsx](mobile/app/dev/ui.tsx).
 
@@ -53,7 +54,7 @@ For 2,000 users, the current bounded queries and Firestore listeners are a reaso
 
 **Fix:** Exclude dev routes and their navigation entries from production builds or guard both layout and screen with `__DEV__` plus role checks. Redact phone/address/token/PIN/order details before persistence; cap and expire logs; disable full-log export in production. Add a production-config test asserting dev screens and demo credentials are absent.
 
-### P0 — Validate order contents, price, and totals on the trusted side
+### P0 before real orders — Validate order contents, price, and totals on the trusted side
 
 **Evidence:** Customer checkout in [mobile/app/(customer)/index.tsx](mobile/app/(customer)/index.tsx), around lines 368–394, builds `orderItems` from the current catalog but takes `subtotal`, `deliveryFee`, and `total` from `cartTotals`. Unavailable/deleted cart items can be omitted while totals still reflect the original cart. The order service in [mobile/services/orders.ts](mobile/services/orders.ts), around lines 204 onward, writes client-provided order values.
 
@@ -108,7 +109,7 @@ Admin area navigation lives in [mobile/app/admin/_layout.tsx](mobile/app/admin/_
 - Current can balance/recovery changes aim to avoid double-counting cans currently out. Add invariant tests against the customer ledger and operational can totals after every transition and retry, not only the happy-path final value.
 - [mobile/components/ui/NotificationBell.tsx](mobile/components/ui/NotificationBell.tsx), around lines 25–68, derives “today” from device-local time while business daily reporting uses IST. Use one shared timezone helper. Its unread-count effect around lines 123–132 can return before updating the previous-count reference when a new unread item appears; check for repeated toast/retrigger behavior. Opening/closing the bell marks items read (around lines 142 and 162); confirm that this is the intended inbox behavior and make it accessible to users.
 
-## Data, performance, and scale (~2,000 users)
+## Data, performance, and scale (2,000–3,000 users; 100–1,000 orders/day)
 
 ### Queries and listeners
 
@@ -119,7 +120,7 @@ Admin area navigation lives in [mobile/app/admin/_layout.tsx](mobile/app/admin/_
 
 ### Contention and write volume
 
-- [mobile/services/orders.ts](mobile/services/orders.ts), around line 223 onward, increments a shared `counters/orders` document for order IDs. Every concurrent order creation contends on one document. Daily statistics also concentrate writes into `stats_daily/{date}`. For 2,000 users and modest traffic this may be sufficient, but burst traffic can cause retries/latency. Load-test realistic concurrency, transaction retries, and p95 latency; if contention appears, use server-generated IDs or a sharded/distributed counter and an asynchronous aggregation pipeline.
+- [mobile/services/orders.ts](mobile/services/orders.ts), around line 223 onward, increments a shared `counters/orders` document for order IDs. Every concurrent order creation contends on one document. Daily statistics also concentrate writes into `stats_daily/{date}`. At 100–1,000 orders/day, this may be sufficient, but daily average masks peak bursts. Measure concurrent checkout bursts, transaction retries, p95 latency, and read/write costs; only if contention appears, move to server-generated IDs or a sharded/distributed counter and asynchronous aggregation.
 - Keep Firestore transaction work short and side-effect-free. Do not send notifications or external API calls inside a transaction callback that can be retried. Use an outbox/event pattern on the trusted backend with idempotency keys.
 - List pages should avoid loading large base64 images in every document. [mobile/app/admin/inventory.tsx](mobile/app/admin/inventory.tsx), around lines 124–139 and 216–251, stores data-URI image content in Firestore. This can approach Firestore document limits, increase reads/egress, and cause slow catalog snapshots. Upload image files to Firebase Storage; persist only a validated Storage path/URL and thumbnail metadata. Add Storage rules (currently no Storage rules are configured in [firebase.json](firebase.json)).
 - Catalog uses a bounded list and renders a subset in [mobile/app/(customer)/index.tsx](mobile/app/(customer)/index.tsx). At 500 small products it may be acceptable; Storage-backed thumbnails, memoized rows, and list virtualization become important if the catalog grows or low-end iPhones struggle.
@@ -156,7 +157,7 @@ Admin area navigation lives in [mobile/app/admin/_layout.tsx](mobile/app/admin/_
 2. **Function tests:** auth claims, signup/approval, create/assign/transition/cancel/recovery, reset PIN, role checks, idempotency, stale/duplicate transitions, notification fanout, and failures.
 3. **Workflow integration:** new customer signup → admin notification/approval → first login/reset → order → assign → pack → deliver → recovery assign/reassign/collect → customer ledger and admin/agent KPIs. Assert before/after values and every persisted document.
 4. **UI automation/manual matrix:** customer/admin/agent login and each visible button in Expo Go on iOS, with at least one production-like build. Verify keyboard, offline, retry, loading, and double-tap cases.
-5. **Load test:** representative burst and steady-state order creation/listening for 2,000 accounts, measuring Firestore reads/writes, p95 screen update and transaction latency, retries, and cost. Treat these as measured values, not assumptions.
+5. **Load test before pilot/launch:** representative steady-state and peak-burst order creation/listening for 2,000–3,000 accounts and 100–1,000 orders/day. Measure Firestore reads/writes, p95 screen update and transaction latency, retries, and cost. Treat these as measured values, not assumptions; start with a modest test and scale up to target peaks.
 6. **Release smoke:** production Firebase project ID, Auth provider, deployed functions and claims, closed rules, indexes, Storage rules, no demo credentials/dev routes/log viewer, crash/error reporting, backup/export and rollback procedure.
 
 The current Node suites use local/in-memory assertions and do not validate deployed Firestore rules, callable Functions, UI taps, Storage, or production sign-in. Keep these limitations visible in CI output.
@@ -171,11 +172,11 @@ The current Node suites use local/in-memory assertions and do not validate deplo
 
 ## Suggested order of work
 
-1. **Before any production data:** separate Firebase projects; close rules; deploy trusted order/auth/stat functions; resolve duplicate users; enable the intended Auth provider; remove production dev/demo/log routes.
-2. **Before pilot users:** fix server-side checkout totals and admin notification recipients; make assignment/packing outcome atomic or explicitly recoverable; add recovery/KPI/can invariants; add visible listener errors/loading recovery.
-3. **Before public launch:** move images to Storage, add pagination and telemetry, validate QR defaults and payment states, run rule/function/UI tests, and complete a 2,000-account traffic simulation with observed costs/latency.
-4. **During rollout:** staged percentage release, monitor sign-in failures, transaction retries, listener errors, checkout conversion, duplicate orders, recovery age/reassignment, and Firestore spend; keep rollback builds and data repair steps ready.
+1. **During development now:** verify the one configured Firebase project is the intended dev project; use non-sensitive/test data; keep demo credentials local-only; cover order/recovery/PIN behavior with repeatable tests.
+2. **Before inviting external pilot users or importing real customer data:** resolve duplicate users; select/enable the intended Auth provider; validate server-side checkout totals and admin notification recipients; secure rules and privileged functions; make assignment/packing outcomes atomic or explicitly recoverable; add recovery/KPI/can invariants and visible listener errors.
+3. **When production is planned:** create and clearly label a separate production Firebase project (staging as needed), move images to Storage, add pagination and telemetry, validate QR defaults/payment states, run rules/function/UI tests, and load-test the stated 2,000–3,000 users / 100–1,000 orders per day target.
+4. **During rollout:** monitor sign-in failures, transaction retries, listener errors, checkout conversion, duplicate orders, recovery age/reassignment, and Firestore spend; keep rollback builds and data repair steps ready.
 
 ## Overall assessment
 
-The primary customer/admin/agent concepts are coherent, and recent order/recovery work has meaningful local test coverage. The application is **not production-ready while broad unauthenticated Firestore rules remain active and client-side data is treated as trusted**. Resolve the P0 items and add emulator-backed security/integration coverage before connecting real customer data. For a 2,000-user initial audience, there is no need to prematurely build a complex distributed platform: secure the trust boundary first, then measure listener/read volume and shared-document contention under realistic bursts.
+The primary customer/admin/agent concepts are coherent, and recent order/recovery work has meaningful local test coverage. This review does not recommend building separate production infrastructure before it is needed; the immediate concern is to keep the current development environment clearly identified and populated with test data. The app should not be exposed publicly or connected to real customer data while broad unauthenticated Firestore rules and client-trusted financial/order writes remain. Before that point, add emulator-backed security/integration coverage. For 2,000–3,000 users and 100–1,000 daily orders, measure realistic peak bursts and Firestore costs first; scale shared counters only if measurements show contention.

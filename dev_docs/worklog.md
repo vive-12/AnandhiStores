@@ -312,3 +312,12 @@
         *   Refined grid card ergonomics: 110px square thumbnails, bold price hierarchy, strike-through MRP, and thumb-friendly bottom stepper controls.
     *   **1-Tap View Switcher**:
         *   Added header toggle icon button (`⊞ Grid` vs `☰ List`) allowing customers to switch seamlessly between the high-density 2-column supermarket grid and detailed list view based on personal preference.
+
+## 35. Codex runtime log check — 2026-10-17
+
+**Author: Codex**
+
+* Checked the available app and workspace logs after the user reported an error.
+* The only saved test log, `mobile/logs/test-e2e.log`, is dated 2026-10-10 and reports 186/186 assertions passed. It does not include the newly reported runtime error.
+* Confirmed there was no attached Expo/Metro terminal session and no newer captured log file available in the workspace. The Expo Go app's live logs are stored in the app's AsyncStorage and cannot be read from the workspace without exporting them from the app.
+* No application code or historical test-log contents were changed during this log check. Requested the latest ERROR entries from the app's `/dev/logs` screen to identify and diagnose the current failure.
