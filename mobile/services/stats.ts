@@ -180,9 +180,11 @@ export async function getTodayStats(): Promise<DailyStats | null> {
 
 /** Fetch stats for the last N days (for 7-day / 30-day ranges) */
 export async function getRecentStats(days: number): Promise<DailyStats[]> {
-  const statsQuery = query(collection(db, COL), orderBy(documentId(), 'desc'), limit(days));
+  const statsQuery = query(collection(db, COL), limit(days));
   const snap = await getDocs(statsQuery);
-  return snap.docs.map(d => normalizeStatsDoc(d.data(), d.id));
+  return snap.docs
+    .map(d => normalizeStatsDoc(d.data(), d.id))
+    .sort((a, b) => b.date.localeCompare(a.date));
 }
 
 /** Real-time listener for the last N days of stats */
@@ -192,9 +194,11 @@ export function listenRecentStats(
   onError: (e: Error) => void,
 ): Unsubscribe {
   return onSnapshot(
-    query(collection(db, COL), orderBy(documentId(), 'desc'), limit(days)),
+    query(collection(db, COL), limit(days)),
     snap => {
-      const stats = snap.docs.map(d => normalizeStatsDoc(d.data(), d.id));
+      const stats = snap.docs
+        .map(d => normalizeStatsDoc(d.data(), d.id))
+        .sort((a, b) => b.date.localeCompare(a.date));
       onData(stats);
     },
     onError,
