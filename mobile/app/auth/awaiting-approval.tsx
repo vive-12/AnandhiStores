@@ -17,7 +17,7 @@ export default function AwaitingApprovalScreen() {
     if (!uid) return;
     const unsub = listenUser(uid, user => {
       if (user && user.status === 'approved') {
-        setSession({ id: user.id, role: user.role, name: user.name, phone: user.phone, status: user.status });
+        setSession({ id: user.id, role: user.role, name: user.name, phone: user.phone, status: user.status, mustChangePin: user.mustChangePin });
       } else if (user && user.status === 'blocked') {
         clearSession();
         logout();

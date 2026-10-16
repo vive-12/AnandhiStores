@@ -42,9 +42,9 @@ export default function AdminAgents({ showHeader = true }: AdminAgentsProps = {}
   const { uid: adminUid } = useSession();
   const { showToast } = useToast();
 
-  const { agents, loading: agentsLoading, error: agentsError } = useAgents();
+  const { agents, loading: agentsLoading, error: agentsError, refresh: refreshAgents } = useAgents();
   const { loading: statsLoading, refresh: refreshStats, getAgentPerformance } = useStats(30);
-  const { orders } = useAdminOrders();
+  const { orders, refresh: refreshOrders } = useAdminOrders();
 
   // Selected agent for detail sheet
   const [selectedAgent, setSelectedAgent] = useState<User | null>(null);
@@ -374,7 +374,7 @@ export default function AdminAgents({ showHeader = true }: AdminAgentsProps = {}
           refreshControl={
             <RefreshControl
               refreshing={statsLoading}
-              onRefresh={refreshStats}
+              onRefresh={() => { refreshStats(); refreshAgents(); refreshOrders(); }}
               tintColor={Colors.green700}
             />
           }
@@ -532,7 +532,7 @@ export default function AdminAgents({ showHeader = true }: AdminAgentsProps = {}
             </View>
 
             <Text style={s.modalSubtitle}>
-              New agents log in using their phone number and 4-digit PIN.
+              Agents sign in with their phone and a one-time PIN. They must change it at first sign-in.
             </Text>
 
             <View style={s.inputGroup}>
@@ -606,7 +606,7 @@ export default function AdminAgents({ showHeader = true }: AdminAgentsProps = {}
             </View>
 
             <Text style={s.modalSubtitle}>
-              Set a new 4-digit PIN for {resetModalAgent?.name} ({resetModalAgent?.phone}).
+              Set a one-time PIN for {resetModalAgent?.name} ({resetModalAgent?.phone}). They must change it at next sign-in.
             </Text>
 
             <View style={s.inputGroup}>

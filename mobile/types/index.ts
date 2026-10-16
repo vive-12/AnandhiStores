@@ -28,6 +28,7 @@ export interface User {
   phone:        string;
   pin?:         string;           // hashed in P4 — plain text until migration
   plainPin?:    string;           // fallback plain PIN
+  mustChangePin?: boolean;        // temporary PIN set by an administrator
   status:       UserStatus;
   address?:     Address;
   isOnline?:    boolean;          // agents only
@@ -177,6 +178,7 @@ export type NotificationType =
   | 'order_cancelled'
   | 'agent_reassigned'
   | 'stock_changed'
+  | 'customer_registered'
   | 'settings_changed';
 
 export interface AppNotification {
@@ -219,6 +221,9 @@ export interface DailyStats {
   deliveriesByAgent:    Record<string, number>;
   itemQty:              Record<string, number>;
   cancelledOrders?:     number;
+  recoveryOrders?:      number;
+  cancelledRecoveryOrders?: number;
+  recoveryRunsByAgent?: Record<string, number>;
 }
 
 // ─── Cart (local Zustand store) ───────────────────────────────────────────────

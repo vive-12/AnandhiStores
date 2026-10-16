@@ -15,11 +15,8 @@ One app, three roles (customer, agent, admin), Firebase backend, Zomato-style UI
 **Good to know**
 
 - The floating blue gear in your screenshots is **Expo Go's developer-menu button**, not part of your app. It disappears in real builds, so don't spend time "fixing" it.
-- **Active Test Accounts & Credentials**:
-  - 👑 **Store Admin**: `9876543219` / PIN `1234`
-  - 🛒 **Customer (Shivani)**: `9789042245` / PIN `1211`
-  - 🛵 **Delivery Agent (Smallvivek)**: `9940405016` / PIN `1211`
-- **Automated Verification**: Run `npm test` from `mobile/` to execute all 98 automated end-to-end assertions (covering multi-role auth, state transitions, empties tracking, UPI QR sales chaining, and multi-timeframe analytics).
+- **Test Accounts**: Create test users locally. Do not store phone numbers, PINs, or other login credentials in this guide.
+- **Automated Verification**: Run `npm test` from `mobile/` to execute the local in-memory order-flow simulation. It does not authenticate against Firebase or write production data.
 - **Standalone Android Preview Build**: Download the installable APK at [Anandhi Stores EAS Build](https://expo.dev/accounts/shivani2/projects/anandhi-stores/builds/16b80a84-fa02-4ec5-b4d5-79a39eac44ac).
 - **Payment Scope**: Cash on Delivery (COD) and Store UPI QR Code (Scan-to-Pay on delivery with chained sales analytics).
 - **No-Store Direct Pickup**: Delivery agents can pick up directly from `placed` or `packed` without a separate store packing step.

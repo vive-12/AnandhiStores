@@ -101,7 +101,7 @@ mobile/
 4. Navigates to /agent/dashboard.
 
 ### Admin Login (pp/index.jsx)
-1. PIN is **hard-coded** as const ADMIN_PIN = '1234' in the JS file.
+1. Historical finding: the old hard-coded admin PIN and seed screen have been removed. Admin accounts now use the shared phone + PIN flow.
 2. No Firestore query. No session persistence.
 3. The admin can re-enter the app from the home screen at any time.
 

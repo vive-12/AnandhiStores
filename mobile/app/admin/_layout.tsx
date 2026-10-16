@@ -164,7 +164,7 @@ export default function AdminLayout() {
                 {' — '}{newOrderAlert.customerName}
               </Text>
               <Text style={s.alertSub}>Rs {newOrderAlert.total}</Text>
-              <TouchableOpacity style={s.btn} onPress={dismiss}>
+              <TouchableOpacity style={s.btn} onPress={() => { dismiss(); router.navigate('/admin/alerts'); }}>
                 <Text style={s.btnTxt}>View orders</Text>
               </TouchableOpacity>
             </View>

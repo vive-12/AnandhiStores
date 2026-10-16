@@ -2,7 +2,7 @@
 // All screens must call these instead of Firestore directly.
 import {
   collection, doc, addDoc, updateDoc, onSnapshot,
-  query, where, orderBy, serverTimestamp, Unsubscribe,
+  query, limit, serverTimestamp, Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { Item } from '../types';
@@ -15,7 +15,7 @@ export function listenItems(
   onError: (e: Error) => void,
   includeDeleted = false,
 ): Unsubscribe {
-  const q = collection(db, COL);
+  const q = query(collection(db, COL), limit(500));
 
   return onSnapshot(
     q,

@@ -1,9 +1,11 @@
 # SYNC_REPORT.md — Anandhi Stores Cross-Role Sync Matrix Audit
 
 Date: October 2026  
-Status: **100% PASS (17/17 rows verified)**  
+Status: **Historical matrix; current runtime verification is pending**
 Architecture: 1 Unified App, 3 Roles (Customer, Agent, Admin), Single Order Source of Truth.  
 Direct Screen Firestore Calls: **0 (Strictly enforced through `/services` and `/hooks`)**
+
+> The PASS labels below describe an earlier code-path review, not current runtime evidence. Order assignment and status transitions now use transactions. Customer approval/PIN reset and agent creation now require deployed callable Functions and an admin Auth claim. See [CODEBASE_REVIEW_CHECKLIST.md](../CODEBASE_REVIEW_CHECKLIST.md) for the current findings, decisions and verification checklist.
 
 ---
 
@@ -12,10 +14,10 @@ Direct Screen Firestore Calls: **0 (Strictly enforced through `/services` and `/
 | Row | Trigger & Description | Service Functions Used | Order / Doc Update | Notifications Written | Realtime Listener Screen | Status |
 |:---:|:---|:---|:---|:---|:---|:---:|
 | **1** | Customer registers -> Admin: Pending profile badge. Customer: "Awaiting approval". | `registerCustomer()` | Writes `users/{uid}` with `role: 'customer'`, `status: 'pending'` | None needed (Customer awaiting approval) | Admin: `app/admin/profiles.tsx` (`usePendingCustomers` via `listenPendingUsers`) | **PASS** |
-| **2** | Admin approves & sets PIN -> Customer can log in & order. | `approveUserWithPin()` | Updates `users/{uid}` with `status: 'approved'`, hashed PIN | None | Customer: `app/auth/login.tsx`, session restored in `app/_layout.tsx` | **PASS** |
-| **3** | Admin resets agent PIN -> Agent session signed out; new PIN works. | `adminResetPin()`, `resetPin()` | Updates `users/{uid}` PIN | None | Agent: `app/agent/dashboard.tsx`, `useSession.ts` | **PASS** |
+| **2** | Admin approves & sets PIN -> Customer can log in & order. | `adminResetPin()` callable | Updates Auth password and `users/{uid}` hashed PIN/status | None | Customer: `app/auth/login.tsx`, session restored in `app/_layout.tsx` | **DEPLOYMENT REQUIRED** |
+| **3** | Admin resets user/agent PIN -> Auth and stored hash remain aligned. | `adminResetPin()` callable | Updates Firebase Auth, user or legacy agent profile, and revokes refresh tokens | None | Admin: `app/admin/profiles.tsx`, `app/admin/agents.tsx` | **DEPLOYMENT REQUIRED** |
 | **4** | Customer places order -> Customer tracker Placed; Admin unassigned alert & counts; Agent: none yet. | `createOrder()` | Atomic transaction: increments `counters/orders`, writes `orders/{id}` with snapshots | `admin` (`order_placed`) | Customer: `app/track/[id].tsx`; Admin: `app/admin/alerts.tsx` (`listenAdminOrders`) | **PASS** |
-| **5** | Admin assigns agent -> Agent: order in Assigned + notif. Customer: partner name + call. Admin: Active. | `assignAgent()` | Atomic batch: sets `agentId`, `agentName`, `agentPhone`, `agentFee` | `agent` (`order_assigned`) | Agent: `app/agent/dashboard.tsx`; Customer: `app/track/[id].tsx`; Admin: `app/admin/alerts.tsx` | **PASS** |
+| **5** | Admin assigns agent -> Agent: order in Assigned + notif. Customer: partner name + call. Admin: Active. | `assignAgent()` | Transactionally reads current order and sets `agentId`, `agentName`, `agentPhone`, `agentFee` | `agent` (`order_assigned`) | Agent: `app/agent/dashboard.tsx`; Customer: `app/track/[id].tsx`; Admin: `app/admin/alerts.tsx` | **CODE UPDATED; NOT RUNTIME-VERIFIED** |
 | **6** | Admin marks packed -> Customer: Packed. Agent: "Ready for pickup" enabled. | `transitionOrder(toStatus: 'packed')` | Atomic batch: `status: 'packed'`, `packedAt`, `statusHistory` | `customer` (`order_packed`), `agent` (`order_packed`) | Customer: `app/track/[id].tsx`; Agent: `app/agent/dashboard.tsx` & `delivery/[id].tsx` | **PASS** |
 | **7** | Agent marks picked up -> Customer: "Out for delivery" + notif. Admin: Active status. Agent: Out tab. | `transitionOrder(toStatus: 'out_for_delivery')` | Atomic batch: `status: 'out_for_delivery'`, `pickedUpAt`, `statusHistory` | `customer` (`order_picked_up`), `admin` (`order_picked_up`) | Customer: `app/track/[id].tsx`; Admin: `app/admin/alerts.tsx`; Agent: `app/agent/dashboard.tsx` | **PASS** |
 | **8** | Agent marks delivered -> Customer: Delivered + Reorder. Admin: Today Delivered +1, stats & cash update. Agent: Completed, earnings. | `transitionOrder(toStatus: 'delivered')` | Atomic batch: `status: 'delivered'`, `deliveredAt`, `stats_daily` increment (revenue, orders, cash, agent deliveries, itemQty), customer `pendingCans` adjustment | `customer` (`order_delivered`), `admin` (`order_delivered`) | Customer: `app/track/[id].tsx` & `history.tsx`; Admin: `analytics.tsx` & `agents.tsx`; Agent: `dashboard.tsx` & earnings | **PASS** |
@@ -62,12 +64,12 @@ To verify all 17 sync rows in real time, run three simultaneous sessions:
 
 #### Phase A: Registration, Approval & Settings
 1. **Customer Registration (Row 1)**:
-   - On Phone: Tap "Register", enter name "Ganesh", phone `9876543210`, PIN `1234`, and home address.
+   - On Phone: Tap "Register", enter a test name, an unused test phone number, a locally chosen PIN, and a home address.
    - Result: Customer enters "Awaiting Approval" screen.
    - On Admin: Instantly see Ganesh in "Pending Customers" badge with notification.
 2. **Admin Approval (Row 2)**:
-   - On Admin: Tap "Approve & Set PIN", enter PIN `1234`.
-   - Result: Customer is immediately able to log in on Phone.
+   - On Admin: Tap "Approve & Set PIN", set a one-time PIN and share it securely with the test user.
+   - Result: The customer must replace the one-time PIN before continuing.
 3. **Store Settings Live Update (Row 13)**:
    - On Admin: Open Settings, change Delivery Fee to ₹25 and Min Order to ₹100.
    - Result: On Customer phone, the checkout subtotal and delivery charge recalculate live without refreshing.

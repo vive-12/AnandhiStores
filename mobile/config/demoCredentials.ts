@@ -1,0 +1,26 @@
+import Constants from 'expo-constants';
+
+export type DemoRole = 'admin' | 'customer' | 'agent';
+export type DemoCredential = { phone: string; pin: string; name?: string };
+type DemoConfig = { enabled?: boolean } & Partial<Record<DemoRole, DemoCredential>>;
+
+const config = (Constants.expoConfig?.extra?.demoCredentials ?? {}) as DemoConfig;
+
+export function getDemoCredentials(): Array<{ role: DemoRole; credential: DemoCredential }> {
+  if (!__DEV__ || config.enabled !== true) return [];
+  return (['admin', 'customer', 'agent'] as const)
+    .map(role => ({ role, credential: config[role] }))
+    .filter((entry): entry is { role: DemoRole; credential: DemoCredential } =>
+      Boolean(entry.credential?.phone && entry.credential?.pin),
+    );
+}
+
+export function isDemoCredential(phone: string, pin: string): boolean {
+  return getDemoCredentials().some(({ credential }) =>
+    credential.phone.replace(/\D/g, '').slice(-10) === phone && credential.pin === pin,
+  );
+}
+
+export function getDemoAgentName(): string | undefined {
+  return getDemoCredentials().find(entry => entry.role === 'agent')?.credential.name;
+}

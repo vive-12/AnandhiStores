@@ -245,6 +245,12 @@ export default function AccountScreen() {
                   onChangeText={setName}
                 />
               </View>
+              <Button
+                label="Change PIN"
+                variant="secondary"
+                onPress={() => router.push('/auth/reset-pin')}
+                style={{ marginTop: Spacing.md }}
+              />
             </View>
 
             {/* ─── Delivery Address Card ────────────────────────────────────── */}

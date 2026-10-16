@@ -34,7 +34,7 @@ const ROLE_HOME = {
 function RouteGuard() {
   const router   = useRouter();
   const segments = useSegments();
-  const { uid, role, status, isLoading } = useSession();
+  const { uid, role, status, mustChangePin, isLoading } = useSession();
 
   useEffect(() => {
     if (isLoading) return;
@@ -45,6 +45,10 @@ function RouteGuard() {
     const isRoot      = !segments.length || segments[0] === 'index';
 
     if (isLoggedIn) {
+      if (mustChangePin && segments.join('/') !== 'auth/reset-pin') {
+        router.replace('/auth/reset-pin');
+        return;
+      }
       if (role === 'customer' && status === 'pending') {
         // Pending customers go to awaiting-approval
         if (segments.join('/') !== 'auth/awaiting-approval') {
@@ -68,7 +72,7 @@ function RouteGuard() {
         router.replace('/auth/login');
       }
     }
-  }, [uid, role, status, isLoading, segments]);
+  }, [uid, role, status, mustChangePin, isLoading, segments]);
 
   return null;
 }
@@ -84,7 +88,7 @@ function SessionRestorer() {
       return restoreSession();
     }).then(user => {
       if (user) {
-        setSession({ id: user.id, role: user.role, name: user.name, phone: user.phone, status: user.status });
+        setSession({ id: user.id, role: user.role, name: user.name, phone: user.phone, status: user.status, mustChangePin: user.mustChangePin });
       } else {
         clearSession();
       }

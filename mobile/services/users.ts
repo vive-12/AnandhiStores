@@ -11,7 +11,6 @@ const COL = 'users';
 
 /** Get a single user by UID (one-shot) */
 export async function getUser(uid: string): Promise<User | null> {
-  const sUid = String(uid);
   const snap = await getDoc(doc(db, COL, String(uid)));
   if (snap.exists()) {
     const d = snap.data();
@@ -102,53 +101,9 @@ export async function updateUser(uid: string, data: Partial<Omit<User, 'id' | 'c
   await updateDoc(doc(db, COL, String(uid)), data);
 }
 
-/** Admin: approve customer and set their PIN */
-export async function approveUserWithPin(uid: string, pin: string): Promise<void> {
-  await updateDoc(doc(db, COL, String(uid)), {
-    status: 'approved' as UserStatus,
-    pin,               // plain text until P4 hashing migration
-  });
-}
-
 /** Admin: block a user */
 export async function blockUser(uid: string): Promise<void> {
   await updateDoc(doc(db, COL, String(uid)), { status: 'blocked' as UserStatus });
-}
-
-/** Admin: reset a user/agent PIN (invalidates session in P4) */
-export async function resetPin(uid: string, newPin: string, plainPin?: string): Promise<void> {
-  const sUid = String(uid);
-  const userRef = doc(db, COL, sUid);
-  const snap = await getDoc(userRef);
-  const updateData: any = {
-    pin:      newPin,
-    plainPin: plainPin || newPin,
-    status:   'approved' as UserStatus,
-  };
-  if (plainPin) {
-    updateData.plainPin = plainPin;
-  }
-
-  if (snap.exists()) {
-    await updateDoc(userRef, updateData);
-  } else {
-    await setDoc(userRef, {
-      ...updateData,
-      role:      'agent',
-      createdAt: serverTimestamp(),
-    }, { merge: true });
-  }
-
-  // Also sync to legacy agents collection if present
-  try {
-    const agentRef = doc(db, 'agents', sUid);
-    const aSnap = await getDoc(agentRef);
-    if (aSnap.exists()) {
-      await updateDoc(agentRef, { pin: plainPin || newPin });
-    }
-  } catch (err) {
-    log.agent.warn('Could not update legacy agents doc during PIN reset', err);
-  }
 }
 
 /** Update delivery address */
@@ -191,7 +146,7 @@ export async function setAgentOnline(uid: string, isOnline: boolean): Promise<vo
   }
 }
 
-/** Live listener for all users of a given role (in-memory sort avoids composite index requirement) */
+/** Live listener for users of a given role, ordered and bounded by creation time. */
 export function listenUsersByRole(
   role: UserRole,
   onData: (users: User[]) => void,
@@ -201,6 +156,8 @@ export function listenUsersByRole(
   const q = query(
     collection(db, COL),
     where('role', '==', role),
+    orderBy('createdAt', 'desc'),
+    limit(maxCount),
   );
   return onSnapshot(
     q,
@@ -225,7 +182,7 @@ export function listenUsersByRole(
         const getMillis = (t: any) => (t?.toMillis ? t.toMillis() : t ? new Date(t).getTime() : 0);
         return getMillis(b.createdAt) - getMillis(a.createdAt);
       });
-      onData(list.slice(0, maxCount));
+      onData(list);
     },
     onError,
   );
@@ -239,13 +196,15 @@ export function listenPendingUsers(
 ): Unsubscribe {
   const q = query(
     collection(db, COL),
+    where('role', '==', 'customer'),
     where('status', '==', 'pending'),
+    orderBy('createdAt', 'desc'),
+    limit(maxCount),
   );
   return onSnapshot(
     q,
     snap => {
-      const list = snap.docs
-        .map(d => {
+      const list = snap.docs.map(d => {
           const data = d.data();
           const resolvedName = data.name || (data.first_name ? `${data.first_name} ${data.last_name || ''}`.trim() : 'Customer');
           return {
@@ -253,13 +212,12 @@ export function listenPendingUsers(
             id: String(d.id),
             name: resolvedName,
           } as User;
-        })
-        .filter(u => u.role === 'customer');
+        });
       list.sort((a: any, b: any) => {
         const getMillis = (t: any) => (t?.toMillis ? t.toMillis() : t ? new Date(t).getTime() : 0);
         return getMillis(b.createdAt) - getMillis(a.createdAt);
       });
-      onData(list.slice(0, maxCount));
+      onData(list);
     },
     onError,
   );

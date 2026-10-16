@@ -1,12 +1,34 @@
 // services/notifications.ts — Notification service
 import {
   collection, doc, updateDoc, deleteDoc, writeBatch, onSnapshot,
-  query, where, Unsubscribe,
+  query, where, orderBy, limit, Unsubscribe, getDocs, serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { AppNotification } from '../types';
 
 const COL = 'notifications';
+
+/** Create bounded in-app alerts for admins after a pending customer signs up. */
+export async function notifyAdminsOfCustomerSignup(user: { id: string; name: string; phone: string }): Promise<void> {
+  const adminsQuery = query(collection(db, 'users'), where('role', '==', 'admin'), limit(100));
+  const admins = await getDocs(adminsQuery);
+  if (admins.empty) return;
+
+  const batch = writeBatch(db);
+  admins.docs.forEach(admin => {
+    batch.set(doc(db, COL, `signup_${user.id}_${admin.id}`), {
+      toUid: admin.id,
+      toRole: 'admin',
+      type: 'customer_registered',
+      orderId: null,
+      title: 'New customer signup',
+      body: `${user.name} (+${user.phone}) is waiting for approval.`,
+      read: false,
+      createdAt: serverTimestamp(),
+    });
+  });
+  await batch.commit();
+}
 
 function sortNotifsDesc(notifications: AppNotification[]): AppNotification[] {
   return notifications.sort((a, b) => {
@@ -16,7 +38,7 @@ function sortNotifsDesc(notifications: AppNotification[]): AppNotification[] {
   });
 }
 
-/** Live listener for a user's notifications (sorted in memory to avoid composite index error) */
+/** Live listener for the newest bounded set of a user's notifications. */
 export function listenNotifications(
   uid: string,
   onData: (notifications: AppNotification[]) => void,
@@ -26,12 +48,14 @@ export function listenNotifications(
   const q = query(
     collection(db, COL),
     where('toUid', '==', String(uid)),
+    orderBy('createdAt', 'desc'),
+    limit(maxCount),
   );
   return onSnapshot(
     q,
     snap => {
       const notifs = snap.docs.map(d => ({ id: d.id, ...d.data() } as AppNotification));
-      onData(sortNotifsDesc(notifs).slice(0, maxCount));
+      onData(sortNotifsDesc(notifs));
     },
     onError,
   );

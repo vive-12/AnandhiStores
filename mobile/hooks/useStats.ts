@@ -75,9 +75,15 @@ export function useStats(maxDays = 45) {
     }
   }, [maxDays]);
 
-  const todayKey = useMemo(() => getTodayKey(), []);
-  const sundayKey = useMemo(() => formatDateKey(getSundayOfCurrentWeek()), []);
-  const firstOfMonthKey = useMemo(() => formatDateKey(getFirstDayOfCurrentMonth()), []);
+  // Refresh calendar boundaries while the analytics screen remains open.
+  useEffect(() => {
+    const timer = setInterval(() => setAsOfTime(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const todayKey = getTodayKey();
+  const sundayKey = formatDateKey(getSundayOfCurrentWeek(asOfTime));
+  const firstOfMonthKey = formatDateKey(getFirstDayOfCurrentMonth(asOfTime));
 
   // Filter stats by selected range (Calendar bound: today from 12 AM, week from Sun 12 AM, month from 1st 12 AM)
   const getStatsForRange = useCallback(
@@ -105,6 +111,8 @@ export function useStats(maxDays = 45) {
       let revenue = 0;
       let deliveredCount = 0;
       let cancelledCount = 0;
+      let recoveryCount = 0;
+      let cancelledRecoveryCount = 0;
       let upiRevenue = 0;
       let upiOrders = 0;
       const itemQtyMap: Record<string, number> = {};
@@ -115,6 +123,8 @@ export function useStats(maxDays = 45) {
         revenue += day.revenue || 0;
         deliveredCount += day.orders || 0;
         cancelledCount += day.cancelledOrders || 0;
+        recoveryCount += day.recoveryOrders || 0;
+        cancelledRecoveryCount += day.cancelledRecoveryOrders || 0;
         upiRevenue += day.upiRevenue || 0;
         upiOrders += day.upiOrders || 0;
 
@@ -151,7 +161,7 @@ export function useStats(maxDays = 45) {
         dailyBreakdown.push({
           date: todayKey,
           label: 'Today',
-          fullLabel: `${now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })} (12:00 AM – ${formatTimeOnly(targetAsOf)})`,
+          fullLabel: `${now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'Asia/Kolkata' })} (12:00 AM – ${formatTimeOnly(targetAsOf)})`,
           revenue: dayRev,
           orders: matchingDoc?.orders || 0,
           upiRevenue: dayUpi,
@@ -165,12 +175,12 @@ export function useStats(maxDays = 45) {
         const sunday = getSundayOfCurrentWeek(targetAsOf);
         for (let i = 0; i < 7; i++) {
           const d = new Date(sunday);
-          d.setDate(sunday.getDate() + i);
+          d.setUTCDate(sunday.getUTCDate() + i);
           const dateStr = formatDateKey(d);
           const matchingDoc = stats.find(s => s.date === dateStr);
 
-          const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
-          const fullDate = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+          const dayName = d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'Asia/Kolkata' });
+          const fullDate = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Kolkata' });
           const isToday = dateStr === todayKey;
           const isFuture = dateStr > todayKey;
 
@@ -192,13 +202,14 @@ export function useStats(maxDays = 45) {
         }
       } else {
         // 'month' or '30days' — Month-to-date starting 1st of month 12:00 AM up to today
-        const totalDaysToDate = now.getDate();
+        const istToday = getTodayKey();
+        const [year, month, totalDaysToDate] = istToday.split('-').map(Number);
         for (let i = 1; i <= totalDaysToDate; i++) {
-          const d = new Date(now.getFullYear(), now.getMonth(), i);
+          const d = new Date(Date.UTC(year, month - 1, i));
           const dateStr = formatDateKey(d);
           const matchingDoc = stats.find(s => s.date === dateStr);
 
-          const fullDate = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+          const fullDate = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Kolkata' });
           const isToday = dateStr === todayKey;
 
           const dayRev = matchingDoc?.revenue || 0;
@@ -225,6 +236,8 @@ export function useStats(maxDays = 45) {
         revenue,
         deliveredCount,
         cancelledCount,
+        recoveryCount,
+        cancelledRecoveryCount,
         aov,
         upiRevenue,
         upiOrders,

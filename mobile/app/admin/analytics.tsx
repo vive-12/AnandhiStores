@@ -42,6 +42,8 @@ export default function AnalyticsScreen() {
     revenue,
     deliveredCount,
     cancelledCount,
+    recoveryCount = 0,
+    cancelledRecoveryCount = 0,
     aov,
     upiRevenue = 0,
     upiOrders = 0,
@@ -229,6 +231,18 @@ export default function AnalyticsScreen() {
                   {cancelledCount}
                 </Text>
                 <Text style={s.kpiNote}>Lost orders</Text>
+              </View>
+
+              {/* Can recovery operations are reported apart from retail sales. */}
+              <View style={[s.kpiCard, { borderLeftColor: '#0EA5E9', borderLeftWidth: 4 }]}>
+                <View style={s.kpiHeader}>
+                  <Text style={s.kpiLabel}>Can Recoveries</Text>
+                  <View style={[s.iconBadge, { backgroundColor: '#E0F2FE' }]}>
+                    <Ionicons name="water-outline" size={18} color="#0284C7" />
+                  </View>
+                </View>
+                <Text style={s.kpiValue}>{recoveryCount}</Text>
+                <Text style={s.kpiNote}>{cancelledRecoveryCount} cancelled; excluded from sales</Text>
               </View>
             </View>
 

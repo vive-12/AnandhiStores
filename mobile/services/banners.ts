@@ -8,6 +8,7 @@ import {
   query,
   where,
   orderBy,
+  limit,
   onSnapshot,
   Unsubscribe,
   serverTimestamp,
@@ -30,7 +31,7 @@ export function listenBanners(
   onData: (banners: AppBanner[]) => void,
   onError: (e: Error) => void,
 ): Unsubscribe {
-  const q = collection(db, COL);
+  const q = query(collection(db, COL), limit(200));
 
   return onSnapshot(
     q,
@@ -63,7 +64,7 @@ export function listenAllBanners(
   onData: (banners: AppBanner[]) => void,
   onError: (e: Error) => void,
 ): Unsubscribe {
-  const q = query(collection(db, COL));
+  const q = query(collection(db, COL), limit(200));
   return onSnapshot(
     q,
     snap => {

@@ -11,6 +11,10 @@ import { log } from '../utils/logger';
 export const QR_COL = 'qr_codes';
 export const MAX_QR_CODES = 5;
 
+function qrListQuery() {
+  return query(collection(db, QR_COL), limit(10));
+}
+
 /** Default fallback store UPI details if none seeded */
 export const DEFAULT_STORE_UPI = {
   name: 'Primary Store UPI (GPay / PhonePe)',
@@ -48,7 +52,7 @@ export function listenQRCodes(
   onData: (items: QRCodeItem[]) => void,
   onError?: (err: Error) => void,
 ): Unsubscribe {
-  const q = query(collection(db, QR_COL), orderBy('createdAt', 'desc'));
+  const q = query(collection(db, QR_COL), orderBy('createdAt', 'desc'), limit(10));
   return onSnapshot(
     q,
     snapshot => {
@@ -70,10 +74,10 @@ export function listenQRCodes(
  */
 export async function getDefaultQRCode(): Promise<QRCodeItem | null> {
   try {
-    const snap = await getDocs(collection(db, QR_COL));
+    const snap = await getDocs(qrListQuery());
     if (snap.empty) {
       await seedDefaultQRCodeIfEmpty();
-      const freshSnap = await getDocs(collection(db, QR_COL));
+      const freshSnap = await getDocs(qrListQuery());
       if (freshSnap.empty) return null;
       return { id: freshSnap.docs[0].id, ...freshSnap.docs[0].data() } as QRCodeItem;
     }
@@ -98,7 +102,7 @@ export async function saveQRCode(params: {
   imageUrl?: string;
   isDefault?: boolean;
 }): Promise<string> {
-  const snap = await getDocs(collection(db, QR_COL));
+  const snap = await getDocs(qrListQuery());
   const existingDocs = snap.docs.map(d => ({ id: d.id, ...d.data() } as QRCodeItem));
 
   const isEditing = Boolean(params.id && existingDocs.some(d => d.id === params.id));
@@ -152,7 +156,7 @@ export async function saveQRCode(params: {
  * Set an existing QR code as the default active code
  */
 export async function setDefaultQRCode(qrId: string): Promise<void> {
-  const snap = await getDocs(collection(db, QR_COL));
+  const snap = await getDocs(qrListQuery());
   const batch = writeBatch(db);
   const now = Timestamp.now();
 
@@ -172,7 +176,7 @@ export async function setDefaultQRCode(qrId: string): Promise<void> {
  * Delete a QR code. If the deleted one was default, set another remaining as default.
  */
 export async function deleteQRCode(qrId: string): Promise<void> {
-  const snap = await getDocs(collection(db, QR_COL));
+  const snap = await getDocs(qrListQuery());
   const all = snap.docs.map(d => ({ id: d.id, ...d.data() } as QRCodeItem));
   const target = all.find(d => d.id === qrId);
 
@@ -198,7 +202,7 @@ export async function deleteQRCode(qrId: string): Promise<void> {
  */
 export async function seedDefaultQRCodeIfEmpty(): Promise<void> {
   try {
-    const snap = await getDocs(collection(db, QR_COL));
+    const snap = await getDocs(query(collection(db, QR_COL), limit(1)));
     if (!snap.empty) return;
 
     const newRef = doc(collection(db, QR_COL));

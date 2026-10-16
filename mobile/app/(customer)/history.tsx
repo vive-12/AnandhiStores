@@ -22,6 +22,7 @@ import {
   Button,
   EmptyState,
   CardSkeleton,
+  ErrorState,
   NotificationBell,
   useToast,
 } from '../../components/ui';
@@ -31,15 +32,11 @@ export default function OrderHistoryScreen() {
   const router = useRouter();
   const { uid, name } = useSession();
   const { showToast } = useToast();
-  const { orders, loading, error } = useCustomerOrders(uid);
+  const { orders, loading, error, refresh } = useCustomerOrders(uid);
   const { addItem } = useCart();
   const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 600);
-  }, []);
+  const onRefresh = useCallback(() => refresh(), [refresh]);
 
   // Format timestamp helper
   const formatDate = (order: Order) => {
@@ -138,13 +135,14 @@ export default function OrderHistoryScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
+            refreshing={loading}
             onRefresh={onRefresh}
             colors={[Colors.green700]}
             tintColor={Colors.green700}
           />
         }
       >
+        {error && <ErrorState message="Could not load order history." onRetry={refresh} />}
         {/* Loading Skeletons */}
         {loading && (
           <View style={styles.skeletonsContainer}>

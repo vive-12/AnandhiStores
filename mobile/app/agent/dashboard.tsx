@@ -23,7 +23,7 @@ import { useSession } from '../../hooks/useSession';
 import { useAuthUser } from '../../hooks/useAuthUser';
 import { useAgentOrders } from '../../hooks/useOrders';
 import { useStats } from '../../hooks/useStats';
-import { getSundayOfCurrentWeek, getFirstDayOfCurrentMonth } from '../../services/stats';
+import { getSundayOfCurrentWeek, getFirstDayOfCurrentMonth, getISTDateKey } from '../../services/stats';
 import { setAgentOnline } from '../../services/users';
 import { logout } from '../../services/auth';
 import { openMapChoice } from '../../utils/openMap';
@@ -86,7 +86,7 @@ export default function AgentDashboard() {
   }, [orders]);
 
   const completedOrders = useMemo(() => {
-    return orders.filter(o => o.status === 'delivered');
+    return orders.filter(o => o.status === 'delivered' && o.type !== 'recovery');
   }, [orders]);
 
   // Run timeframe state: 'today' | 'week' | 'month' | '7days' | '30days'
@@ -105,11 +105,10 @@ export default function AgentDashboard() {
   }, []);
 
   const todayCompletedOrders = useMemo(() => {
-    const todayMidnight = new Date(clickTime);
-    todayMidnight.setHours(0, 0, 0, 0);
+    const todayKey = getISTDateKey(clickTime);
     return completedOrders.filter(o => {
       const d = parseOrderDate(o);
-      return d ? d >= todayMidnight && d <= clickTime : false;
+      return d ? getISTDateKey(d) === todayKey && d <= clickTime : false;
     });
   }, [completedOrders, parseOrderDate, clickTime]);
 
@@ -457,6 +456,16 @@ export default function AgentDashboard() {
           <View style={s.headerRight}>
             <NotificationBell color="#FFFFFF" />
 
+            <TouchableOpacity
+              onPress={() => router.push('/auth/reset-pin')}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Change PIN"
+              style={{ padding: 8 }}
+            >
+              <Ionicons name="key-outline" size={18} color={Colors.amber} />
+            </TouchableOpacity>
+
             {/* Earnings Button */}
             <TouchableOpacity
               style={s.earningsHeaderBtn}
@@ -587,7 +596,7 @@ export default function AgentDashboard() {
                 activeTab === 'completed' && s.tabTextActive,
               ]}
             >
-              Completed
+              Retail Delivered
             </Text>
             {completedOrders.length > 0 && (
               <View

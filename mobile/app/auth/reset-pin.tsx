@@ -3,22 +3,20 @@ import React, { useState, useCallback } from 'react';
 import {
   View, Text, TextInput, StyleSheet, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Button } from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
 import { useSession } from '../../hooks/useSession';
-import { hashPin } from '../../services/auth';
-import { resetPin } from '../../services/users';
-import { loginWithPhone } from '../../services/auth';
+import { changePin, loginWithPhone } from '../../services/auth';
 import { isValidPin } from '../../utils/compute';
 import { Colors, FontSize, Spacing, Radius } from '../../theme';
 
 export default function ResetPinScreen() {
   const router         = useRouter();
   const { showToast }  = useToast();
-  const { setSession } = useSession();
-  const params         = useLocalSearchParams<{ uid: string; phone: string }>();
+  const { uid, phone, mustChangePin, setSession } = useSession();
 
+  const [currentPin, setCurrentPin] = useState('');
   const [newPin,     setNewPin]     = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [newPinErr,  setNewPinErr]  = useState('');
@@ -32,27 +30,44 @@ export default function ResetPinScreen() {
     if (newPin !== confirmPin) { setConfErr('PINs do not match'); ok = false; }
     else setConfErr('');
     if (!ok || submitting) return;
+    if (!uid || !phone) {
+      showToast('Sign in first. An admin can reset a forgotten PIN from Profiles or Agents.', 'error');
+      return;
+    }
 
     setSubmitting(true);
     try {
-      const hashed = await hashPin(newPin, params.phone!);
-      await resetPin(params.uid!, hashed);
+      await changePin(uid, phone, currentPin, newPin);
       showToast('PIN updated successfully', 'success');
       // Now log them in with new PIN
-      const user = await loginWithPhone({ phone: params.phone!, pin: newPin });
-      setSession({ id: user.id, role: user.role, name: user.name, phone: user.phone, status: user.status });
+      const user = await loginWithPhone({ phone, pin: newPin });
+      setSession({ id: user.id, role: user.role, name: user.name, phone: user.phone, status: user.status, mustChangePin: user.mustChangePin });
     } catch (e: any) {
       showToast(e.message ?? 'Failed to reset PIN.', 'error');
     } finally {
       setSubmitting(false);
     }
-  }, [newPin, confirmPin, submitting, params, setSession, showToast]);
+  }, [uid, phone, currentPin, newPin, confirmPin, submitting, setSession, showToast]);
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
       <View style={styles.container}>
         <Text style={styles.title}>Set new PIN</Text>
-        <Text style={styles.subtitle}>Choose a new 4-digit PIN for your account.</Text>
+        <Text style={styles.subtitle}>{mustChangePin ? 'Your admin issued a one-time PIN. Enter it, then choose a private 4-digit PIN to continue.' : 'Enter your current PIN, then choose a new 4-digit PIN.'}</Text>
+
+        <View style={styles.field}>
+          <Text style={styles.label}>Current PIN</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="â€¢ â€¢ â€¢ â€¢"
+            placeholderTextColor={Colors.inkSoft}
+            keyboardType="number-pad"
+            secureTextEntry
+            maxLength={4}
+            value={currentPin}
+            onChangeText={setCurrentPin}
+          />
+        </View>
 
         <View style={styles.field}>
           <Text style={styles.label}>New PIN</Text>
@@ -86,6 +101,14 @@ export default function ResetPinScreen() {
 
         <View style={{ marginTop: Spacing.xl }}>
           <Button label="Save new PIN" onPress={handleReset} loading={submitting} disabled={submitting} />
+          {!uid && (
+            <Button
+              label="Go to Sign In"
+              onPress={() => router.replace('/auth/login')}
+              variant="secondary"
+              style={{ marginTop: Spacing.md }}
+            />
+          )}
         </View>
       </View>
     </KeyboardAvoidingView>

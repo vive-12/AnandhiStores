@@ -22,7 +22,7 @@ import AdminAgents from './agents';
 import { useSession } from '../../hooks/useSession';
 import { useCustomers } from '../../hooks/useCustomers';
 import { useAdminOrders } from '../../hooks/useOrders';
-import { approveUserWithPin, blockUser, updateUser } from '../../services/users';
+import { blockUser, updateUser } from '../../services/users';
 import { adminResetPin } from '../../services/auth';
 import { openMapChoice } from '../../utils/openMap';
 import {
@@ -45,14 +45,18 @@ export default function AdminProfiles() {
   const insets = useSafeAreaInsets();
 
   // Data hooks
-  const { customers, loading: customersLoading } = useCustomers();
-  const { orders } = useAdminOrders();
+  const { customers, loading: customersLoading, refresh: refreshCustomers } = useCustomers();
+  const { orders, loading: ordersLoading, refresh: refreshOrders } = useAdminOrders();
 
   // Local UI State
   const [activeRole, setActiveRole] = useState<'customers' | 'agents'>('customers');
   const [tab, setTab] = useState<ProfileTab>('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+
+  React.useEffect(() => {
+    if (!customersLoading && !ordersLoading) setRefreshing(false);
+  }, [customersLoading, ordersLoading]);
 
   // Modals & Sheets State
   const [selectedUserForOrders, setSelectedUserForOrders] = useState<User | null>(null);
@@ -76,6 +80,7 @@ export default function AdminProfiles() {
     }
 
     for (const o of orders) {
+      if (o.type === 'recovery') continue;
       const custId = o.customerId;
       if (!map[custId]) {
         map[custId] = { totalOrders: 0, totalSpent: 0, lastOrder: null };
@@ -97,7 +102,7 @@ export default function AdminProfiles() {
   // Orders placed by selected customer
   const selectedCustomerOrders = useMemo(() => {
     if (!selectedUserForOrders) return [];
-    return orders.filter(o => o.customerId === selectedUserForOrders.id);
+    return orders.filter(o => o.type !== 'recovery' && o.customerId === selectedUserForOrders.id);
   }, [orders, selectedUserForOrders]);
 
   // Tab counts
@@ -133,8 +138,9 @@ export default function AdminProfiles() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 500);
-  }, []);
+    refreshCustomers();
+    refreshOrders();
+  }, [refreshCustomers, refreshOrders]);
 
   // Open "View Orders" BottomSheet
   const handleOpenCustomerOrders = (user: User) => {
@@ -162,15 +168,14 @@ export default function AdminProfiles() {
     try {
       if (isApproveMode) {
         // Approve & set PIN (Sync row 2)
-        await approveUserWithPin(pinModalUser.id, pin);
         await adminResetPin(pinModalUser.id, pinModalUser.phone, pin);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        showToast(`Approved ${pinModalUser.name}! PIN set to ${pin}. 🎉`, 'success');
+        showToast(`Approved ${pinModalUser.name}. Share the one-time PIN securely; they must change it at sign-in.`, 'success');
       } else {
         // Reset PIN (Sync row 3)
         await adminResetPin(pinModalUser.id, pinModalUser.phone, pin);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        showToast(`PIN for ${pinModalUser.name} reset to ${pin}.`, 'success');
+        showToast(`PIN reset for ${pinModalUser.name}. They must change it at their next sign-in.`, 'success');
       }
       setPinModalUser(null);
     } catch (err: any) {
@@ -679,8 +684,8 @@ export default function AdminProfiles() {
 
             <Text style={styles.modalSub}>
               {isApproveMode
-                ? `Assign a 4-digit PIN for ${pinModalUser?.name} (+91 ${pinModalUser?.phone}). They will use this to sign in.`
-                : `Set a new 4-digit PIN for ${pinModalUser?.name}.`}
+                ? `Set a one-time PIN for ${pinModalUser?.name} (+91 ${pinModalUser?.phone}). They must change it after signing in.`
+                : `Set a one-time PIN for ${pinModalUser?.name}. They must change it after signing in.`}
             </Text>
 
             <TextInput

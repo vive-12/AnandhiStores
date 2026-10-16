@@ -25,6 +25,7 @@ import { useAgents } from '../../hooks/useAgents';
 import { useItems } from '../../hooks/useItems';
 import { useCustomers } from '../../hooks/useCustomers';
 import { useSettings } from '../../hooks/useSettings';
+import { getISTDateKey } from '../../services/stats';
 import { assignAgent, transitionOrder, createOrder } from '../../services/orders';
 import { logout } from '../../services/auth';
 import { openMapChoice } from '../../utils/openMap';
@@ -36,6 +37,7 @@ import {
   BottomSheet,
   QtyStepper,
   EmptyState,
+  ErrorState,
   CardSkeleton,
   NotificationBell,
   useToast,
@@ -47,7 +49,7 @@ type SegmentFilter = 'all' | 'unassigned' | 'active' | 'delivered' | 'cancelled'
 export default function AdminAlerts() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { uid, name: adminName, clearSession } = useSession();
+  const { uid, name: adminName, phone: adminPhone, clearSession } = useSession();
   const { showToast } = useToast();
 
   const handleLogout = useCallback(() => {
@@ -74,16 +76,16 @@ export default function AdminAlerts() {
   }, [clearSession, router]);
 
   // Data Hooks
-  const { orders, loading: ordersLoading, error: ordersError } = useAdminOrders();
+  const { orders, loading: ordersLoading, error: ordersError, refresh: refreshOrders } = useAdminOrders();
   const { agents } = useAgents();
   const { items } = useItems();
   const { customers } = useCustomers();
   const { settings } = useSettings();
+  const retailOrders = useMemo(() => orders.filter(order => order.type !== 'recovery'), [orders]);
 
   // Local UI State
   const [segment, setSegment] = useState<SegmentFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
   const [adminMenuVisible, setAdminMenuVisible] = useState(false);
 
   // Selected Order for Action Sheets
@@ -141,13 +143,13 @@ export default function AdminAlerts() {
 
   // Store & Order Stats
   const stats = useMemo(() => {
-    const active = orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled');
-    const today = new Date().toDateString();
-    const deliveredToday = orders.filter(o => {
+    const active = retailOrders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled');
+    const today = getISTDateKey(new Date());
+    const deliveredToday = retailOrders.filter(o => {
       if (o.status !== 'delivered' || !o.deliveredAt) return false;
       try {
         const timeMs = o.deliveredAt.toMillis ? o.deliveredAt.toMillis() : new Date(o.deliveredAt as any).getTime();
-        return new Date(timeMs).toDateString() === today;
+        return getISTDateKey(new Date(timeMs)) === today;
       } catch (_) {
         return false;
       }
@@ -156,21 +158,21 @@ export default function AdminAlerts() {
     const freeAgents = agents.filter(a => a.isOnline && (agentActiveOrdersMap[a.id] || 0) === 0).length;
 
     return {
-      total: orders.length,
+      total: retailOrders.length,
       active: active.length,
       deliveredToday,
       freeAgents,
     };
-  }, [orders, agents, agentActiveOrdersMap]);
+  }, [retailOrders, agents, agentActiveOrdersMap]);
 
   // Unassigned placed orders
   const unassignedOrders = useMemo(() => {
-    return orders.filter(o => o.status === 'placed' && !o.agentId);
-  }, [orders]);
+    return retailOrders.filter(o => o.status === 'placed' && !o.agentId);
+  }, [retailOrders]);
 
   // Filtered orders list
   const filteredOrders = useMemo(() => {
-    return orders.filter(order => {
+    return retailOrders.filter(order => {
       // Segment filter
       if (segment === 'unassigned' && (order.status !== 'placed' || order.agentId)) return false;
       if (segment === 'active' && (order.status === 'delivered' || order.status === 'cancelled')) return false;
@@ -188,12 +190,9 @@ export default function AdminAlerts() {
 
       return true;
     });
-  }, [orders, segment, searchQuery]);
+  }, [retailOrders, segment, searchQuery]);
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 500);
-  }, []);
+  const onRefresh = useCallback(() => refreshOrders(), [refreshOrders]);
 
   // Format timestamp helper
   const formatTimeAgo = (order: Order) => {
@@ -559,7 +558,7 @@ export default function AdminAlerts() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
+            refreshing={ordersLoading}
             onRefresh={onRefresh}
             colors={[Colors.green700]}
             tintColor={Colors.green700}
@@ -576,7 +575,7 @@ export default function AdminAlerts() {
             accessibilityLabel={`Filter all orders, total ${stats.total}`}
           >
             <Text style={[styles.statVal, { color: '#0ea5e9' }]}>{stats.total}</Text>
-            <Text style={styles.statLabel}>Total Orders</Text>
+            <Text style={styles.statLabel}>Recent Orders (max 200)</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -676,6 +675,10 @@ export default function AdminAlerts() {
             <CardSkeleton />
             <CardSkeleton />
           </View>
+        )}
+
+        {!ordersLoading && ordersError && (
+          <ErrorState message="Could not load orders." onRetry={refreshOrders} />
         )}
 
         {/* ─── Empty State ────────────────────────────────────────────────── */}
@@ -1344,7 +1347,7 @@ export default function AdminAlerts() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.menuStoreTitle}>Anandhi Stores</Text>
                 <Text style={styles.menuStoreSub}>
-                  Logged in as {adminName || 'Store Admin'} • 9876543219
+                  Logged in as {adminName || 'Store Admin'}{adminPhone ? ` • ${adminPhone}` : ''}
                 </Text>
               </View>
               <TouchableOpacity

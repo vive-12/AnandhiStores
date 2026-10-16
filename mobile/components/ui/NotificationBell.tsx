@@ -241,6 +241,8 @@ export function NotificationBell({ color = '#FFFFFF', size = 22 }: NotificationB
         return { name: 'checkmark-circle' as const, color: Colors.green500, bg: '#E8F5E9' };
       case 'order_cancelled':
         return { name: 'close-circle' as const, color: Colors.coral, bg: '#FEE2E2' };
+      case 'customer_registered':
+        return { name: 'person-add' as const, color: '#0284C7', bg: '#E0F2FE' };
       default:
         return { name: 'notifications' as const, color: Colors.green700, bg: '#E8F5E9' };
     }

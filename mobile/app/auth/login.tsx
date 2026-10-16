@@ -11,6 +11,7 @@ import { Button } from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
 import { useSession } from '../../hooks/useSession';
 import { loginWithPhone } from '../../services/auth';
+import { getDemoCredentials } from '../../config/demoCredentials';
 import { isValidPhone, isValidPin, normalisePhone } from '../../utils/compute';
 import { Colors, FontSize, Spacing, Radius } from '../../theme';
 
@@ -24,6 +25,7 @@ export default function LoginScreen() {
   const [phoneErr,   setPhoneErr]   = useState('');
   const [pinErr,     setPinErr]     = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const demoCredentials = getDemoCredentials();
 
   const validateInputs = useCallback(() => {
     let ok = true;
@@ -40,7 +42,7 @@ export default function LoginScreen() {
     setSubmitting(true);
     try {
       const user = await loginWithPhone({ phone: normalisePhone(phone), pin });
-      setSession({ id: user.id, role: user.role, name: user.name, phone: user.phone, status: user.status });
+      setSession({ id: user.id, role: user.role, name: user.name, phone: user.phone, status: user.status, mustChangePin: user.mustChangePin });
       // RouteGuard in _layout handles redirect
     } catch (e: any) {
       showToast(e.message ?? 'Login failed. Try again.', 'error');
@@ -97,6 +99,30 @@ export default function LoginScreen() {
           {pinErr ? <Text style={styles.errTxt}>{pinErr}</Text> : null}
         </View>
 
+        {demoCredentials.length > 0 ? (
+          <View style={styles.demoBox}>
+            <Text style={styles.demoTitle}>Development test logins</Text>
+            <Text style={styles.demoHint}>Tap a role to fill the phone and PIN fields.</Text>
+            {demoCredentials.map(({ role, credential }) => (
+              <TouchableOpacity
+                key={role}
+                style={styles.demoRow}
+                onPress={() => {
+                  setPhone(credential.phone);
+                  setPin(credential.pin);
+                  setPhoneErr('');
+                  setPinErr('');
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Fill ${role} test login`}
+              >
+                <Text style={styles.demoRole}>{role === 'agent' ? credential.name ?? 'Agent' : role[0].toUpperCase() + role.slice(1)}</Text>
+                <Text style={styles.demoCredentials}>Phone {credential.phone}  ·  PIN {credential.pin}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
+
         <View style={{ marginTop: Spacing.xl }}>
           <Button
             label="Sign in"
@@ -105,51 +131,6 @@ export default function LoginScreen() {
             disabled={submitting}
           />
         </View>
-
-        {/* Quick Demo Logins for Fast Pair Testing */}
-        <View style={styles.demoSection}>
-          <Text style={styles.demoTitle}>⚡ Quick Demo Accounts</Text>
-          <View style={styles.demoRow}>
-            <TouchableOpacity
-              style={styles.demoBtn}
-              accessibilityRole="button"
-              accessibilityLabel="Quick login as customer Shivani"
-              onPress={() => { setPhone('9789042245'); setPin('1211'); }}
-            >
-              <Text style={styles.demoBtnRole}>👤 Shivani</Text>
-              <Text style={styles.demoBtnDetail}>9789042245 • 1211</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.demoBtn}
-              accessibilityRole="button"
-              accessibilityLabel="Quick login as agent Smallvivek"
-              onPress={() => { setPhone('9940405016'); setPin('1211'); }}
-            >
-              <Text style={styles.demoBtnRole}>🛵 Smallvivek</Text>
-              <Text style={styles.demoBtnDetail}>9940405016 • 1211</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.demoBtn, styles.demoBtnAdmin]}
-              accessibilityRole="button"
-              accessibilityLabel="Quick login as store admin"
-              onPress={() => { setPhone('9876543219'); setPin('1234'); }}
-            >
-              <Text style={[styles.demoBtnRole, { color: Colors.green900 }]}>👑 Admin</Text>
-              <Text style={styles.demoBtnDetail}>9876543219 • 1234</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          onPress={() => router.push('/auth/admin-login')}
-          style={styles.adminLink}
-          accessibilityRole="button"
-          accessibilityLabel="Switch to Admin PIN Unlock"
-        >
-          <Text style={styles.adminLinkTxt}>🔐 Switch to Admin PIN Unlock</Text>
-        </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => router.push('/auth/register')}
@@ -160,14 +141,6 @@ export default function LoginScreen() {
           <Text style={styles.linkTxt}>New customer? <Text style={styles.linkBold}>Create account</Text></Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => router.push('/dev/seed-admin')}
-          style={styles.devLink}
-          accessibilityRole="button"
-          accessibilityLabel="Setup Admin Account in Dev"
-        >
-          <Text style={[styles.linkTxt, { fontSize: 10, color: Colors.inkSoft }]}>🔧 Setup Admin Account (Dev)</Text>
-        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -195,59 +168,15 @@ const styles = StyleSheet.create({
   },
   inputErr:   { borderColor: Colors.coral },
   errTxt:     { fontSize: FontSize.xs, fontFamily: 'Manrope_500Medium', color: Colors.coral, marginTop: 4 },
-  demoSection: {
-    marginTop: Spacing.xl,
-    padding: Spacing.md,
-    backgroundColor: 'rgba(6,35,25,0.03)',
-    borderRadius: Radius.card,
-    borderWidth: 1,
-    borderColor: Colors.line,
-  },
-  demoTitle: {
-    fontSize: FontSize.xs,
-    fontFamily: 'Manrope_600SemiBold',
-    color: Colors.inkSoft,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: Spacing.sm,
-    textAlign: 'center',
-  },
-  demoRow: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
-    justifyContent: 'space-between',
-  },
-  demoBtn: {
-    flex: 1,
-    minHeight: 46,
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: 4,
-    backgroundColor: Colors.card,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    borderColor: Colors.line,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  demoBtnAdmin: {
-    borderColor: Colors.amber,
-    backgroundColor: '#FFF9E6',
-  },
-  demoBtnRole: {
-    fontSize: FontSize.xs,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: Colors.ink,
-    marginBottom: 2,
-  },
-  demoBtnDetail: {
-    fontSize: 9,
-    fontFamily: 'Manrope_500Medium',
-    color: Colors.inkSoft,
-  },
   adminLink:  { marginTop: Spacing.lg, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   adminLinkTxt: { fontSize: FontSize.sm, fontFamily: 'Manrope_600SemiBold', color: Colors.green700 },
   link:       { marginTop: Spacing.sm, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  devLink:    { marginTop: 2, minHeight: 44, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.lg },
   linkTxt:    { fontSize: FontSize.sm, fontFamily: 'Manrope_500Medium', color: Colors.inkSoft },
   linkBold:   { fontFamily: 'Manrope_600SemiBold', color: Colors.green700 },
+  demoBox:    { marginTop: Spacing.lg, padding: Spacing.md, borderRadius: Radius.button, backgroundColor: '#EAF3ED', borderWidth: 1, borderColor: Colors.line },
+  demoTitle:  { fontSize: FontSize.sm, fontFamily: 'Manrope_600SemiBold', color: Colors.green900 },
+  demoHint:   { fontSize: FontSize.xs, fontFamily: 'Manrope_500Medium', color: Colors.inkSoft, marginTop: 3, marginBottom: Spacing.xs },
+  demoRow:    { paddingVertical: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.line },
+  demoRole:   { fontSize: FontSize.sm, fontFamily: 'Manrope_600SemiBold', color: Colors.green700 },
+  demoCredentials: { fontSize: FontSize.xs, fontFamily: 'Manrope_500Medium', color: Colors.ink, marginTop: 2 },
 });

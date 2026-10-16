@@ -7,6 +7,7 @@ import {
   collection,
   query,
   orderBy,
+  documentId,
   limit,
   getDocs,
   onSnapshot,
@@ -17,34 +18,35 @@ import type { DailyStats } from '../types';
 
 const COL = 'stats_daily';
 
-/** Returns date string in YYYY-MM-DD */
-export function formatDateKey(d: Date): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+/** Format one timestamp as the store's calendar date (Asia/Kolkata). */
+export function getISTDateKey(d: Date): string {
+  const ist = new Date(d.getTime() + 330 * 60 * 1000);
+  const year = ist.getUTCFullYear();
+  const month = String(ist.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(ist.getUTCDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
-/** Returns local date string in YYYY-MM-DD for today */
+/** Kept as the shared date-key formatter; all store dates are IST. */
+export const formatDateKey = getISTDateKey;
+
+/** Returns today's store date in YYYY-MM-DD (Asia/Kolkata). */
 export function getTodayKey(): string {
-  return formatDateKey(new Date());
+  return getISTDateKey(new Date());
 }
 
 /** Returns Date object for Sunday 12:00:00 AM of the current week */
 export function getSundayOfCurrentWeek(baseDate: Date = new Date()): Date {
-  const d = new Date(baseDate);
-  const dayOfWeek = d.getDay(); // 0 is Sunday, 1 is Monday ... 6 is Saturday
-  d.setDate(d.getDate() - dayOfWeek);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  const d = new Date(`${getISTDateKey(baseDate)}T00:00:00.000Z`);
+  const dayOfWeek = d.getUTCDay();
+  d.setUTCDate(d.getUTCDate() - dayOfWeek);
+  return new Date(d.getTime() - 330 * 60 * 1000);
 }
 
 /** Returns Date object for 1st of the current month at 12:00:00 AM */
 export function getFirstDayOfCurrentMonth(baseDate: Date = new Date()): Date {
-  const d = new Date(baseDate);
-  d.setDate(1);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  const [year, month] = getISTDateKey(baseDate).split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, 1) - 330 * 60 * 1000);
 }
 
 /** Formats Date to 12-hour time string with AM/PM e.g. "1:24 AM" */
@@ -53,6 +55,7 @@ export function formatTimeOnly(d: Date = new Date()): string {
     hour: '2-digit',
     minute: '2-digit',
     hour12: true,
+    timeZone: 'Asia/Kolkata',
   });
 }
 
@@ -120,6 +123,7 @@ function normalizeStatsDoc(data: any, date: string): DailyStats {
   const itemQty: Record<string, number> = { ...(data?.itemQty || {}) };
   const qrSales: Record<string, number> = { ...(data?.qrSales || {}) };
   const qrOrders: Record<string, number> = { ...(data?.qrOrders || {}) };
+  const recoveryRunsByAgent: Record<string, number> = { ...(data?.recoveryRunsByAgent || {}) };
 
   if (data) {
     for (const [k, v] of Object.entries(data)) {
@@ -138,6 +142,9 @@ function normalizeStatsDoc(data: any, date: string): DailyStats {
       } else if (k.startsWith('qrOrders.')) {
         const qrId = k.slice('qrOrders.'.length);
         qrOrders[qrId] = (qrOrders[qrId] || 0) + (Number(v) || 0);
+      } else if (k.startsWith('recoveryRunsByAgent.')) {
+        const agentId = k.slice('recoveryRunsByAgent.'.length);
+        recoveryRunsByAgent[agentId] = (recoveryRunsByAgent[agentId] || 0) + (Number(v) || 0);
       }
     }
   }
@@ -155,6 +162,7 @@ function normalizeStatsDoc(data: any, date: string): DailyStats {
     itemQty,
     qrSales,
     qrOrders,
+    recoveryRunsByAgent,
   };
 }
 
@@ -172,10 +180,9 @@ export async function getTodayStats(): Promise<DailyStats | null> {
 
 /** Fetch stats for the last N days (for 7-day / 30-day ranges) */
 export async function getRecentStats(days: number): Promise<DailyStats[]> {
-  const snap = await getDocs(collection(db, COL));
-  const stats = snap.docs.map(d => normalizeStatsDoc(d.data(), d.id));
-  stats.sort((a, b) => b.date.localeCompare(a.date));
-  return stats.slice(0, days);
+  const statsQuery = query(collection(db, COL), orderBy(documentId(), 'desc'), limit(days));
+  const snap = await getDocs(statsQuery);
+  return snap.docs.map(d => normalizeStatsDoc(d.data(), d.id));
 }
 
 /** Real-time listener for the last N days of stats */
@@ -185,11 +192,10 @@ export function listenRecentStats(
   onError: (e: Error) => void,
 ): Unsubscribe {
   return onSnapshot(
-    collection(db, COL),
+    query(collection(db, COL), orderBy(documentId(), 'desc'), limit(days)),
     snap => {
       const stats = snap.docs.map(d => normalizeStatsDoc(d.data(), d.id));
-      stats.sort((a, b) => b.date.localeCompare(a.date));
-      onData(stats.slice(0, days));
+      onData(stats);
     },
     onError,
   );

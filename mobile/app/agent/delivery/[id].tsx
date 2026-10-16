@@ -421,7 +421,7 @@ export default function ActiveDeliveryScreen() {
                   {totalCansDelivered > 0
                     ? `Customer is receiving ${totalCansDelivered} fresh water can${
                         totalCansDelivered > 1 ? 's' : ''
-                      }`
+                      }. Record returns for this refill; older pending cans stay on their recovery run.`
                     : 'Collection run for pending empty cans'}
                 </Text>
               </View>

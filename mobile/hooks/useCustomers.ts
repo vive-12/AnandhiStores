@@ -1,5 +1,5 @@
 // hooks/useCustomers.ts — Live customers list hook for admin
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { listenUsersByRole } from '../services/users';
 import type { User } from '../types';
 
@@ -11,10 +11,12 @@ export function useCustomers() {
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     const unsub = listenUsersByRole(
       'customer',
       data => {
         setCustomers(data);
+        setError(null);
         setLoading(false);
       },
       err => {
@@ -25,5 +27,6 @@ export function useCustomers() {
     return unsub;
   }, [tick]);
 
-  return { customers, loading, error, refresh: () => setTick(t => t + 1) };
+  const refresh = useCallback(() => setTick(t => t + 1), []);
+  return { customers, loading, error, refresh };
 }

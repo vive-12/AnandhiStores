@@ -9,9 +9,10 @@ interface SessionState {
   name:      string | null;
   phone:     string | null;
   status:    UserStatus | null;
+  mustChangePin: boolean;
   isLoading: boolean;
 
-  setSession:   (user: Pick<User, 'id' | 'role' | 'name' | 'phone' | 'status'>) => void;
+  setSession:   (user: Pick<User, 'id' | 'role' | 'name' | 'phone' | 'status'> & Partial<Pick<User, 'mustChangePin'>>) => void;
   clearSession: () => void;
   setLoading:   (v: boolean) => void;
 }
@@ -22,6 +23,7 @@ export const useSession = create<SessionState>()(set => ({
   name:      null,
   phone:     null,
   status:    null,
+  mustChangePin: false,
   isLoading: true,   // true until session restoration completes on app start
 
   setSession: (user) => set({
@@ -30,11 +32,12 @@ export const useSession = create<SessionState>()(set => ({
     name:      user.name,
     phone:     user.phone,
     status:    user.status,
+    mustChangePin: user.mustChangePin === true,
     isLoading: false,
   }),
 
   clearSession: () => set({
-    uid: null, role: null, name: null, phone: null, status: null, isLoading: false,
+    uid: null, role: null, name: null, phone: null, status: null, mustChangePin: false, isLoading: false,
   }),
 
   setLoading: (v) => set({ isLoading: v }),

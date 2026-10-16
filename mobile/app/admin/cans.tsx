@@ -18,8 +18,8 @@ import { Colors, Spacing, Radius, FontSize, Shadow, StatusColors } from '../../t
 import { useSession } from '../../hooks/useSession';
 import { useCustomers } from '../../hooks/useCustomers';
 import { useOnlineAgents } from '../../hooks/useAgents';
-import { useAdminOrders } from '../../hooks/useOrders';
-import { createOrder, assignAgent } from '../../services/orders';
+import { useRecoveryOrders } from '../../hooks/useOrders';
+import { createOrder, getOrder, assignAgent } from '../../services/orders';
 import {
   ScreenHeader,
   Card,
@@ -27,6 +27,7 @@ import {
   Button,
   BottomSheet,
   EmptyState,
+  ErrorState,
   CardSkeleton,
   useToast,
 } from '../../components/ui';
@@ -47,9 +48,9 @@ export default function CansOutsideScreen() {
   const [targetRecovery, setTargetRecovery] = useState<Order | null>(null);
 
   // Hooks
-  const { customers, loading: customersLoading, refresh: refreshCustomers } = useCustomers();
+  const { customers, loading: customersLoading, error: customersError, refresh: refreshCustomers } = useCustomers();
   const { agents: onlineAgents, loading: agentsLoading } = useOnlineAgents();
-  const { orders, loading: ordersLoading } = useAdminOrders();
+  const { orders, loading: ordersLoading, error: ordersError, refresh: refreshRecoveries } = useRecoveryOrders();
 
   // Active recovery orders
   const activeRecoveries = useMemo(() => {
@@ -58,23 +59,30 @@ export default function CansOutsideScreen() {
     );
   }, [orders]);
 
+  const activeRecoveryCansByCustomer = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const run of activeRecoveries) {
+      counts[run.customerId] = (counts[run.customerId] || 0) + Math.max(0, Number(run.pendingCansToCollect || 0));
+    }
+    return counts;
+  }, [activeRecoveries]);
+
+  const cansNotYetAssigned = (customer: User) => Math.max(
+    0,
+    Number(customer.pendingCans || 0) - (activeRecoveryCansByCustomer[customer.id] || 0),
+  );
+
   // Customers who hold pending empty cans and don't yet have an active recovery order
   const pendingCustomers = useMemo(() => {
-    const assignedCustIds = new Set(activeRecoveries.map(r => r.customerId));
-    return customers.filter(
-      c => (c.pendingCans || 0) > 0 && !assignedCustIds.has(c.id),
-    );
-  }, [customers, activeRecoveries]);
+    return customers.filter(c => cansNotYetAssigned(c) > 0);
+  }, [customers, activeRecoveryCansByCustomer]);
 
   // Total cans currently with customers across town
   const totalCansOutside = useMemo(() => {
-    const fromCustomers = customers.reduce((sum, c) => sum + (c.pendingCans || 0), 0);
-    const fromActiveRuns = activeRecoveries.reduce(
-      (sum, r) => sum + (r.pendingCansToCollect || 0),
-      0,
-    );
-    return fromCustomers + fromActiveRuns;
-  }, [customers, activeRecoveries]);
+    const unassigned = customers.reduce((sum, c) => sum + cansNotYetAssigned(c), 0);
+    const alreadyAssigned = activeRecoveries.reduce((sum, r) => sum + Math.max(0, Number(r.pendingCansToCollect || 0)), 0);
+    return unassigned + alreadyAssigned;
+  }, [customers, activeRecoveries, activeRecoveryCansByCustomer]);
 
   // Open Assign Agent Sheet for customer
   const handleOpenAssignCustomer = (cust: User) => {
@@ -112,8 +120,9 @@ export default function CansOutsideScreen() {
         showToast(`Recovery run reassigned to ${agent.name}`, 'success');
       } else if (targetCustomer) {
         // Create a new recovery order
-        const cansCount = targetCustomer.pendingCans || 1;
-        await createOrder({
+        const cansCount = cansNotYetAssigned(targetCustomer);
+        if (cansCount <= 0) throw new Error('These cans are already on an active collection run.');
+        const recoveryId = await createOrder({
           actor: {
             uid: adminUid || 'admin',
             role: 'admin',
@@ -140,6 +149,18 @@ export default function CansOutsideScreen() {
           adminUid: adminUid || 'admin',
           type: 'recovery',
           pendingCansToCollect: cansCount,
+        });
+
+        const recoveryOrder = await getOrder(recoveryId);
+        if (!recoveryOrder) throw new Error('Recovery run was created but could not be loaded for assignment.');
+        await assignAgent({
+          orderId: recoveryId,
+          order: recoveryOrder,
+          agent: { uid: agent.id, name: agent.name, phone: agent.phone },
+          agentFee: 0,
+          customerId: targetCustomer.id,
+          adminUid: adminUid || 'admin',
+          oldAgentUid: null,
         });
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -175,7 +196,7 @@ export default function CansOutsideScreen() {
 
         <View style={s.canBadge}>
           <Ionicons name="water" size={16} color="#0284C7" />
-          <Text style={s.canBadgeNum}>{item.pendingCans}</Text>
+          <Text style={s.canBadgeNum}>{cansNotYetAssigned(item)}</Text>
           <Text style={s.canBadgeTxt}>cans</Text>
         </View>
       </View>
@@ -245,6 +266,7 @@ export default function CansOutsideScreen() {
   );
 
   const loading = customersLoading || ordersLoading;
+  const onRefresh = () => { refreshCustomers(); refreshRecoveries(); };
 
   return (
     <View style={s.container}>
@@ -297,7 +319,12 @@ export default function CansOutsideScreen() {
       </View>
 
       {/* List */}
-      {loading ? (
+      {ordersError || customersError ? (
+        <ErrorState
+          message="Could not load can recovery data."
+          onRetry={() => { refreshCustomers(); refreshRecoveries(); }}
+        />
+      ) : loading ? (
         <View style={{ padding: Spacing.lg, gap: Spacing.md }}>
           <CardSkeleton />
           <CardSkeleton />
@@ -312,7 +339,7 @@ export default function CansOutsideScreen() {
           refreshControl={
             <RefreshControl
               refreshing={loading}
-              onRefresh={refreshCustomers}
+              onRefresh={onRefresh}
               tintColor={Colors.green700}
             />
           }
@@ -330,6 +357,9 @@ export default function CansOutsideScreen() {
           renderItem={renderRecoveryItem}
           contentContainerStyle={s.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor={Colors.green700} />
+          }
           ListEmptyComponent={
             <EmptyState
               title="No Active Recovery Runs"
@@ -347,7 +377,7 @@ export default function CansOutsideScreen() {
           targetRecovery
             ? `Reassign ${targetRecovery.orderNo}`
             : targetCustomer
-            ? `Collect ${targetCustomer.pendingCans} Cans from ${targetCustomer.name}`
+            ? `Collect ${cansNotYetAssigned(targetCustomer)} Cans from ${targetCustomer.name}`
             : 'Select Agent'
         }
       >
