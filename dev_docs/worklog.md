@@ -321,3 +321,59 @@
 * The only saved test log, `mobile/logs/test-e2e.log`, is dated 2026-10-10 and reports 186/186 assertions passed. It does not include the newly reported runtime error.
 * Confirmed there was no attached Expo/Metro terminal session and no newer captured log file available in the workspace. The Expo Go app's live logs are stored in the app's AsyncStorage and cannot be read from the workspace without exporting them from the app.
 * No application code or historical test-log contents were changed during this log check. Requested the latest ERROR entries from the app's `/dev/logs` screen to identify and diagnose the current failure.
+
+## 36. Water Can Recovery Flow, 5-Min Slot, Inventory Filters & Standalone APK Build — 2026-10-22
+
+**Author: Antigravity**
+
+### 1. Water Can Recovery Flow & Pop-up Alert Elimination
+* **Suppressed Intrusive Pop-up:** When an agent delivers water cans with unreturned empties, the backend transaction creates an automatic recovery order. Suppressed the intrusive full-screen modal alert on the agent dashboard (`mobile/app/agent/dashboard.tsx`) and admin sound/alert (`mobile/app/admin/_layout.tsx`) for `order.type === 'recovery'`.
+* **Dedicated Can Recovery Section (`mobile/app/agent/dashboard.tsx`):**
+  * Partitioned assigned orders into retail orders vs. recovery orders using a `SectionList`.
+  * Added sub-filter pills (`All Runs`, `Deliveries (N)`, `💧 Can Recovery (N)`) when multiple types are assigned.
+  * Designed dedicated ice-blue card styling (`#38BDF8` border, `#F0F9FF` background) featuring prominent empty can count, transparent `💧 Can Pickup Only • ₹0` pill, customer contact shortcuts, and `Start Can Pickup ➔` action button.
+* **Return Limits & Visibility Guard (`mobile/app/agent/delivery/[id].tsx`):**
+  * Empty water can return input remains hidden until the agent actively taps pickup and begins delivery.
+  * Return count is capped based on the actual number of cans placed in the order.
+
+### 2. Admin Dashboards Can Tracking & Population
+* **3-Tab Cans Management Layout (`mobile/app/admin/cans.tsx`):**
+  * Restructured into 3 tabs: `Active Runs`, `Customers with Cans`, and `History`.
+  * Fixed bug where assigned recovery runs caused customers holding cans to vanish from the list.
+  * Displays market-wide empty cans hero counter, active recovery runs with reassignment controls, customer unreturned balance with 1-tap "Assign Collection Run", and completed collection archive.
+* **Admin Alerts & Live Orders (`mobile/app/admin/alerts.tsx`):**
+  * Added active recovery runs quick status banner linking directly to `/admin/cans`.
+  * Added real-time water can exchange badges on retail order cards (`X Delivered • Y Returned • ⚠️ Z Unreturned`).
+  * Added dedicated Water Can Exchange & Balance breakdown card inside order detail bottom sheets.
+* **Customer Profiles (`mobile/app/admin/profiles.tsx`):**
+  * Added `💧 Holds X Empty Cans` pill on customer list cards.
+  * Integrated Pending Cans metric into customer lifetime stats banner.
+
+### 3. Order Delivery Slot Update (ASAP → 5 min)
+* **Customer Order Flow (`mobile/app/(customer)/index.tsx`):**
+  * Updated initial and default selected slot to `5 min`.
+  * Added automatic normalization (`availableSlots`) so any legacy `ASAP` entries from Firestore or local storage seamlessly display and persist as `5 min`.
+  * Updated order builder to classify `5 min` as immediate delivery (`type: 'asap'`, `label: '5 min'`).
+* **Store Settings Service (`mobile/services/settings.ts`):**
+  * Updated `DEFAULTS.slots` to `['5 min', 'Morning 7–9 AM', 'Evening 5–7 PM']`.
+  * Added `normalizeSettings` to live listeners and one-shot fetches.
+* **Admin Settings & Manual Orders (`mobile/app/admin/settings.tsx`, `alerts.tsx`):**
+  * Updated default slot in admin delivery slot manager and manual walk-in order creator to `5 min`.
+
+### 4. Inventory & Offer Deals Improvements
+* **Out-of-Stock Filter (`mobile/app/admin/inventory.tsx`):**
+  * Added dedicated `⚠️ Out of Stock (N)` filter tab with instant refill stock input.
+* **Offer Deals Prioritization (`mobile/app/(customer)/index.tsx`):**
+  * Offer deals featured in the top hero banner are matched and displayed at the very top of the catalogue.
+* **Admin Delivery Agent Controls (`mobile/app/admin/agents.tsx`):**
+  * Added high-contrast Delete Delivery Agent button with safety confirmation modal.
+
+### 5. Standalone Android APK Build
+* Triggered EAS Cloud build for Android standalone installable APK (`preview` profile, `buildType: "apk"`).
+* Build ID: `42a51d23-3c27-4e4d-b5ea-2e8994256567`.
+* Live Build & APK Download: https://expo.dev/accounts/shivani2/projects/anandhi-stores/builds/42a51d23-3c27-4e4d-b5ea-2e8994256567
+
+### 6. Verification
+* `npx tsc --noEmit` — 0 errors.
+* `npm test` — all 37 test assertions passed with 0 failures.
+
