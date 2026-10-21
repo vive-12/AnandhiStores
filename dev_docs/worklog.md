@@ -369,9 +369,9 @@
   * Added high-contrast Delete Delivery Agent button with safety confirmation modal.
 
 ### 5. Standalone Android APK Build
-* Triggered EAS Cloud build for Android standalone installable APK (`preview` profile, `buildType: "apk"`).
-* Build ID: `42a51d23-3c27-4e4d-b5ea-2e8994256567`.
-* Live Build & APK Download: https://expo.dev/accounts/shivani2/projects/anandhi-stores/builds/42a51d23-3c27-4e4d-b5ea-2e8994256567
+* Build ID: `42a51d23-3c27-4e4d-b5ea-2e8994256567` (Status: `finished`).
+* Live Build Page: https://expo.dev/accounts/shivani2/projects/anandhi-stores/builds/42a51d23-3c27-4e4d-b5ea-2e8994256567
+* Direct APK Download Link: https://expo.dev/artifacts/eas/28qKIo_s0RrXKvWfm1Oi7-2yVLymMRw2LDH5IIL66pk.apk
 
 ### 6. Verification
 * `npx tsc --noEmit` — 0 errors.
