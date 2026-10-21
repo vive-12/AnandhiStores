@@ -107,7 +107,7 @@ export default function AnalyticsScreen() {
       <View style={s.container}>
         <ScreenHeader title="Analytics & Insights" subtitle="Track store performance" />
         <View style={s.content}>
-          <ErrorState message="Could not load analytics data." onRetry={handleRefresh} />
+          <ErrorState message={`Could not load analytics data. ${statsError.message}`} onRetry={handleRefresh} />
         </View>
       </View>
     );

@@ -136,6 +136,22 @@ export default function ActiveDeliveryScreen() {
       .reduce((sum, i) => sum + i.qty, 0);
   }, [order]);
 
+  // Upper limit on empty cans customer can return (based on cans placed in order or pending recovery cans)
+  const maxReturnLimit = useMemo(() => {
+    if (!order) return 0;
+    if (order.type === 'recovery') {
+      return order.pendingCansToCollect || 1;
+    }
+    return totalCansDelivered;
+  }, [order, totalCansDelivered]);
+
+  // Keep empty cans collected strictly clamped within [0, maxReturnLimit]
+  useEffect(() => {
+    if (maxReturnLimit > 0 && emptyCansCollected > maxReturnLimit) {
+      setEmptyCansCollected(maxReturnLimit);
+    }
+  }, [maxReturnLimit, emptyCansCollected]);
+
   // Call customer
   const handleCall = () => {
     if (!order?.customerPhone) return;
@@ -410,8 +426,8 @@ export default function ActiveDeliveryScreen() {
           </View>
         </Card>
 
-        {/* Can Recovery & Empties Counter (Q4 Extension) */}
-        {hasWaterCans && (
+        {/* Can Recovery & Empties Counter: Only visible once Out for Delivery or Delivered */}
+        {hasWaterCans && (isOut || isDelivered) && (
           <Card style={s.canCard}>
             <View style={s.canHeader}>
               <Ionicons name="water" size={24} color="#0284C7" />
@@ -419,19 +435,28 @@ export default function ActiveDeliveryScreen() {
                 <Text style={s.canTitle}>Empty Water Cans to Return</Text>
                 <Text style={s.canSubtitle}>
                   {totalCansDelivered > 0
-                    ? `Customer is receiving ${totalCansDelivered} fresh water can${
+                    ? `Customer ordered ${totalCansDelivered} fresh water can${
                         totalCansDelivered > 1 ? 's' : ''
-                      }. Record returns for this refill; older pending cans stay on their recovery run.`
-                    : 'Collection run for pending empty cans'}
+                      }. Max limit: up to ${totalCansDelivered} empty can${
+                        totalCansDelivered > 1 ? 's' : ''
+                      } can be returned for refill.`
+                    : `Collection run for ${order.pendingCansToCollect || 1} pending empty can${(order.pendingCansToCollect || 1) > 1 ? 's' : ''}.`}
                 </Text>
               </View>
             </View>
 
             <View style={s.canCounterRow}>
-              <Text style={s.canCounterLabel}>Empty Cans Collected:</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.canCounterLabel}>Empty Cans Collected:</Text>
+                <Text style={s.canLimitHint}>
+                  {maxReturnLimit > 0
+                    ? `Max limit: ${maxReturnLimit} can${maxReturnLimit > 1 ? 's' : ''} (ordered)`
+                    : 'No cans in order'}
+                </Text>
+              </View>
               <View style={s.stepper}>
                 <TouchableOpacity
-                  style={[s.stepBtn, emptyCansCollected <= 0 && s.stepBtnDisabled]}
+                  style={[s.stepBtn, (emptyCansCollected <= 0 || isDelivered) && s.stepBtnDisabled]}
                   onPress={() => {
                     Haptics.selectionAsync();
                     setEmptyCansCollected(prev => Math.max(0, prev - 1));
@@ -444,15 +469,20 @@ export default function ActiveDeliveryScreen() {
                   <Text style={s.stepBtnTxt}>−</Text>
                 </TouchableOpacity>
 
-                <Text style={s.stepValue} accessibilityLabel={`${emptyCansCollected} empty cans collected`}>{emptyCansCollected}</Text>
+                <Text style={s.stepValue} accessibilityLabel={`${emptyCansCollected} empty cans collected`}>
+                  {emptyCansCollected}
+                </Text>
 
                 <TouchableOpacity
-                  style={s.stepBtn}
+                  style={[
+                    s.stepBtn,
+                    (emptyCansCollected >= maxReturnLimit || isDelivered) && s.stepBtnDisabled,
+                  ]}
                   onPress={() => {
                     Haptics.selectionAsync();
-                    setEmptyCansCollected(prev => prev + 1);
+                    setEmptyCansCollected(prev => Math.min(maxReturnLimit, prev + 1));
                   }}
-                  disabled={isDelivered}
+                  disabled={emptyCansCollected >= maxReturnLimit || isDelivered}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   accessibilityRole="button"
                   accessibilityLabel="Increase empty cans collected"
@@ -679,7 +709,7 @@ export default function ActiveDeliveryScreen() {
               <View style={s.modalCanBanner}>
                 <Ionicons name="water" size={16} color="#0284C7" />
                 <Text style={s.modalCanTxt}>
-                  Empty cans collected: <Text style={s.modalBold}>{emptyCansCollected}</Text>
+                  Empty cans collected: <Text style={s.modalBold}>{emptyCansCollected} / {maxReturnLimit}</Text>
                 </Text>
               </View>
             )}
@@ -794,7 +824,7 @@ export default function ActiveDeliveryScreen() {
               <View style={s.modalCanBanner}>
                 <Ionicons name="water" size={16} color="#0284C7" />
                 <Text style={s.modalCanTxt}>
-                  Empty cans collected: <Text style={s.modalBold}>{emptyCansCollected}</Text>
+                  Empty cans collected: <Text style={s.modalBold}>{emptyCansCollected} / {maxReturnLimit}</Text>
                 </Text>
               </View>
             )}
@@ -1017,6 +1047,12 @@ const s = StyleSheet.create({
     fontSize: FontSize.xs,
     fontFamily: 'Manrope_600SemiBold',
     color: '#0369A1',
+  },
+  canLimitHint: {
+    fontSize: FontSize.xs - 2,
+    fontFamily: 'Manrope_600SemiBold',
+    color: '#0284C7',
+    marginTop: 2,
   },
   stepper: {
     flexDirection: 'row',

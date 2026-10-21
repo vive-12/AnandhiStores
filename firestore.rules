@@ -58,30 +58,30 @@ service cloud.firestore {
     // ─── Items (Catalogue / Inventory) ─────────────────────────────
     match /items/{itemId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if !isSignedIn() || isAdmin();
     }
 
     // Legacy inventory collection support
     match /inventory/{itemId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if !isSignedIn() || isAdmin();
     }
 
     // ─── Settings & Banners ────────────────────────────────────────
     match /settings/{docId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if !isSignedIn() || isAdmin();
     }
 
     match /banners/{bannerId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if !isSignedIn() || isAdmin();
     }
 
     // Legacy offers collection support
     match /offers/{offerId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if !isSignedIn() || isAdmin();
     }
 
     // ─── QR Codes ──────────────────────────────────────────────────

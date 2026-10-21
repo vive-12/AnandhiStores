@@ -12,15 +12,15 @@ import { isValidPin } from '../../utils/compute';
 import { Colors, FontSize, Spacing, Radius } from '../../theme';
 
 export default function ResetPinScreen() {
-  const router         = useRouter();
-  const { showToast }  = useToast();
+  const router = useRouter();
+  const { showToast } = useToast();
   const { uid, phone, mustChangePin, setSession } = useSession();
 
   const [currentPin, setCurrentPin] = useState('');
-  const [newPin,     setNewPin]     = useState('');
+  const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
-  const [newPinErr,  setNewPinErr]  = useState('');
-  const [confErr,    setConfErr]    = useState('');
+  const [newPinErr, setNewPinErr] = useState('');
+  const [confErr, setConfErr] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleReset = useCallback(async () => {
@@ -116,17 +116,17 @@ export default function ResetPinScreen() {
 }
 
 const styles = StyleSheet.create({
-  flex:      { flex: 1, backgroundColor: Colors.cream },
+  flex: { flex: 1, backgroundColor: Colors.cream },
   container: { flex: 1, padding: Spacing.xl, justifyContent: 'center' },
-  title:     { fontSize: FontSize.xl, fontFamily: 'Manrope_800ExtraBold', color: Colors.green900, marginBottom: 4 },
-  subtitle:  { fontSize: FontSize.sm, fontFamily: 'Manrope_500Medium', color: Colors.inkSoft, marginBottom: Spacing.xxl },
-  field:     { marginBottom: Spacing.lg },
-  label:     { fontSize: FontSize.sm, fontFamily: 'Manrope_600SemiBold', color: Colors.ink, marginBottom: Spacing.xs },
+  title: { fontSize: FontSize.xl, fontFamily: 'Manrope_800ExtraBold', color: Colors.green900, marginBottom: 4 },
+  subtitle: { fontSize: FontSize.sm, fontFamily: 'Manrope_500Medium', color: Colors.inkSoft, marginBottom: Spacing.xxl },
+  field: { marginBottom: Spacing.lg },
+  label: { fontSize: FontSize.sm, fontFamily: 'Manrope_600SemiBold', color: Colors.ink, marginBottom: Spacing.xs },
   input: {
     height: 52, borderWidth: 1.5, borderColor: Colors.line, borderRadius: Radius.button,
     paddingHorizontal: Spacing.lg, fontSize: FontSize.md, fontFamily: 'Manrope_500Medium',
     color: Colors.ink, backgroundColor: Colors.card, letterSpacing: 8,
   },
   inputErr: { borderColor: Colors.coral },
-  errTxt:   { fontSize: FontSize.xs, color: Colors.coral, fontFamily: 'Manrope_500Medium', marginTop: 4 },
+  errTxt: { fontSize: FontSize.xs, color: Colors.coral, fontFamily: 'Manrope_500Medium', marginTop: 4 },
 });

@@ -38,6 +38,11 @@ export default function AccountScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [expandedSection, setExpandedSection] = useState<'profile' | 'address' | 'support' | null>(null);
+
+  const toggleSection = (section: 'profile' | 'address' | 'support') => {
+    setExpandedSection(current => current === section ? null : section);
+  };
 
   // Profile Form state
   const [name, setName] = useState(sessionName || '');
@@ -217,6 +222,12 @@ export default function AccountScreen() {
           </View>
         ) : (
           <>
+            <TouchableOpacity style={styles.sectionToggle} onPress={() => toggleSection('profile')} accessibilityRole="button" accessibilityState={{ expanded: expandedSection === 'profile' }}>
+              <View><Text style={styles.sectionToggleTitle}>Profile</Text><Text style={styles.sectionToggleSub}>Name, phone and PIN</Text></View>
+              <Text style={styles.sectionToggleIcon}>{expandedSection === 'profile' ? '−' : '+'}</Text>
+            </TouchableOpacity>
+            {expandedSection === 'profile' && (
+            <>
             {/* ─── Profile Overview Card ────────────────────────────────────── */}
             <View style={styles.card}>
               <View style={styles.profileHeader}>
@@ -252,7 +263,15 @@ export default function AccountScreen() {
                 style={{ marginTop: Spacing.md }}
               />
             </View>
+            </>
+            )}
 
+            <TouchableOpacity style={styles.sectionToggle} onPress={() => toggleSection('address')} accessibilityRole="button" accessibilityState={{ expanded: expandedSection === 'address' }}>
+              <View><Text style={styles.sectionToggleTitle}>Address</Text><Text style={styles.sectionToggleSub}>Delivery location and GPS pin</Text></View>
+              <Text style={styles.sectionToggleIcon}>{expandedSection === 'address' ? '−' : '+'}</Text>
+            </TouchableOpacity>
+            {expandedSection === 'address' && (
+            <>
             {/* ─── Delivery Address Card ────────────────────────────────────── */}
             <View style={styles.card}>
               <View style={styles.addressHeader}>
@@ -357,7 +376,15 @@ export default function AccountScreen() {
                 />
               </View>
             </View>
+            </>
+            )}
 
+            <TouchableOpacity style={styles.sectionToggle} onPress={() => toggleSection('support')} accessibilityRole="button" accessibilityState={{ expanded: expandedSection === 'support' }}>
+              <View><Text style={styles.sectionToggleTitle}>Support</Text><Text style={styles.sectionToggleSub}>WhatsApp or call the store</Text></View>
+              <Text style={styles.sectionToggleIcon}>{expandedSection === 'support' ? '−' : '+'}</Text>
+            </TouchableOpacity>
+            {expandedSection === 'support' && (
+            <>
             {/* ─── Store Help & Contact Card ─────────────────────────────────── */}
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Store & Customer Support</Text>
@@ -393,6 +420,8 @@ export default function AccountScreen() {
                 </TouchableOpacity>
               </View>
             </View>
+            </>
+            )}
 
             {/* ─── Logout Button ────────────────────────────────────────────── */}
             <View style={styles.logoutWrap}>
@@ -442,6 +471,22 @@ const styles = StyleSheet.create({
     borderColor: Colors.line,
     ...Shadow.card,
   },
+  sectionToggle: {
+    minHeight: 68,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.card,
+    borderRadius: Radius.card,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    ...Shadow.card,
+  },
+  sectionToggleTitle: { color: Colors.ink, fontSize: FontSize.md, fontFamily: 'Manrope_800ExtraBold' },
+  sectionToggleSub: { color: Colors.inkSoft, fontSize: FontSize.xs, fontFamily: 'Manrope_500Medium', marginTop: 2 },
+  sectionToggleIcon: { color: Colors.green700, fontSize: 26, fontFamily: 'Manrope_800ExtraBold', paddingHorizontal: Spacing.sm },
   profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',

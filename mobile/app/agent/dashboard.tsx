@@ -5,6 +5,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
+  SectionList,
   TouchableOpacity,
   Alert,
   Linking,
@@ -22,7 +23,6 @@ import { Colors, Spacing, Radius, FontSize, Shadow, StatusColors } from '../../t
 import { useSession } from '../../hooks/useSession';
 import { useAuthUser } from '../../hooks/useAuthUser';
 import { useAgentOrders } from '../../hooks/useOrders';
-import { useStats } from '../../hooks/useStats';
 import { getSundayOfCurrentWeek, getFirstDayOfCurrentMonth, getISTDateKey } from '../../services/stats';
 import { setAgentOnline } from '../../services/users';
 import { logout } from '../../services/auth';
@@ -57,14 +57,6 @@ export default function AgentDashboard() {
   // Live orders assigned to this agent
   const { orders, loading: ordersLoading, error: ordersError } = useAgentOrders(uid);
 
-  // Live stats for earnings & cash
-  const { getAgentPerformance } = useStats(30);
-
-  // Real agent performance
-  const agentPerf = useMemo(() => {
-    return uid ? getAgentPerformance(uid) : null;
-  }, [uid, getAgentPerformance]);
-
   // Online status state
   const [isOnline, setIsOnline] = useState<boolean>(() => profileUser?.isOnline ?? true);
 
@@ -80,6 +72,50 @@ export default function AgentDashboard() {
   const assignedOrders = useMemo(() => {
     return orders.filter(o => o.status === 'placed' || o.status === 'packed');
   }, [orders]);
+
+  const assignedRetailOrders = useMemo(() => {
+    return assignedOrders.filter(o => o.type !== 'recovery');
+  }, [assignedOrders]);
+
+  const assignedRecoveryOrders = useMemo(() => {
+    return assignedOrders.filter(o => o.type === 'recovery');
+  }, [assignedOrders]);
+
+  // Sub-filter inside Assigned tab: 'all' | 'retail' | 'recovery'
+  const [assignedSubFilter, setAssignedSubFilter] = useState<'all' | 'retail' | 'recovery'>('all');
+
+  // Structured sections for Assigned tab
+  const assignedSections = useMemo(() => {
+    const list: {
+      key: string;
+      title: string;
+      subtitle?: string;
+      isRecovery: boolean;
+      data: Order[];
+    }[] = [];
+
+    if (assignedSubFilter !== 'recovery' && assignedRetailOrders.length > 0) {
+      list.push({
+        key: 'retail',
+        title: 'Delivery Orders',
+        subtitle: 'Customer retail delivery orders',
+        isRecovery: false,
+        data: assignedRetailOrders,
+      });
+    }
+
+    if (assignedSubFilter !== 'retail' && assignedRecoveryOrders.length > 0) {
+      list.push({
+        key: 'recovery',
+        title: 'Can Recovery Runs',
+        subtitle: 'Empty 20L water cans to collect from customer locations',
+        isRecovery: true,
+        data: assignedRecoveryOrders,
+      });
+    }
+
+    return list;
+  }, [assignedSubFilter, assignedRetailOrders, assignedRecoveryOrders]);
 
   const outOrders = useMemo(() => {
     return orders.filter(o => o.status === 'out_for_delivery');
@@ -129,22 +165,23 @@ export default function AgentDashboard() {
   }, [completedOrders, parseOrderDate, clickTime]);
 
   const todayCashFromOrders = useMemo(() => {
-    return todayCompletedOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    return todayCompletedOrders.reduce((sum, o) => sum + (o.paymentMethod === 'COD' || o.paymentMethod === 'cash' ? o.total || 0 : 0), 0);
   }, [todayCompletedOrders]);
 
   const weeklyCashFromOrders = useMemo(() => {
-    return weeklyCompletedOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    return weeklyCompletedOrders.reduce((sum, o) => sum + (o.paymentMethod === 'COD' || o.paymentMethod === 'cash' ? o.total || 0 : 0), 0);
   }, [weeklyCompletedOrders]);
 
   const monthlyCashFromOrders = useMemo(() => {
-    return monthlyCompletedOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    return monthlyCompletedOrders.reduce((sum, o) => sum + (o.paymentMethod === 'COD' || o.paymentMethod === 'cash' ? o.total || 0 : 0), 0);
   }, [monthlyCompletedOrders]);
 
-  // Aggregate with stats_daily if available
-  const effectiveTodayDeliveries = Math.max(agentPerf?.todayDeliveries || 0, todayCompletedOrders.length);
-  const effectiveWeeklyDeliveries = Math.max(agentPerf?.weeklyDeliveries || 0, weeklyCompletedOrders.length);
-  const effectiveMonthlyDeliveries = Math.max(agentPerf?.monthlyDeliveries || 0, monthlyCompletedOrders.length);
-  const effectiveTodayCash = Math.max(agentPerf?.todayCash || 0, todayCashFromOrders);
+  // Use the agent's own delivered order records. This avoids a separate
+  // stats_daily listener and keeps the dashboard scoped to data it already reads.
+  const effectiveTodayDeliveries = todayCompletedOrders.length;
+  const effectiveWeeklyDeliveries = weeklyCompletedOrders.length;
+  const effectiveMonthlyDeliveries = monthlyCompletedOrders.length;
+  const effectiveTodayCash = todayCashFromOrders;
 
   // Filtered completed runs list based on active timeframe
   const filteredCompletedOrders = useMemo(() => {
@@ -159,6 +196,7 @@ export default function AgentDashboard() {
   // IMPORTANT: Firestore onSnapshot fires TWICE on first load (cache, then server).
   // We must skip the detection window until the initial snapshot settles,
   // otherwise every existing order looks "new" and the modal blocks the whole screen.
+  const mountTimeRef      = useRef<number>(Date.now());
   const prevOrderIdsRef   = useRef<Set<string>>(new Set());
   const initialLoadDone   = useRef(false);
   const [newAssignmentAlert, setNewAssignmentAlert] = useState<Order | null>(null);
@@ -175,17 +213,24 @@ export default function AgentDashboard() {
       return;
     }
 
-    // Subsequent snapshots — only alert for genuinely NEW order IDs.
+    // Subsequent snapshots — only alert for genuinely NEW order IDs created after mounting.
     for (const order of assignedOrders) {
       if (!prevOrderIdsRef.current.has(order.id)) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        setNewAssignmentAlert(order);
-        break;
+        // Suppress intrusive modal popup for can recovery runs
+        if (order.type === 'recovery') continue;
+
+        const orderTime = parseOrderDate(order)?.getTime() ?? 0;
+        if (orderTime > mountTimeRef.current - 5000) {
+          console.log('[ALERT] New assignment alert triggered for order:', order.id, order.orderNo);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          setNewAssignmentAlert(order);
+          break;
+        }
       }
     }
 
     prevOrderIdsRef.current = currentIds;
-  }, [assignedOrders, ordersLoading]);
+  }, [assignedOrders, ordersLoading, parseOrderDate]);
 
   // Online / Offline toggle (sync row 14)
   const handleToggleOnline = async () => {
@@ -289,6 +334,7 @@ export default function AgentDashboard() {
           s.orderCard,
           isReady && s.orderCardReady,
           isOut && s.orderCardOut,
+          isRecovery && s.orderCardRecovery,
         ]}
         onPress={() => router.push(`/agent/delivery/${item.id}`)}
         activeOpacity={0.85}
@@ -299,38 +345,47 @@ export default function AgentDashboard() {
             <View style={s.orderNoRow}>
               <Text style={s.orderNo}>{item.orderNo}</Text>
               {isRecovery && (
-                <View style={s.recoveryTag}>
-                  <Text style={s.recoveryTagTxt}>💧 Recovery</Text>
+                <View style={[s.recoveryTag, { backgroundColor: '#E0F2FE', borderColor: '#BAE6FD', borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 3 }]}>
+                  <Ionicons name="water" size={11} color="#0284C7" />
+                  <Text style={s.recoveryTagTxt}>Can Recovery</Text>
                 </View>
               )}
             </View>
-            <Text style={s.orderTime}>Placed at {placedTime}</Text>
+            <Text style={s.orderTime}>
+              {isRecovery ? 'Auto-assigned empty can run' : `Placed at ${placedTime}`}
+            </Text>
           </View>
 
           <View style={{ alignItems: 'flex-end' }}>
             <StatusPill status={item.status} />
-            {isReady && (
+            {isReady && !isRecovery && (
               <View style={s.readyPill}>
                 <Ionicons name="cube" size={12} color="#FFFFFF" />
                 <Text style={s.readyPillTxt}>Ready for Pickup</Text>
               </View>
             )}
-            {item.status === 'placed' && (
+            {item.status === 'placed' && !isRecovery && (
               <View style={s.packingPill}>
                 <Ionicons name="time-outline" size={12} color={Colors.inkSoft} />
                 <Text style={s.packingPillTxt}>Packing in store</Text>
+              </View>
+            )}
+            {item.status === 'placed' && isRecovery && (
+              <View style={[s.packingPill, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE', borderWidth: 1 }]}>
+                <Ionicons name="time-outline" size={12} color="#1D4ED8" />
+                <Text style={[s.packingPillTxt, { color: '#1D4ED8' }]}>Pickup Pending</Text>
               </View>
             )}
           </View>
         </View>
 
         {/* Customer Box */}
-        <View style={s.customerBox}>
+        <View style={[s.customerBox, isRecovery && { backgroundColor: '#F0F9FF', borderColor: '#E0F2FE' }]}>
           <View style={{ flex: 1 }}>
             <Text style={s.customerName}>{item.customerName}</Text>
             <Text style={s.customerPhone}>{item.customerPhone}</Text>
             <View style={s.localityRow}>
-              <Ionicons name="location-sharp" size={13} color={Colors.coral} />
+              <Ionicons name="location-sharp" size={13} color={isRecovery ? '#0284C7' : Colors.coral} />
               <Text style={s.localityText} numberOfLines={1}>
                 {item.addressSnapshot?.locality || item.addressSnapshot?.street || 'Chennai'}
               </Text>
@@ -339,7 +394,7 @@ export default function AgentDashboard() {
 
           {item.customerPhone ? (
             <TouchableOpacity
-              style={s.callBtn}
+              style={[s.callBtn, isRecovery && { backgroundColor: '#0284C7' }]}
               onPress={() => handleCall(item.customerPhone)}
             >
               <Ionicons name="call" size={18} color="#FFFFFF" />
@@ -350,11 +405,18 @@ export default function AgentDashboard() {
         {/* Order Details / Cans info */}
         <View style={s.orderMeta}>
           {isRecovery ? (
-            <View style={s.infoRow}>
-              <Ionicons name="water-outline" size={16} color={Colors.green700} />
-              <Text style={[s.infoText, { color: Colors.green700, fontWeight: '700' }]}>
-                Collect {item.pendingCansToCollect || 1} Empty Water Cans
-              </Text>
+            <View style={s.recoveryBannerBox}>
+              <View style={s.recoveryCanIcon}>
+                <Ionicons name="water" size={18} color="#0284C7" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.recoveryBannerTitle}>
+                  Collect {item.pendingCansToCollect || 1} Empty 20L Water Can{Number(item.pendingCansToCollect || 1) > 1 ? 's' : ''}
+                </Text>
+                <Text style={s.recoveryBannerSub}>
+                  {item.notes || 'Collect empty cans from customer and return to store'}
+                </Text>
+              </View>
             </View>
           ) : (
             <View style={s.infoRow}>
@@ -367,7 +429,7 @@ export default function AgentDashboard() {
             </View>
           )}
 
-          {item.slot?.label ? (
+          {item.slot?.label && !isRecovery ? (
             <View style={s.infoRow}>
               <Ionicons name="time-outline" size={16} color={Colors.inkSoft} />
               <Text style={s.infoText}>Slot: {item.slot.label}</Text>
@@ -378,17 +440,19 @@ export default function AgentDashboard() {
         {/* Total & Action Bar */}
         <View style={s.cardFooter}>
           <View>
-            <Text style={s.codLabel}>Cash on Delivery</Text>
-            <Text style={s.codAmount}>₹{item.total}</Text>
+            <Text style={s.codLabel}>{isRecovery ? 'Run Purpose' : 'Cash on Delivery'}</Text>
+            <Text style={[s.codAmount, isRecovery && { color: '#0284C7', fontSize: FontSize.sm + 1 }]}>
+              {isRecovery ? '💧 Can Pickup Only' : `₹${item.total}`}
+            </Text>
           </View>
 
           <View style={s.footerBtnGroup}>
             <TouchableOpacity
-              style={s.mapBtn}
+              style={[s.mapBtn, isRecovery && { borderColor: '#BAE6FD', backgroundColor: '#F0F9FF' }]}
               onPress={() => handleOpenMap(item)}
             >
-              <Ionicons name="navigate-outline" size={16} color={Colors.green700} />
-              <Text style={s.mapBtnTxt}>Maps</Text>
+              <Ionicons name="navigate-outline" size={16} color={isRecovery ? '#0284C7' : Colors.green700} />
+              <Text style={[s.mapBtnTxt, isRecovery && { color: '#0284C7' }]}>Maps</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -397,6 +461,7 @@ export default function AgentDashboard() {
                 isReady && { backgroundColor: Colors.green700 },
                 isOut && { backgroundColor: Colors.amber },
                 isDelivered && { backgroundColor: Colors.line },
+                isRecovery && !isOut && !isDelivered && { backgroundColor: '#0284C7' },
               ]}
               onPress={() => router.push(`/agent/delivery/${item.id}`)}
             >
@@ -409,10 +474,10 @@ export default function AgentDashboard() {
                 {isDelivered
                   ? 'Delivered'
                   : isOut
-                  ? 'Continue Run'
+                  ? (isRecovery ? 'Continue Pickup' : 'Continue Run')
                   : isReady
                   ? 'Start Pickup'
-                  : 'View Order'}
+                  : (isRecovery ? 'Start Can Pickup' : 'View Order')}
               </Text>
               <Ionicons
                 name="arrow-forward"
@@ -455,16 +520,6 @@ export default function AgentDashboard() {
 
           <View style={s.headerRight}>
             <NotificationBell color="#FFFFFF" />
-
-            <TouchableOpacity
-              onPress={() => router.push('/auth/reset-pin')}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Change PIN"
-              style={{ padding: 8 }}
-            >
-              <Ionicons name="key-outline" size={18} color={Colors.amber} />
-            </TouchableOpacity>
 
             {/* Earnings Button */}
             <TouchableOpacity
@@ -661,12 +716,118 @@ export default function AgentDashboard() {
           </View>
         )}
 
+        {/* Sub-filter Bar for Assigned Tab (when both retail & recovery exist) */}
+        {activeTab === 'assigned' && assignedRetailOrders.length > 0 && assignedRecoveryOrders.length > 0 && (
+          <View style={s.subfilterBar}>
+            <TouchableOpacity
+              style={[s.subfilterChip, assignedSubFilter === 'all' && s.subfilterChipActive]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setAssignedSubFilter('all');
+              }}
+            >
+              <Text style={[s.subfilterTxt, assignedSubFilter === 'all' && s.subfilterTxtActive]}>
+                All Runs ({assignedOrders.length})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[s.subfilterChip, assignedSubFilter === 'retail' && s.subfilterChipActive]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setAssignedSubFilter('retail');
+              }}
+            >
+              <Text style={[s.subfilterTxt, assignedSubFilter === 'retail' && s.subfilterTxtActive]}>
+                Deliveries ({assignedRetailOrders.length})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                s.subfilterChip,
+                s.subfilterRecoveryChip,
+                assignedSubFilter === 'recovery' && s.subfilterRecoveryChipActive,
+              ]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setAssignedSubFilter('recovery');
+              }}
+            >
+              <Ionicons
+                name="water"
+                size={12}
+                color={assignedSubFilter === 'recovery' ? '#FFFFFF' : '#0284C7'}
+              />
+              <Text
+                style={[
+                  s.subfilterTxt,
+                  { color: '#0284C7' },
+                  assignedSubFilter === 'recovery' && { color: '#FFFFFF' },
+                ]}
+              >
+                Can Recovery ({assignedRecoveryOrders.length})
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Orders List */}
         {ordersLoading ? (
           <View style={{ padding: Spacing.lg, gap: Spacing.md }}>
             <CardSkeleton />
             <CardSkeleton />
           </View>
+        ) : activeTab === 'assigned' ? (
+          <SectionList
+            sections={assignedSections}
+            keyExtractor={item => item.id}
+            renderItem={renderOrderCard}
+            renderSectionHeader={({ section }) => (
+              <View style={[s.sectionHeaderRow, section.isRecovery && s.recoverySectionHeaderRow]}>
+                <View style={s.sectionHeaderLeft}>
+                  <Ionicons
+                    name={section.isRecovery ? 'water' : 'cube-outline'}
+                    size={18}
+                    color={section.isRecovery ? '#0284C7' : Colors.green700}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.sectionHeaderTitle, section.isRecovery && { color: '#0369A1' }]}>
+                      {section.title} ({section.data.length})
+                    </Text>
+                    {section.subtitle ? (
+                      <Text style={s.sectionHeaderSubtitle}>{section.subtitle}</Text>
+                    ) : null}
+                  </View>
+                </View>
+              </View>
+            )}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[
+              s.listContent,
+              {
+                paddingBottom: Math.max(insets.bottom, 16) + 80,
+                paddingLeft: Math.max(insets.left, Spacing.lg),
+                paddingRight: Math.max(insets.right, Spacing.lg),
+              },
+            ]}
+            ListEmptyComponent={
+              <EmptyState
+                title={
+                  assignedSubFilter === 'recovery'
+                    ? 'No Can Recovery Runs'
+                    : assignedSubFilter === 'retail'
+                    ? 'No Delivery Orders'
+                    : 'No Assigned Runs'
+                }
+                subtitle={
+                  isOnline
+                    ? 'Stay online. New deliveries or empty can recovery pickups will appear here.'
+                    : 'You are currently offline. Turn your status online to receive deliveries.'
+                }
+              />
+            }
+          />
         ) : (
           <FlatList
             data={currentTabOrders}
@@ -684,9 +845,7 @@ export default function AgentDashboard() {
             ListEmptyComponent={
               <EmptyState
                 title={
-                  activeTab === 'assigned'
-                    ? 'No Assigned Runs'
-                    : activeTab === 'out'
+                  activeTab === 'out'
                     ? 'No Deliveries in Transit'
                     : runTimeframe === 'today'
                     ? "No Completed Orders Today"
@@ -695,11 +854,7 @@ export default function AgentDashboard() {
                     : "No Completed Orders in Last 30 Days"
                 }
                 subtitle={
-                  activeTab === 'assigned'
-                    ? isOnline
-                      ? 'Stay online. New orders assigned by the store will appear here automatically.'
-                      : 'You are currently offline. Turn your status online to receive deliveries.'
-                    : activeTab === 'out'
+                  activeTab === 'out'
                     ? 'Orders marked as picked up will appear here.'
                     : 'Delivered orders will appear here for your cash handover.'
                 }
@@ -714,11 +869,7 @@ export default function AgentDashboard() {
           snapPoints={['55%', '85%']}
           title="Earnings & Cash Handover"
         >
-          <ScrollView
-            style={s.sheetScroll}
-            contentContainerStyle={s.sheetContent}
-            showsVerticalScrollIndicator={false}
-          >
+          <View style={s.sheetContent}>
             {/* Cash Handover Notice */}
             <View style={s.cashHeroCard}>
               <Ionicons name="cash" size={28} color={Colors.green700} />
@@ -839,7 +990,7 @@ export default function AgentDashboard() {
                 </View>
               )}
             </View>
-          </ScrollView>
+          </View>
         </BottomSheet>
 
         {/* New Assignment Modal Banner (sync row 5) */}
@@ -1477,5 +1628,121 @@ const s = StyleSheet.create({
     color: Colors.inkSoft,
     fontSize: FontSize.xs,
     fontFamily: 'Manrope_600SemiBold',
+  },
+
+  // Recovery card specific styles
+  orderCardRecovery: {
+    borderColor: '#38BDF8',
+    borderWidth: 1.5,
+    backgroundColor: '#FAFCFF',
+  },
+  recoveryBannerBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F9FF',
+    borderRadius: Radius.button,
+    padding: Spacing.sm,
+    gap: Spacing.sm,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  recoveryCanIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#E0F2FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recoveryBannerTitle: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: '#0369A1',
+  },
+  recoveryBannerSub: {
+    fontSize: FontSize.xs - 2,
+    fontFamily: 'Manrope_500Medium',
+    color: '#0284C7',
+    marginTop: 1,
+  },
+
+  // Sub-filter tabs inside assigned tab
+  subfilterBar: {
+    flexDirection: 'row',
+    backgroundColor: Colors.card,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xs + 2,
+    gap: Spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.line,
+  },
+  subfilterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 5,
+    borderRadius: Radius.chip,
+    backgroundColor: Colors.cream,
+    borderWidth: 1,
+    borderColor: Colors.line,
+  },
+  subfilterChipActive: {
+    backgroundColor: Colors.green700,
+    borderColor: Colors.green700,
+  },
+  subfilterTxt: {
+    fontSize: FontSize.xs - 1,
+    fontFamily: 'Manrope_600SemiBold',
+    color: Colors.inkSoft,
+  },
+  subfilterTxtActive: {
+    color: '#FFFFFF',
+    fontFamily: 'Manrope_800ExtraBold',
+  },
+  subfilterRecoveryChip: {
+    borderColor: '#BAE6FD',
+    backgroundColor: '#F0F9FF',
+  },
+  subfilterRecoveryChipActive: {
+    backgroundColor: '#0284C7',
+    borderColor: '#0284C7',
+  },
+
+  // Section Headers for Assigned tab
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.cream,
+    paddingVertical: Spacing.xs + 2,
+    paddingHorizontal: 2,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.xs,
+  },
+  recoverySectionHeaderRow: {
+    marginTop: Spacing.md,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: '#E0F2FE',
+  },
+  sectionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs + 2,
+    flex: 1,
+  },
+  sectionHeaderTitle: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: Colors.ink,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  sectionHeaderSubtitle: {
+    fontSize: FontSize.xs - 2,
+    fontFamily: 'Manrope_500Medium',
+    color: Colors.inkSoft,
+    marginTop: 1,
   },
 });

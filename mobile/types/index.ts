@@ -205,6 +205,10 @@ export interface Banner {
   subtitle?: string | null;
   linkedItemId?: string | null;
   linkedItemName?: string | null;
+  imageScale?: number | null;
+  imageOffsetX?: number | null;
+  imageOffsetY?: number | null;
+  imageRotation?: number | null;
 }
 
 // ─── Stats ───────────────────────────────────────────────────────────────────

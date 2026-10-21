@@ -32,7 +32,7 @@ export default function AdminSettingsScreen() {
   const [openTime, setOpenTime] = useState('07:00');
   const [closeTime, setCloseTime] = useState('21:00');
   const [isStoreOpenOverride, setIsStoreOpenOverride] = useState<null | true | false>(null);
-  const [slots, setSlots] = useState<string[]>(['ASAP', 'Morning 7–9 AM', 'Evening 5–7 PM']);
+  const [slots, setSlots] = useState<string[]>(['5 min', 'Morning 7–9 AM', 'Evening 5–7 PM']);
   const [newSlotInput, setNewSlotInput] = useState('');
   const [agentFeePerDelivery, setAgentFeePerDelivery] = useState('30');
 
@@ -46,7 +46,7 @@ export default function AdminSettingsScreen() {
       setCloseTime(settings.closeTime || '21:00');
       setIsStoreOpenOverride(settings.isStoreOpenOverride ?? null);
       if (Array.isArray(settings.slots) && settings.slots.length > 0) {
-        setSlots(settings.slots);
+        setSlots(settings.slots.map(s => (typeof s === 'string' && s.trim().toUpperCase() === 'ASAP' ? '5 min' : s)));
       }
       setAgentFeePerDelivery(String(settings.agentFeePerDelivery ?? 30));
     }

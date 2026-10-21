@@ -10,6 +10,8 @@ export const Colors = {
   // Accent
   amber:  '#E8A33D',
   coral:  '#E1604A',
+  red:    '#DC2626',
+  redLight: '#FEE2E2',
 
   // Surfaces
   cream:  '#FBF8F1',

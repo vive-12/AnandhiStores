@@ -14,9 +14,16 @@ const DEFAULTS: Settings = {
   openTime:            '07:00',
   closeTime:           '21:00',
   isStoreOpenOverride: null,
-  slots:               ['ASAP', 'Morning 7–9 AM', 'Evening 5–7 PM'],
+  slots:               ['5 min', 'Morning 7–9 AM', 'Evening 5–7 PM'],
   agentFeePerDelivery: 30,
 };
+
+function normalizeSettings(data: any): Settings {
+  if (!data) return DEFAULTS;
+  const rawSlots = Array.isArray(data.slots) && data.slots.length > 0 ? data.slots : DEFAULTS.slots;
+  const slots = rawSlots.map((s: string) => (typeof s === 'string' && s.trim().toUpperCase() === 'ASAP' ? '5 min' : s));
+  return { ...data, slots };
+}
 
 /** Live listener for store settings */
 export function listenSettings(
@@ -27,7 +34,7 @@ export function listenSettings(
     doc(db, DOC_PATH),
     snap => {
       if (snap.exists()) {
-        onData(snap.data() as Settings);
+        onData(normalizeSettings(snap.data()));
       } else {
         onData(DEFAULTS);
       }
@@ -39,7 +46,7 @@ export function listenSettings(
 /** One-shot fetch */
 export async function getSettings(): Promise<Settings> {
   const snap = await getDoc(doc(db, DOC_PATH));
-  return snap.exists() ? (snap.data() as Settings) : DEFAULTS;
+  return snap.exists() ? normalizeSettings(snap.data()) : DEFAULTS;
 }
 
 /** Admin: save settings */

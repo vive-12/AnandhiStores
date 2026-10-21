@@ -67,24 +67,29 @@ function ToastItem({ toast, onDone }: { toast: ToastMessage; onDone: (id: number
 }
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
   const counter = useRef(0);
+  const lastToastRef = useRef<{ message: string; at: number } | null>(null);
   const insets = useSafeAreaInsets();
 
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
+    const now = Date.now();
+    const last = lastToastRef.current;
+    if (last?.message === message && now - last.at < 1800) return;
+    lastToastRef.current = { message, at: now };
     const id = counter.current++;
-    setToasts(prev => [...prev, { id, type, message }]);
+    setToast({ id, type, message });
   }, []);
 
   const onDone = useCallback((id: number) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
+    setToast(current => current?.id === id ? null : current);
   }, []);
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
       <View style={[styles.container, { top: insets.top + Spacing.md }]} pointerEvents="none">
-        {toasts.map(t => <ToastItem key={t.id} toast={t} onDone={onDone} />)}
+        {toast ? <ToastItem key={toast.id} toast={toast} onDone={onDone} /> : null}
       </View>
     </ToastContext.Provider>
   );

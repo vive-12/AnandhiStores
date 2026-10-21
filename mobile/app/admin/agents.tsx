@@ -13,6 +13,7 @@ import {
   Linking,
   RefreshControl,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -23,6 +24,7 @@ import { useAgents } from '../../hooks/useAgents';
 import { useStats } from '../../hooks/useStats';
 import { useAdminOrders } from '../../hooks/useOrders';
 import { createAgent, adminResetPin } from '../../services/auth';
+import { deleteAgent } from '../../services/users';
 import {
   ScreenHeader,
   Card,
@@ -60,6 +62,7 @@ export default function AdminAgents({ showHeader = true }: AdminAgentsProps = {}
   const [resetModalAgent, setResetModalAgent] = useState<User | null>(null);
   const [resetPinValue, setResetPinValue] = useState('');
   const [resetting, setResetting] = useState(false);
+  const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null);
 
   // Map active orders by agentId
   const activeOrdersByAgent = useMemo(() => {
@@ -184,6 +187,48 @@ export default function AdminAgents({ showHeader = true }: AdminAgentsProps = {}
     } finally {
       setResetting(false);
     }
+  };
+
+  // Delete Agent
+  const handleDeleteAgent = (agent: User) => {
+    // Safety check: ensure agent has no active unfulfilled delivery runs
+    const activeOrders = activeOrdersByAgent.get(agent.id) || [];
+    if (activeOrders.length > 0) {
+      Alert.alert(
+        'Cannot Delete Agent',
+        `${agent.name} currently has ${activeOrders.length} active delivery run${activeOrders.length > 1 ? 's' : ''} in progress (#${activeOrders.map(o => o.orderNo).slice(0, 3).join(', ')}). Please reassign or complete these orders before deleting this agent.`,
+        [{ text: 'OK' }],
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Delete Delivery Agent',
+      `Are you sure you want to delete ${agent.name} (${agent.phone})?\n\nThis will remove them from the active delivery fleet. Past delivered orders and performance stats will remain recorded.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Agent',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeletingAgentId(agent.id);
+              await deleteAgent(agent.id, agent.phone);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              detailSheetRef.current?.close();
+              setSelectedAgent(null);
+              showToast(`Agent ${agent.name} deleted successfully`, 'success');
+              refreshAgents();
+            } catch (err: unknown) {
+              const msg = err instanceof Error ? err.message : 'Failed to delete agent';
+              showToast(msg, 'error');
+            } finally {
+              setDeletingAgentId(null);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const renderAgentItem = ({ item }: { item: User }) => {
@@ -421,8 +466,8 @@ export default function AdminAgents({ showHeader = true }: AdminAgentsProps = {}
                   style={s.sheetActionBtn}
                   onPress={() => handleCall(selectedAgent.phone)}
                 >
-                  <Ionicons name="call" size={16} color={Colors.green700} />
-                  <Text style={s.sheetActionTxt}>Call Agent</Text>
+                  <Ionicons name="call" size={15} color={Colors.green700} />
+                  <Text style={s.sheetActionTxt}>Call</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -433,8 +478,17 @@ export default function AdminAgents({ showHeader = true }: AdminAgentsProps = {}
                     setResetPinValue('');
                   }}
                 >
-                  <Ionicons name="key" size={16} color={Colors.amber} />
+                  <Ionicons name="key" size={15} color={Colors.amber} />
                   <Text style={[s.sheetActionTxt, { color: Colors.amber }]}>Reset PIN</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[s.sheetActionBtn, { borderColor: '#DC2626', backgroundColor: '#FEF2F2' }]}
+                  onPress={() => handleDeleteAgent(selectedAgent)}
+                  disabled={deletingAgentId === selectedAgent.id}
+                >
+                  <Ionicons name="trash-outline" size={15} color="#DC2626" />
+                  <Text style={[s.sheetActionTxt, { color: '#DC2626' }]}>Delete</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -506,6 +560,28 @@ export default function AdminAgents({ showHeader = true }: AdminAgentsProps = {}
                   ))}
                 </View>
               )}
+            </View>
+
+            {/* Danger Zone: Delete Agent */}
+            <View style={s.dangerZone}>
+              <View style={s.dangerZoneHeader}>
+                <Ionicons name="warning-outline" size={16} color={Colors.red} />
+                <Text style={s.dangerZoneTitle}>Danger Zone</Text>
+              </View>
+              <Text style={s.dangerZoneDesc}>
+                Deleting this delivery agent will permanently remove them from the active fleet. Their past delivered order history and revenue stats will be safely preserved.
+              </Text>
+              <TouchableOpacity
+                style={s.deleteAgentBtn}
+                onPress={() => handleDeleteAgent(selectedAgent)}
+                disabled={deletingAgentId === selectedAgent.id}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="trash-outline" size={16} color="#FFFFFF" />
+                <Text style={s.deleteAgentBtnText}>
+                  {deletingAgentId === selectedAgent.id ? 'Deleting Agent...' : 'Delete Delivery Agent'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </ScrollView>
         )}
@@ -1067,5 +1143,50 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.sm,
     marginTop: Spacing.xs,
+  },
+  dangerZone: {
+    marginTop: Spacing.xl,
+    padding: Spacing.md,
+    borderRadius: Radius.card,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    gap: Spacing.xs,
+  },
+  dangerZoneHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dangerZoneTitle: {
+    fontSize: FontSize.sm,
+    fontFamily: 'Manrope_700Bold',
+    color: Colors.red,
+  },
+  dangerZoneDesc: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_400Regular',
+    color: Colors.inkSoft,
+    lineHeight: 18,
+    marginBottom: Spacing.xs,
+  },
+  deleteAgentBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#DC2626',
+    paddingVertical: 14,
+    borderRadius: Radius.button,
+    elevation: 3,
+    shadowColor: '#DC2626',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  deleteAgentBtnText: {
+    fontSize: FontSize.sm,
+    fontFamily: 'Manrope_700Bold',
+    color: '#FFFFFF',
   },
 });

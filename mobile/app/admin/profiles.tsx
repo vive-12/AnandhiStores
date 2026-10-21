@@ -32,6 +32,7 @@ import {
   Button,
   BottomSheet,
   EmptyState,
+  ErrorState,
   CardSkeleton,
   useToast,
 } from '../../components/ui';
@@ -45,7 +46,7 @@ export default function AdminProfiles() {
   const insets = useSafeAreaInsets();
 
   // Data hooks
-  const { customers, loading: customersLoading, refresh: refreshCustomers } = useCustomers();
+  const { customers, loading: customersLoading, error: customersError, refresh: refreshCustomers } = useCustomers();
   const { orders, loading: ordersLoading, refresh: refreshOrders } = useAdminOrders();
 
   // Local UI State
@@ -292,70 +293,74 @@ export default function AdminProfiles() {
               },
             ]}
             showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[Colors.green700]}
-            tintColor={Colors.green700}
-          />
-        }
-      >
-        {/* ─── Search Bar ─────────────────────────────────────────────────── */}
-        <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by name, phone, or locality..."
-            placeholderTextColor={Colors.inkSoft}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            clearButtonMode="while-editing"
-          />
-          {searchQuery.length > 0 && Platform.OS !== 'ios' && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
-              <Text style={styles.clearSearch}>✕</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* ─── Filter Tabs ────────────────────────────────────────────────── */}
-        <View style={styles.tabsRow}>
-          <TouchableOpacity
-            style={[styles.tabBtn, tab === 'pending' && styles.tabBtnActive]}
-            onPress={() => setTab('pending')}
+            stickyHeaderIndices={[0]}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[Colors.green700]}
+                tintColor={Colors.green700}
+              />
+            }
           >
-            <Text style={[styles.tabBtnText, tab === 'pending' && styles.tabBtnTextActive]}>
-              Pending Approval
-            </Text>
-            {pendingCount > 0 && (
-              <View style={styles.tabBadge}>
-                <Text style={styles.tabBadgeText}>{pendingCount}</Text>
+            {/* ─── Sticky Search Bar & Filter Tabs ───────────────────────────── */}
+            <View style={styles.stickyHeaderWrap}>
+              <View style={styles.searchBar}>
+                <Text style={styles.searchIcon}>🔍</Text>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search by name, phone, or locality..."
+                  placeholderTextColor={Colors.inkSoft}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  clearButtonMode="while-editing"
+                />
+                {searchQuery.length > 0 && Platform.OS !== 'ios' && (
+                  <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+                    <Text style={styles.clearSearch}>✕</Text>
+                  </TouchableOpacity>
+                )}
               </View>
-            )}
-          </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.tabBtn, tab === 'approved' && styles.tabBtnActive]}
-            onPress={() => setTab('approved')}
-          >
-            <Text style={[styles.tabBtnText, tab === 'approved' && styles.tabBtnTextActive]}>
-              Approved ({approvedCount})
-            </Text>
-          </TouchableOpacity>
+              <View style={styles.tabsRow}>
+                <TouchableOpacity
+                  style={[styles.tabBtn, tab === 'pending' && styles.tabBtnActive]}
+                  onPress={() => setTab('pending')}
+                >
+                  <Text style={[styles.tabBtnText, tab === 'pending' && styles.tabBtnTextActive]}>
+                    Pending Approval
+                  </Text>
+                  {pendingCount > 0 && (
+                    <View style={styles.tabBadge}>
+                      <Text style={styles.tabBadgeText}>{pendingCount}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.tabBtn, tab === 'all' && styles.tabBtnActive]}
-            onPress={() => setTab('all')}
-          >
-            <Text style={[styles.tabBtnText, tab === 'all' && styles.tabBtnTextActive]}>
-              All ({customers.length})
-            </Text>
-          </TouchableOpacity>
-        </View>
+                <TouchableOpacity
+                  style={[styles.tabBtn, tab === 'approved' && styles.tabBtnActive]}
+                  onPress={() => setTab('approved')}
+                >
+                  <Text style={[styles.tabBtnText, tab === 'approved' && styles.tabBtnTextActive]}>
+                    Approved ({approvedCount})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.tabBtn, tab === 'all' && styles.tabBtnActive]}
+                  onPress={() => setTab('all')}
+                >
+                  <Text style={[styles.tabBtnText, tab === 'all' && styles.tabBtnTextActive]}>
+                    All ({customers.length})
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
 
         {/* ─── Loading Skeletons ───────────────────────────────────────────── */}
-        {customersLoading && (
+        {customersError ? (
+          <ErrorState message={`Could not load customer profiles. ${customersError.message}`} onRetry={refreshCustomers} />
+        ) : customersLoading && (
           <View style={styles.skeletonsWrap}>
             <CardSkeleton />
             <CardSkeleton />
@@ -512,8 +517,15 @@ export default function AdminProfiles() {
                   </View>
 
                   {/* Account Fees & Assigned Fleet (if configured) */}
-                  {(cust.deliveryFee !== undefined || cust.canDeposit !== undefined || cust.assignedAgentName) && (
+                  {(cust.deliveryFee !== undefined || cust.canDeposit !== undefined || cust.assignedAgentName || (cust.pendingCans !== undefined && cust.pendingCans > 0)) && (
                     <View style={styles.feeBadgeRow}>
+                      {cust.pendingCans !== undefined && cust.pendingCans > 0 && (
+                        <View style={[styles.feeBadge, { backgroundColor: '#E0F2FE', borderColor: '#BAE6FD', borderWidth: 1 }]}>
+                          <Text style={[styles.feeBadgeTxt, { color: '#0369A1', fontFamily: 'Manrope_700Bold' }]}>
+                            💧 Holds {cust.pendingCans} Empty Can{cust.pendingCans > 1 ? 's' : ''}
+                          </Text>
+                        </View>
+                      )}
                       {cust.deliveryFee !== undefined && (
                         <View style={styles.feeBadge}>
                           <Text style={styles.feeBadgeTxt}>
@@ -549,7 +561,16 @@ export default function AdminProfiles() {
 
                     <View style={styles.statMetric}>
                       <Text style={styles.statMetricVal}>₹{stats.totalSpent}</Text>
-                      <Text style={styles.statMetricLabel}>Spent (Delivered)</Text>
+                      <Text style={styles.statMetricLabel}>Spent</Text>
+                    </View>
+
+                    <View style={styles.metricDivider} />
+
+                    <View style={styles.statMetric}>
+                      <Text style={[styles.statMetricVal, Number(cust.pendingCans || 0) > 0 && { color: '#0284C7' }]}>
+                        {Number(cust.pendingCans || 0)}
+                      </Text>
+                      <Text style={styles.statMetricLabel}>Pending Cans</Text>
                     </View>
 
                     <View style={styles.metricDivider} />
@@ -769,6 +790,22 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: Spacing.xxl * 3,
     gap: Spacing.lg,
+  },
+  stickyHeaderWrap: {
+    backgroundColor: Colors.cream,
+    marginHorizontal: -Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xs,
+    paddingBottom: Spacing.sm,
+    gap: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.line,
+    zIndex: 10,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
   searchBar: {
     flexDirection: 'row',

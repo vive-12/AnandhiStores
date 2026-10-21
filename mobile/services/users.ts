@@ -1,9 +1,10 @@
 // services/users.ts — User / agent read/write service
 import {
-  collection, doc, getDoc, setDoc, updateDoc, onSnapshot,
+  collection, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot,
   query, where, orderBy, limit, serverTimestamp, Unsubscribe,
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../config/firebase';
 import type { User, UserRole, UserStatus, Address } from '../types';
 import { log } from '../utils/logger';
 
@@ -106,6 +107,29 @@ export async function blockUser(uid: string): Promise<void> {
   await updateDoc(doc(db, COL, String(uid)), { status: 'blocked' as UserStatus });
 }
 
+/** Admin: delete an agent */
+export async function deleteAgent(uid: string, phone?: string): Promise<void> {
+  const sUid = String(uid);
+  log.admin.info(`Deleting agent: uid=${sUid}`);
+
+  // 1. Delete Firestore user document
+  await deleteDoc(doc(db, COL, sUid));
+  try {
+    await deleteDoc(doc(db, 'agents', sUid));
+  } catch {
+    // Ignore legacy collection deletion if not present
+  }
+
+  // 2. Try calling adminDeleteAgent cloud function if available to clean up auth user
+  try {
+    const fn = httpsCallable(functions, 'adminDeleteAgent');
+    await fn({ uid: sUid, phone: phone || '' });
+  } catch (err) {
+    // If functions isn't deployed yet or fails, the firestore delete has already taken effect
+    log.admin.warn('adminDeleteAgent callable error or offline (doc already deleted):', err);
+  }
+}
+
 /** Update delivery address */
 export async function updateAddress(uid: string, address: Address): Promise<void> {
   await updateDoc(doc(db, COL, String(uid)), { address });
@@ -146,24 +170,21 @@ export async function setAgentOnline(uid: string, isOnline: boolean): Promise<vo
   }
 }
 
-/** Live listener for users of a given role, ordered and bounded by creation time. */
+/** Live listener for users of a given role with a bounded result set. */
 export function listenUsersByRole(
   role: UserRole,
   onData: (users: User[]) => void,
   onError: (e: Error) => void,
   maxCount = 200,
 ): Unsubscribe {
-  const q = query(
-    collection(db, COL),
-    where('role', '==', role),
-    orderBy('createdAt', 'desc'),
-    limit(maxCount),
-  );
+  // Do not order by createdAt: Firestore omits legacy profiles that lack it.
+  const q = query(collection(db, COL), where('role', '==', role), limit(maxCount));
   return onSnapshot(
     q,
     snap => {
       const list = snap.docs.map(d => {
         const data = d.data();
+        const resolvedRole = data.role ?? role;
         const rawStatus = data.status;
         const normalizedStatus: UserStatus =
           (rawStatus === 'active' || rawStatus === 'approved') ? 'approved' :
@@ -174,6 +195,7 @@ export function listenUsersByRole(
         return {
           ...data,
           id: String(d.id),
+          role: resolvedRole,
           name: resolvedName,
           status: normalizedStatus,
         } as User;

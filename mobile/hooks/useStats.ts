@@ -50,10 +50,14 @@ export function useStats(maxDays = 45) {
       maxDays,
       data => {
         setStats(data);
+        setError(null);
         setLoading(false);
       },
       err => {
-        console.error('Error listening to stats_daily:', err);
+        console.error('Error listening to stats_daily:', {
+          code: (err as any)?.code,
+          message: err?.message,
+        });
         setError(err);
         setLoading(false);
       },
@@ -63,13 +67,16 @@ export function useStats(maxDays = 45) {
   }, [maxDays]);
 
   const refresh = useCallback(async () => {
+    setError(null);
     try {
       setLoading(true);
       setAsOfTime(new Date());
       const data = await getRecentStats(maxDays);
       setStats(data);
     } catch (e) {
-      setError(e as Error);
+      const error = e as Error;
+      console.error('Failed to refresh stats_daily:', { code: (error as any)?.code, message: error.message });
+      setError(error);
     } finally {
       setLoading(false);
     }

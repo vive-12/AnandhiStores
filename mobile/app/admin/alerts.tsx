@@ -20,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, Radius, FontSize, Shadow, StatusColors } from '../../theme';
 import { useSession } from '../../hooks/useSession';
-import { useAdminOrders } from '../../hooks/useOrders';
+import { useAdminOrders, useRecoveryOrders } from '../../hooks/useOrders';
 import { useAgents } from '../../hooks/useAgents';
 import { useItems } from '../../hooks/useItems';
 import { useCustomers } from '../../hooks/useCustomers';
@@ -77,11 +77,15 @@ export default function AdminAlerts() {
 
   // Data Hooks
   const { orders, loading: ordersLoading, error: ordersError, refresh: refreshOrders } = useAdminOrders();
+  const { orders: recoveryOrders } = useRecoveryOrders();
   const { agents } = useAgents();
   const { items } = useItems();
   const { customers } = useCustomers();
   const { settings } = useSettings();
   const retailOrders = useMemo(() => orders.filter(order => order.type !== 'recovery'), [orders]);
+  const activeRecoveryCount = useMemo(() => {
+    return recoveryOrders.filter(o => o.type === 'recovery' && o.status !== 'delivered' && o.status !== 'cancelled').length;
+  }, [recoveryOrders]);
 
   // Local UI State
   const [segment, setSegment] = useState<SegmentFilter>('all');
@@ -109,7 +113,7 @@ export default function AdminAlerts() {
   const [manualWalkinLocality, setManualWalkinLocality] = useState('');
   const [manualCart, setManualCart] = useState<Record<string, number>>({});
   const [manualDeliveryFee, setManualDeliveryFee] = useState('20');
-  const [manualSlot, setManualSlot] = useState('ASAP');
+  const [manualSlot, setManualSlot] = useState('5 min');
   const [manualNotes, setManualNotes] = useState('');
   const [manualAgentId, setManualAgentId] = useState<string | null>(null);
   const [manualPlacing, setManualPlacing] = useState(false);
@@ -436,8 +440,9 @@ export default function AdminAlerts() {
 
     setManualPlacing(true);
     try {
+      const isImmediate = (manualSlot || '').toLowerCase().includes('asap') || (manualSlot || '').toLowerCase().includes('5 min');
       const slot: OrderSlot = {
-        type: (manualSlot || '').toLowerCase().includes('asap') ? 'asap' : 'scheduled',
+        type: isImmediate ? 'asap' : 'scheduled',
         label: manualSlot,
       };
 
@@ -630,6 +635,30 @@ export default function AdminAlerts() {
           </TouchableOpacity>
         )}
 
+        {/* ─── Can Recovery Runs Quick Alert ─────────────────────────────────── */}
+        {activeRecoveryCount > 0 && (
+          <TouchableOpacity
+            style={styles.cansQuickBanner}
+            onPress={() => router.navigate('/admin/cans')}
+            activeOpacity={0.88}
+          >
+            <View style={styles.cansQuickLeft}>
+              <View style={styles.cansQuickIconBadge}>
+                <Ionicons name="water" size={18} color="#0284C7" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cansQuickTitle}>
+                  {activeRecoveryCount} Can Recovery Run{activeRecoveryCount > 1 ? 's' : ''} in Progress
+                </Text>
+                <Text style={styles.cansQuickSub}>
+                  Empty water cans assigned to fleet for pickup • Tap to view tracking
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#0284C7" />
+          </TouchableOpacity>
+        )}
+
         {/* ─── Search Bar ─────────────────────────────────────────────────── */}
         <View style={styles.searchBar}>
           <Text style={styles.searchIcon}>🔍</Text>
@@ -785,6 +814,31 @@ export default function AdminAlerts() {
                     </Text>
                     <Text style={styles.totalAmount}>₹{order.total} (COD)</Text>
                   </View>
+
+                  {/* Water Can Exchange Badge if applicable */}
+                  {(() => {
+                    const cansDelivered = (order.items || [])
+                      .filter(i => i.name.toLowerCase().includes('can') || (i.unit && i.unit.toLowerCase().includes('can')))
+                      .reduce((sum, i) => sum + i.qty, 0);
+
+                    if (cansDelivered <= 0) return null;
+
+                    const emptyReturned = order.emptyCansCollected ?? 0;
+                    const unreturned = Math.max(0, cansDelivered - emptyReturned);
+
+                    return (
+                      <View style={styles.canBadgeRow}>
+                        <Ionicons name="water" size={13} color="#0284C7" />
+                        <Text style={styles.canBadgeTxt}>
+                          {order.status === 'delivered'
+                            ? `${cansDelivered} Cans Delivered • ${emptyReturned} Returned${
+                                unreturned > 0 ? ` • ⚠️ ${unreturned} Can Unreturned (Recovery Assigned)` : ' • All Returned'
+                              }`
+                            : `${cansDelivered} Water Can${cansDelivered > 1 ? 's' : ''} to Deliver`}
+                        </Text>
+                      </View>
+                    );
+                  })()}
 
                   {/* Delivery Partner Box */}
                   <View style={styles.agentBox}>
@@ -1034,6 +1088,66 @@ export default function AdminAlerts() {
                   <Text style={styles.detailBillTotalVal}>₹{selectedOrder.total}</Text>
                 </View>
               </View>
+
+              {/* Water Can Exchange Card if order contained water cans */}
+              {(() => {
+                const cansDelivered = (selectedOrder.items || [])
+                  .filter(i => i.name.toLowerCase().includes('can') || (i.unit && i.unit.toLowerCase().includes('can')))
+                  .reduce((sum, i) => sum + i.qty, 0);
+
+                if (cansDelivered <= 0) return null;
+
+                const emptyReturned = selectedOrder.emptyCansCollected ?? 0;
+                const unreturned = Math.max(0, cansDelivered - emptyReturned);
+
+                return (
+                  <View style={styles.detailSectionCard}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                      <Ionicons name="water" size={18} color="#0284C7" />
+                      <Text style={styles.detailSectionTitle}>Water Can Exchange & Balance</Text>
+                    </View>
+
+                    <View style={styles.detailBillRow}>
+                      <Text style={styles.detailBillLabel}>Water Cans Delivered</Text>
+                      <Text style={styles.detailBillVal}>{cansDelivered} 20L Cans</Text>
+                    </View>
+                    <View style={styles.detailBillRow}>
+                      <Text style={styles.detailBillLabel}>Empty Cans Returned by Customer</Text>
+                      <Text style={[styles.detailBillVal, { color: Colors.green700, fontWeight: '700' }]}>
+                        {emptyReturned} Cans
+                      </Text>
+                    </View>
+                    <View style={styles.detailBillRowTotal}>
+                      <Text style={styles.detailBillTotalLabel}>Unreturned / Pending Cans</Text>
+                      <Text
+                        style={[
+                          styles.detailBillTotalVal,
+                          { color: unreturned > 0 ? Colors.coral : Colors.green700 },
+                        ]}
+                      >
+                        {unreturned} {unreturned === 1 ? 'can' : 'cans'}
+                      </Text>
+                    </View>
+
+                    {unreturned > 0 && (
+                      <View style={styles.recoveryNoticeCard}>
+                        <Text style={styles.recoveryNoticeTxt}>
+                          ⚡ An automatic can recovery run was created for {unreturned} empty can{unreturned > 1 ? 's' : ''} and assigned to {selectedOrder.agentName || 'the delivery partner'}.
+                        </Text>
+                        <TouchableOpacity
+                          style={styles.openCansSectionBtn}
+                          onPress={() => {
+                            detailSheetRef.current?.close();
+                            router.navigate('/admin/cans');
+                          }}
+                        >
+                          <Text style={styles.openCansSectionBtnTxt}>View in Can Tracking Section ➔</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                );
+              })()}
 
               {/* Delivery Partner */}
               <View style={styles.detailSectionCard}>
@@ -2307,5 +2421,88 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope_600SemiBold',
     color: Colors.inkSoft,
     marginBottom: 4,
+  },
+
+  // Can recovery tracking & summary styles
+  cansQuickBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F0F9FF',
+    borderRadius: Radius.card,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    marginBottom: Spacing.sm,
+  },
+  cansQuickLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    flex: 1,
+  },
+  cansQuickIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E0F2FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cansQuickTitle: {
+    fontSize: FontSize.sm,
+    fontFamily: 'Manrope_700Bold',
+    color: '#0369A1',
+  },
+  cansQuickSub: {
+    fontSize: FontSize.xs - 2,
+    fontFamily: 'Manrope_500Medium',
+    color: '#0284C7',
+    marginTop: 1,
+  },
+  canBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F9FF',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 5,
+    borderRadius: Radius.chip,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    gap: 4,
+    marginTop: 4,
+  },
+  canBadgeTxt: {
+    fontSize: FontSize.xs - 1,
+    fontFamily: 'Manrope_600SemiBold',
+    color: '#0369A1',
+  },
+  recoveryNoticeCard: {
+    backgroundColor: '#F0F9FF',
+    borderRadius: Radius.button,
+    padding: Spacing.sm,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    marginTop: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  recoveryNoticeTxt: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_500Medium',
+    color: '#0369A1',
+    lineHeight: 18,
+  },
+  openCansSectionBtn: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#0284C7',
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 6,
+    borderRadius: Radius.chip,
+    marginTop: 2,
+  },
+  openCansSectionBtnTxt: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_700Bold',
+    color: '#FFFFFF',
   },
 });

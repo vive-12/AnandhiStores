@@ -15,13 +15,20 @@ import {
   Platform,
   Modal,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import RNBottomSheet from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, FontSize, Shadow } from '../../theme';
+import { getBannerPalette } from '../../utils/bannerPalette';
+import {
+  buildItemBannerMatchMap,
+  findBestMatchingItemForBanner,
+} from '../../utils/bannerMatcher';
 import { useSession } from '../../hooks/useSession';
 import { useItems } from '../../hooks/useItems';
 import { useCart, useCartCount } from '../../hooks/useCart';
@@ -97,13 +104,21 @@ export default function CustomerHomeScreen() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showSortModal, setShowSortModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<string>('ASAP');
+  const [selectedSlot, setSelectedSlot] = useState<string>('5 min');
   const [orderNotes, setOrderNotes] = useState('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
   // Banner carousel state
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const bannerFlatListRef = useRef<FlatList>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const bannerMotion: any = {
+    opacity: scrollY.interpolate({ inputRange: [0, 180], outputRange: [1, 0.72], extrapolate: 'clamp' }),
+    transform: [
+      { translateY: scrollY.interpolate({ inputRange: [0, 180], outputRange: [0, -16], extrapolate: 'clamp' }) },
+      { scale: scrollY.interpolate({ inputRange: [0, 180], outputRange: [1, 0.97], extrapolate: 'clamp' }) },
+    ],
+  };
 
   // Cart Bottom Sheet Ref
   const cartSheetRef = useRef<RNBottomSheet>(null);
@@ -126,14 +141,10 @@ export default function CustomerHomeScreen() {
     return ['All', ...Array.from(set)];
   }, [items]);
 
-  // Set of item names linked to active promotional banners
-  const offerItemNames = useMemo(() => {
-    const set = new Set<string>();
-    for (const b of banners) {
-      if (b.linkedItemName) set.add(b.linkedItemName.toLowerCase().trim());
-    }
-    return set;
-  }, [banners]);
+  // Map of item ID -> banner match ranking info for active promotional banners
+  const itemBannerMatchMap = useMemo(() => {
+    return buildItemBannerMatchMap(items, banners);
+  }, [items, banners]);
 
   // Map of item popularity based on historical customer orders
   const itemPopularityMap = useMemo(() => {
@@ -174,10 +185,26 @@ export default function CustomerHomeScreen() {
       }
 
       if (sortBy === 'offers') {
-        const aIsOffer = offerItemNames.has(a.name.toLowerCase().trim());
-        const bIsOffer = offerItemNames.has(b.name.toLowerCase().trim());
-        if (aIsOffer && !bIsOffer) return -1;
-        if (!aIsOffer && bIsOffer) return 1;
+        const aMatch = itemBannerMatchMap.get(a.id);
+        const bMatch = itemBannerMatchMap.get(b.id);
+        const aHasMatch = Boolean(aMatch && aMatch.bannerIndex >= 0);
+        const bHasMatch = Boolean(bMatch && bMatch.bannerIndex >= 0);
+
+        // Active banner promotional offers ALWAYS come first
+        if (aHasMatch && !bHasMatch) return -1;
+        if (!aHasMatch && bHasMatch) return 1;
+
+        if (aHasMatch && bHasMatch) {
+          // Banner with lower carousel index comes first (Banner 0 items before Banner 1 items)
+          if (aMatch!.bannerIndex !== bMatch!.bannerIndex) {
+            return aMatch!.bannerIndex - bMatch!.bannerIndex;
+          }
+          // Within same banner, higher match score comes first (exact item before category item)
+          if (bMatch!.score !== aMatch!.score) {
+            return bMatch!.score - aMatch!.score;
+          }
+        }
+
         return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
       }
 
@@ -197,7 +224,7 @@ export default function CustomerHomeScreen() {
     });
 
     return list;
-  }, [items, selectedCategory, searchQuery, sortBy, offerItemNames, itemPopularityMap]);
+  }, [items, selectedCategory, searchQuery, sortBy, itemBannerMatchMap, itemPopularityMap]);
 
   // Dynamic batch slicing for ultra-fast 60 FPS scrolling through large inventories (500+ items)
   const [visibleCount, setVisibleCount] = useState(30);
@@ -220,11 +247,24 @@ export default function CustomerHomeScreen() {
         openTime: '07:00',
         closeTime: '21:00',
         isStoreOpenOverride: null,
-        slots: ['ASAP', 'Morning 7–9 AM', 'Evening 5–7 PM'],
+        slots: ['5 min', 'Morning 7–9 AM', 'Evening 5–7 PM'],
         agentFeePerDelivery: 30,
       },
     [settings],
   );
+
+  const availableSlots = useMemo(() => {
+    const raw = defaultSettings.slots && defaultSettings.slots.length > 0
+      ? defaultSettings.slots
+      : ['5 min', 'Morning 7–9 AM', 'Evening 5–7 PM'];
+    return raw.map(s => (typeof s === 'string' && s.trim().toUpperCase() === 'ASAP' ? '5 min' : s));
+  }, [defaultSettings.slots]);
+
+  useEffect(() => {
+    if (selectedSlot.trim().toUpperCase() === 'ASAP') {
+      setSelectedSlot('5 min');
+    }
+  }, [selectedSlot]);
 
   const cartTotals = useMemo(() => {
     return computeTotals(lines, itemsMap, defaultSettings);
@@ -249,18 +289,9 @@ export default function CustomerHomeScreen() {
     setRefreshing(false);
   }, [refreshItems]);
 
-  // Handle banner press: take user directly to product and add to cart
+  // Handle banner press: take user directly to product and add to cart, or view all banner offers
   const handleBannerPress = (banner: AppBanner) => {
-    if (!banner.linkedItemId && !banner.linkedItemName) return;
-
-    // Search target by ID first, then by name
-    const target = items.find(
-      i =>
-        !i.isDeleted &&
-        ((banner.linkedItemId && i.id === banner.linkedItemId) ||
-          (banner.linkedItemName &&
-            i.name.toLowerCase().trim() === banner.linkedItemName.toLowerCase().trim())),
-    );
+    const target = findBestMatchingItemForBanner(banner, items);
 
     if (target) {
       // Set category to All and search query so product is front and center
@@ -276,7 +307,12 @@ export default function CustomerHomeScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showToast(`🎉 ${target.name} offer applied & added to cart!`, 'success');
     } else {
-      showToast('This offer product is currently unavailable.', 'info');
+      // If broad banner promotion, show all deals & offers
+      setSelectedCategory('All');
+      setSearchQuery('');
+      setSortBy('offers');
+      Haptics.selectionAsync();
+      showToast('🎉 Viewing all current Deals & Offers!', 'info');
     }
   };
 
@@ -371,8 +407,9 @@ export default function CustomerHomeScreen() {
         return;
       }
 
+      const isImmediate = selectedSlot.toLowerCase().includes('asap') || selectedSlot.toLowerCase().includes('5 min');
       const slot: OrderSlot = {
-        type: selectedSlot.toLowerCase().includes('asap') ? 'asap' : 'scheduled',
+        type: isImmediate ? 'asap' : 'scheduled',
         label: selectedSlot,
       };
 
@@ -454,21 +491,27 @@ export default function CustomerHomeScreen() {
       </View>
 
       {/* ─── Scrollable Content ───────────────────────────────────────────── */}
-      <ScrollView
+      <Animated.ScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.scrollContent,
           { paddingBottom: totalCartCount > 0 ? 120 : Spacing.xl },
         ]}
         showsVerticalScrollIndicator={false}
-        onScroll={e => {
-          const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
-          const isCloseToBottom =
-            layoutMeasurement.height + contentOffset.y >= contentSize.height - 400;
-          if (isCloseToBottom && visibleCount < filteredItems.length) {
-            setVisibleCount(prev => Math.min(prev + 30, filteredItems.length));
-          }
-        }}
+        stickyHeaderIndices={[1]}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          {
+            useNativeDriver: false,
+            listener: (e: any) => {
+              const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+              const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 400;
+              if (isCloseToBottom && visibleCount < filteredItems.length) {
+                setVisibleCount(prev => Math.min(prev + 30, filteredItems.length));
+              }
+            },
+          },
+        )}
         scrollEventThrottle={64}
         refreshControl={
           <RefreshControl
@@ -479,173 +522,221 @@ export default function CustomerHomeScreen() {
           />
         }
       >
-        {/* Store Closed Banner */}
-        {!storeIsOpen && (
-          <View style={styles.closedBanner}>
-            <Text style={styles.closedIcon}>⏳</Text>
-            <View style={styles.closedTextWrap}>
-              <Text style={styles.closedTitle}>Store is currently closed</Text>
-              <Text style={styles.closedSub}>
-                Orders will be processed when store {storeOpenLabel(defaultSettings)}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Active Order Tracker Pill */}
-        {activeOrder && (
-          <TouchableOpacity
-            style={styles.activeOrderCard}
-            activeOpacity={0.9}
-            onPress={() => router.push(`/track/${activeOrder.id}`)}
-          >
-            <View style={styles.activeOrderLeft}>
-              <Text style={styles.activeOrderIcon}>🚴‍♂️</Text>
-              <View>
-                <Text style={styles.activeOrderTitle}>
-                  Order #{activeOrder.orderNo}
+        {/* Child 0: Announcements, tracker & promotional banners */}
+        <View>
+          {/* Store Closed Banner */}
+          {!storeIsOpen && (
+            <View style={styles.closedBanner}>
+              <Text style={styles.closedIcon}>⏳</Text>
+              <View style={styles.closedTextWrap}>
+                <Text style={styles.closedTitle}>Store is currently closed</Text>
+                <Text style={styles.closedSub}>
+                  Orders will be processed when store {storeOpenLabel(defaultSettings)}
                 </Text>
-                <Text style={styles.activeOrderSub}>Tap to view live tracking</Text>
               </View>
             </View>
-            <StatusPill status={activeOrder.status} />
-          </TouchableOpacity>
-        )}
+          )}
 
-        {/* Promotional Carousel */}
-        {banners.length > 0 && (
-          <View style={styles.bannerSection}>
-            <FlatList
-              ref={bannerFlatListRef}
-              data={banners}
+          {/* Active Order Tracker Pill */}
+          {activeOrder && (
+            <TouchableOpacity
+              style={styles.activeOrderCard}
+              activeOpacity={0.9}
+              onPress={() => router.push(`/track/${activeOrder.id}`)}
+            >
+              <View style={styles.activeOrderLeft}>
+                <Text style={styles.activeOrderIcon}>🚴‍♂️</Text>
+                <View>
+                  <Text style={styles.activeOrderTitle}>
+                    Order #{activeOrder.orderNo}
+                  </Text>
+                  <Text style={styles.activeOrderSub}>Tap to view live tracking</Text>
+                </View>
+              </View>
+              <StatusPill status={activeOrder.status} />
+            </TouchableOpacity>
+          )}
+
+          {/* Promotional Carousel */}
+          {banners.length > 0 && (
+            <Animated.View style={[styles.bannerSection, bannerMotion]}>
+              <FlatList
+                ref={bannerFlatListRef}
+                data={banners}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={item => item.id}
+                renderItem={({ item }) => {
+                  const hasLink = Boolean(item.linkedItemId || item.linkedItemName);
+                  const palette = getBannerPalette(item);
+                  return (
+                    <TouchableOpacity
+                      style={[styles.bannerCardContainer, { width: BANNER_WIDTH }]}
+                      activeOpacity={0.85}
+                      onPress={() => handleBannerPress(item)}
+                    >
+                      <LinearGradient
+                        colors={[palette.colors[0], palette.colors[1]]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.bannerGradient}
+                      >
+                        {/* Soft decorative background shapes */}
+                        <View style={styles.bannerDecoCircleLarge} />
+                        <View style={styles.bannerDecoCircleSmall} />
+
+                        {/* Banner Inner Content */}
+                        <View style={styles.bannerInner}>
+                          <View style={styles.bannerContent}>
+                            <Text style={styles.bannerTitle} numberOfLines={2}>
+                              {item.title}
+                            </Text>
+                            {item.subtitle ? (
+                              <Text style={styles.bannerSub} numberOfLines={2}>
+                                {item.subtitle}
+                              </Text>
+                            ) : null}
+                            <View style={styles.bannerTapPrompt}>
+                              <Text style={styles.bannerTapText} numberOfLines={1}>
+                                {item.linkedItemName
+                                  ? `⚡ Special Offer on ${item.linkedItemName} • Tap to view & add ➔`
+                                  : '⚡ Special Offer • Tap to view deal ➔'}
+                              </Text>
+                            </View>
+                          </View>
+
+                          {/* Decorative Round Badge (Custom Image or Category Emoji) */}
+                          <View style={styles.bannerEmojiBadge}>
+                            {item.imageUrl ? (
+                              <Image
+                                source={{ uri: item.imageUrl }}
+                                style={[
+                                  styles.bannerBadgeImg,
+                                  {
+                                    transform: [
+                                      { rotate: `${item.imageRotation || 0}deg` },
+                                      { scale: item.imageScale || 1 },
+                                      { translateX: (item.imageOffsetX ? (Math.abs(item.imageOffsetX) > 1 ? item.imageOffsetX / 200 : item.imageOffsetX) : 0) * 58 },
+                                      { translateY: (item.imageOffsetY ? (Math.abs(item.imageOffsetY) > 1 ? item.imageOffsetY / 200 : item.imageOffsetY) : 0) * 58 },
+                                    ],
+                                  },
+                                ]}
+                                contentFit="cover"
+                              />
+                            ) : (
+                              <Text style={styles.bannerEmoji}>{palette.emoji}</Text>
+                            )}
+                          </View>
+                        </View>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  );
+                }}
+                onScroll={e => {
+                  const index = Math.round(
+                    e.nativeEvent.contentOffset.x / BANNER_WIDTH,
+                  );
+                  setCurrentBannerIndex(index);
+                }}
+              />
+              {banners.length > 1 && (
+                <View style={styles.bannerDots}>
+                  {banners.map((_, i) => (
+                    <View
+                      key={i}
+                      style={[
+                        styles.dot,
+                        currentBannerIndex === i && styles.dotActive,
+                      ]}
+                    />
+                  ))}
+                </View>
+              )}
+            </Animated.View>
+          )}
+        </View>
+
+        {/* Child 1: Sticky Category & Quick Filter Bar */}
+        <View style={styles.stickyFilterContainer}>
+          {/* Category Pills */}
+          <View style={styles.categoriesSection}>
+            <ScrollView
               horizontal
-              pagingEnabled
               showsHorizontalScrollIndicator={false}
-              keyExtractor={item => item.id}
-              renderItem={({ item }) => {
-                const hasLink = Boolean(item.linkedItemId || item.linkedItemName);
+              contentContainerStyle={styles.categoryPillsList}
+            >
+              {categories.map(cat => (
+                <Chip
+                  key={cat}
+                  label={cat}
+                  selected={selectedCategory === cat}
+                  onPress={() => setSelectedCategory(cat)}
+                />
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Quick Sort & Filter Chips Bar */}
+          <View style={styles.sortChipsSection}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.sortChipsList}
+            >
+              <TouchableOpacity
+                style={styles.sortFilterBtn}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setShowSortModal(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="options-outline" size={14} color={Colors.ink} />
+                <Text style={styles.sortFilterBtnText}>All Filters</Text>
+              </TouchableOpacity>
+
+              {QUICK_SORT_OPTIONS.map(opt => {
+                const isActive = sortBy === opt.id;
                 return (
                   <TouchableOpacity
+                    key={opt.id}
                     style={[
-                      styles.bannerCard,
-                      {
-                        width: BANNER_WIDTH,
-                        backgroundColor: item.color || Colors.green700,
-                      },
+                      styles.sortQuickChip,
+                      isActive && styles.sortQuickChipActive,
                     ]}
-                    activeOpacity={hasLink ? 0.8 : 1}
-                    onPress={() => handleBannerPress(item)}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      if (opt.id === 'offers') {
+                        setSelectedCategory('All');
+                        setSearchQuery('');
+                      }
+                      setSortBy(opt.id);
+                    }}
+                    activeOpacity={0.7}
                   >
-                    <Text style={styles.bannerTitle}>{item.title}</Text>
-                    {item.subtitle ? (
-                      <Text style={styles.bannerSub}>{item.subtitle}</Text>
-                    ) : null}
-                    {item.linkedItemName && (
-                      <View style={styles.bannerTapPrompt}>
-                        <Text style={styles.bannerTapText}>
-                          ⚡ Special Offer on {item.linkedItemName} • Tap to view & add ➔
-                        </Text>
-                      </View>
+                    <Text style={styles.sortQuickChipIcon}>{opt.icon}</Text>
+                    <Text
+                      style={[
+                        styles.sortQuickChipText,
+                        isActive && styles.sortQuickChipTextActive,
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                    {isActive && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={14}
+                        color="#ffffff"
+                        style={{ marginLeft: 3 }}
+                      />
                     )}
                   </TouchableOpacity>
                 );
-              }}
-              onScroll={e => {
-                const index = Math.round(
-                  e.nativeEvent.contentOffset.x / BANNER_WIDTH,
-                );
-                setCurrentBannerIndex(index);
-              }}
-            />
-            {banners.length > 1 && (
-              <View style={styles.bannerDots}>
-                {banners.map((_, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.dot,
-                      currentBannerIndex === i && styles.dotActive,
-                    ]}
-                  />
-                ))}
-              </View>
-            )}
+              })}
+            </ScrollView>
           </View>
-        )}
-
-        {/* Category Pills */}
-        <View style={styles.categoriesSection}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryPillsList}
-          >
-            {categories.map(cat => (
-              <Chip
-                key={cat}
-                label={cat}
-                selected={selectedCategory === cat}
-                onPress={() => setSelectedCategory(cat)}
-              />
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Quick Sort & Filter Chips Bar */}
-        <View style={styles.sortChipsSection}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.sortChipsList}
-          >
-            <TouchableOpacity
-              style={styles.sortFilterBtn}
-              onPress={() => {
-                Haptics.selectionAsync();
-                setShowSortModal(true);
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="options-outline" size={14} color={Colors.ink} />
-              <Text style={styles.sortFilterBtnText}>All Filters</Text>
-            </TouchableOpacity>
-
-            {QUICK_SORT_OPTIONS.map(opt => {
-              const isActive = sortBy === opt.id;
-              return (
-                <TouchableOpacity
-                  key={opt.id}
-                  style={[
-                    styles.sortQuickChip,
-                    isActive && styles.sortQuickChipActive,
-                  ]}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setSortBy(opt.id);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.sortQuickChipIcon}>{opt.icon}</Text>
-                  <Text
-                    style={[
-                      styles.sortQuickChipText,
-                      isActive && styles.sortQuickChipTextActive,
-                    ]}
-                  >
-                    {opt.label}
-                  </Text>
-                  {isActive && (
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={14}
-                      color="#ffffff"
-                      style={{ marginLeft: 3 }}
-                    />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
         </View>
 
         {/* Compact WhatsApp & Call Quick Ordering Ribbon */}
@@ -697,9 +788,20 @@ export default function CustomerHomeScreen() {
         {/* Product Catalogue Header */}
         <View style={styles.catalogueHeader}>
           <View style={styles.catalogueHeaderLeft}>
-            <Text style={styles.catalogueTitle}>
-              {selectedCategory === 'All' ? 'All Products' : selectedCategory}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, flexWrap: 'wrap' }}>
+              <Text style={styles.catalogueTitle}>
+                {selectedCategory === 'All'
+                  ? sortBy === 'offers'
+                    ? '🏷️ Deals & Offers'
+                    : 'All Products'
+                  : selectedCategory}
+              </Text>
+              {sortBy === 'offers' && (
+                <View style={styles.dealsActivePill}>
+                  <Text style={styles.dealsActivePillText}>⚡ Banner Offers First</Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.itemCountBadge}>
               {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'} available
             </Text>
@@ -785,7 +887,7 @@ export default function CustomerHomeScreen() {
                   const isCan =
                     item.name.toLowerCase().includes('can') ||
                     item.category.toLowerCase().includes('water');
-                  const isOffer = offerItemNames.has(item.name.toLowerCase().trim());
+                  const isOffer = itemBannerMatchMap.has(item.id);
                   const isPopular = (itemPopularityMap[item.id] || 0) >= 2;
 
                   return (
@@ -884,7 +986,7 @@ export default function CustomerHomeScreen() {
                   const isCan =
                     item.name.toLowerCase().includes('can') ||
                     item.category.toLowerCase().includes('water');
-                  const isOffer = offerItemNames.has(item.name.toLowerCase().trim());
+                  const isOffer = itemBannerMatchMap.has(item.id);
                   const isPopular = (itemPopularityMap[item.id] || 0) >= 2;
 
                   return (
@@ -1004,7 +1106,7 @@ export default function CustomerHomeScreen() {
             )}
           </View>
         )}
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* ─── Sticky Cart Bar ──────────────────────────────────────────────── */}
       <StickyBar
@@ -1099,7 +1201,7 @@ export default function CustomerHomeScreen() {
               <View style={styles.sheetSection}>
                 <Text style={styles.sheetSectionTitle}>Delivery Slot</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {defaultSettings.slots.map(slot => (
+                  {availableSlots.map(slot => (
                     <TouchableOpacity
                       key={slot}
                       style={[
@@ -1289,6 +1391,8 @@ export default function CustomerHomeScreen() {
               style={[styles.sortOptionRow, sortBy === 'offers' && styles.sortOptionRowActive]}
               onPress={() => {
                 Haptics.selectionAsync();
+                setSelectedCategory('All');
+                setSearchQuery('');
                 setSortBy('offers');
                 setShowSortModal(false);
               }}
@@ -1480,36 +1584,103 @@ const styles = StyleSheet.create({
   bannerSection: {
     marginBottom: Spacing.lg,
   },
-  bannerCard: {
-    borderRadius: Radius.card,
-    padding: Spacing.xl,
-    justifyContent: 'center',
-    minHeight: 120,
+  bannerCardContainer: {
     marginRight: Spacing.md,
+    borderRadius: Radius.card,
     ...Shadow.card,
+  },
+  bannerGradient: {
+    borderRadius: Radius.card,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    minHeight: 118,
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+  },
+  bannerDecoCircleLarge: {
+    position: 'absolute',
+    top: -20,
+    right: -20,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  bannerDecoCircleSmall: {
+    position: 'absolute',
+    bottom: -25,
+    right: 85,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  bannerInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 2,
+    gap: Spacing.md,
+  },
+  bannerContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  bannerEmojiBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
+    overflow: 'hidden',
+  },
+  bannerBadgeImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 26,
+  },
+  bannerEmoji: {
+    fontSize: 26,
   },
   bannerTitle: {
     fontSize: FontSize.lg,
     fontFamily: 'Manrope_800ExtraBold',
     color: '#ffffff',
-    marginBottom: 4,
+    marginBottom: 2,
+    textShadowColor: 'rgba(0, 0, 0, 0.15)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   bannerSub: {
     fontSize: FontSize.sm,
-    fontFamily: 'Manrope_500Medium',
-    color: 'rgba(255, 255, 255, 0.9)',
+    fontFamily: 'Manrope_600SemiBold',
+    color: 'rgba(255, 255, 255, 0.95)',
+    lineHeight: 18,
   },
   bannerTapPrompt: {
     marginTop: Spacing.sm,
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: Radius.chip,
   },
   bannerTapText: {
-    fontSize: FontSize.xs,
-    fontFamily: 'Manrope_600SemiBold',
+    fontSize: FontSize.xs - 1,
+    fontFamily: 'Manrope_700Bold',
     color: '#ffffff',
   },
   bannerDots: {
@@ -1528,14 +1699,30 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.green700,
     width: 18,
   },
+  stickyFilterContainer: {
+    backgroundColor: Colors.cream,
+    marginHorizontal: -Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xs,
+    paddingBottom: Spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.line,
+    zIndex: 10,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    marginBottom: Spacing.sm,
+  },
   categoriesSection: {
-    marginBottom: Spacing.lg,
+    marginBottom: 6,
   },
   categoryPillsList: {
     gap: Spacing.sm,
   },
   sortChipsSection: {
-    marginBottom: Spacing.md,
+    marginBottom: 2,
   },
   sortChipsList: {
     gap: Spacing.xs,
@@ -1661,6 +1848,19 @@ const styles = StyleSheet.create({
   },
   catalogueHeaderLeft: {
     flex: 1,
+  },
+  dealsActivePill: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: Radius.chip,
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+  },
+  dealsActivePillText: {
+    fontSize: FontSize.xs - 1,
+    fontFamily: 'Manrope_700Bold',
+    color: '#B45309',
   },
   catalogueTitle: {
     fontSize: FontSize.lg,

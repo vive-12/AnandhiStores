@@ -183,7 +183,6 @@ export function listenRecoveryOrders(
   const q = query(
     collection(db, ORDERS_COL),
     where('type', '==', 'recovery'),
-    orderBy('createdAt', 'desc'),
     limit(maxCount),
   );
   return onSnapshot(

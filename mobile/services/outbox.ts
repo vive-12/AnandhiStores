@@ -69,12 +69,17 @@ export async function enqueueAction(
   return id;
 }
 
+let isReplaying = false;
+
 /** Replay all queued actions in order, verifying document state for conflicts */
 export async function replayOutbox(): Promise<{ replayed: number; conflicts: number }> {
-  const queue = await getOutboxQueue();
-  if (queue.length === 0) return { replayed: 0, conflicts: 0 };
+  if (isReplaying) return { replayed: 0, conflicts: 0 };
+  isReplaying = true;
+  try {
+    const queue = await getOutboxQueue();
+    if (queue.length === 0) return { replayed: 0, conflicts: 0 };
 
-  log.outbox.info(`Replaying ${queue.length} queued action(s)`);
+    log.outbox.info(`Replaying ${queue.length} queued action(s)`);
 
   const remaining: OutboxAction[] = [];
   let replayed = 0;
@@ -121,6 +126,9 @@ export async function replayOutbox(): Promise<{ replayed: number; conflicts: num
   await saveOutboxQueue(remaining);
   log.outbox.info(`Replay complete: ${replayed} replayed, ${conflicts} conflicts, ${remaining.length} still queued`);
   return { replayed, conflicts };
+  } finally {
+    isReplaying = false;
+  }
 }
 
 let isInitialized = false;

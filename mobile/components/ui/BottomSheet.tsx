@@ -1,6 +1,7 @@
 // components/ui/BottomSheet.tsx
 // Wrapper around @gorhom/bottom-sheet with Anandhi Stores styling.
-import React, { forwardRef, useCallback } from 'react';
+// Mounts conditionally to avoid invisible layout overlays intercepting Android touch events when closed.
+import React, { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import RNBottomSheet, {
   BottomSheetBackdrop,
@@ -18,6 +19,49 @@ interface BottomSheetProps {
 
 export const BottomSheet = forwardRef<RNBottomSheet, BottomSheetProps>(
   ({ title, snapPoints = ['50%', '90%'], children, onClose }, ref) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const innerRef = useRef<RNBottomSheet>(null);
+
+    useImperativeHandle(
+      ref,
+      () =>
+        ({
+          expand: () => {
+            setIsOpen(true);
+          },
+          collapse: () => {
+            innerRef.current?.collapse();
+          },
+          close: () => {
+            innerRef.current?.close();
+            setIsOpen(false);
+          },
+          snapToIndex: (index: number) => {
+            if (index === -1) {
+              innerRef.current?.close();
+              setIsOpen(false);
+            } else {
+              setIsOpen(true);
+              setTimeout(() => innerRef.current?.snapToIndex(index), 30);
+            }
+          },
+          snapToPosition: (pos: string | number) => {
+            setIsOpen(true);
+            setTimeout(() => innerRef.current?.snapToPosition(pos), 30);
+          },
+          forceClose: () => {
+            innerRef.current?.forceClose();
+            setIsOpen(false);
+          },
+        } as any),
+      [],
+    );
+
+    const handleClose = useCallback(() => {
+      setIsOpen(false);
+      onClose?.();
+    }, [onClose]);
+
     const renderBackdrop = useCallback(
       (props: BottomSheetBackdropProps) => (
         <BottomSheetBackdrop
@@ -25,31 +69,32 @@ export const BottomSheet = forwardRef<RNBottomSheet, BottomSheetProps>(
           disappearsOnIndex={-1}
           appearsOnIndex={0}
           opacity={0.5}
+          pressBehavior="close"
         />
       ),
       [],
     );
 
+    if (!isOpen) return null;
+
     return (
       <RNBottomSheet
-        ref={ref}
-        index={-1}
+        ref={innerRef}
+        index={0}
         snapPoints={snapPoints}
         enablePanDownToClose
         backdropComponent={renderBackdrop}
         handleIndicatorStyle={styles.handle}
         backgroundStyle={styles.background}
-        onClose={onClose}
+        onClose={handleClose}
       >
         <BottomSheetScrollView contentContainerStyle={styles.content}>
           {title ? (
             <View style={styles.header}>
               <Text style={styles.title}>{title}</Text>
-              {onClose ? (
-                <TouchableOpacity onPress={onClose} hitSlop={12}>
-                  <Text style={styles.closeBtn}>✕</Text>
-                </TouchableOpacity>
-              ) : null}
+              <TouchableOpacity onPress={handleClose} hitSlop={12}>
+                <Text style={styles.closeBtn}>✕</Text>
+              </TouchableOpacity>
             </View>
           ) : null}
           {children}

@@ -1,8 +1,8 @@
-// services/banners.ts — Promotional banners service
 import {
   collection,
   doc,
   addDoc,
+  getDocs,
   updateDoc,
   deleteDoc,
   query,
@@ -20,9 +20,14 @@ export interface AppBanner extends Banner {
   subtitle?: string;
   linkedItemId?: string | null;
   linkedItemName?: string | null;
+  imageScale?: number | null;
+  imageOffsetX?: number | null;
+  imageOffsetY?: number | null;
+  imageRotation?: number | null;
 }
 
 const COL = 'banners';
+export const MAX_BANNERS = 5;
 
 /**
  * Live listener for active banners (customer home carousel).
@@ -44,6 +49,10 @@ export function listenBanners(
             title: data.title || '',
             subtitle: data.subtitle,
             imageUrl: data.imageUrl ?? null,
+            imageScale: data.imageScale ?? 1,
+            imageOffsetX: data.imageOffsetX ?? 0,
+            imageOffsetY: data.imageOffsetY ?? 0,
+            imageRotation: data.imageRotation ?? 0,
             color: data.color || data.bg_color || '#1F5B3C',
             isActive: data.isActive ?? true,
             sortOrder: data.sortOrder ?? 0,
@@ -75,6 +84,10 @@ export function listenAllBanners(
           title: data.title || '',
           subtitle: data.subtitle,
           imageUrl: data.imageUrl ?? null,
+          imageScale: data.imageScale ?? 1,
+          imageOffsetX: data.imageOffsetX ?? 0,
+          imageOffsetY: data.imageOffsetY ?? 0,
+          imageRotation: data.imageRotation ?? 0,
           color: data.color || data.bg_color || '#1F5B3C',
           isActive: data.isActive ?? true,
           sortOrder: data.sortOrder ?? 0,
@@ -93,6 +106,11 @@ export function listenAllBanners(
 export async function createBanner(
   data: Omit<Banner, 'id'> & { subtitle?: string; linkedItemId?: string | null; linkedItemName?: string | null },
 ): Promise<string> {
+  const currentSnap = await getDocs(query(collection(db, COL)));
+  if (currentSnap.size >= MAX_BANNERS) {
+    throw new Error(`Maximum limit of ${MAX_BANNERS} banners reached. Please delete an existing banner before creating a new one.`);
+  }
+
   const ref = await addDoc(collection(db, COL), {
     ...data,
     createdAt: serverTimestamp(),

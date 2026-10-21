@@ -62,8 +62,9 @@ function RouteGuard() {
         }
         return;
       }
-      // Logged-in users → their role home (unless already there or in dev)
-      if (inAuth || isRoot) {
+      // Logged-in users → their role home (unless already there, in dev, or intentionally resetting/changing PIN)
+      const inResetPin = segments.join('/') === 'auth/reset-pin';
+      if ((inAuth && !inResetPin) || isRoot) {
         router.replace(ROLE_HOME[role!] ?? '/auth/login');
       }
     } else {

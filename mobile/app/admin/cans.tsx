@@ -1,5 +1,5 @@
 // app/admin/cans.tsx — Water Can Tracking & Empty Can Recovery
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import { useCustomers } from '../../hooks/useCustomers';
 import { useOnlineAgents } from '../../hooks/useAgents';
 import { useRecoveryOrders } from '../../hooks/useOrders';
 import { createOrder, getOrder, assignAgent } from '../../services/orders';
+import { openMapChoice } from '../../utils/openMap';
 import {
   ScreenHeader,
   Card,
@@ -33,13 +34,13 @@ import {
 } from '../../components/ui';
 import type { User, Order } from '../../types';
 
-type CanTab = 'unassigned' | 'active';
+type CanTab = 'active' | 'customers' | 'history';
 
 export default function CansOutsideScreen() {
   const { uid: adminUid, name: adminName } = useSession();
   const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<CanTab>('unassigned');
+  const [activeTab, setActiveTab] = useState<CanTab>('active');
   const [assigning, setAssigning] = useState(false);
 
   // BottomSheet for assigning agent
@@ -49,40 +50,62 @@ export default function CansOutsideScreen() {
 
   // Hooks
   const { customers, loading: customersLoading, error: customersError, refresh: refreshCustomers } = useCustomers();
-  const { agents: onlineAgents, loading: agentsLoading } = useOnlineAgents();
+  const { agents: onlineAgents, loading: agentsLoading, error: agentsError, refresh: refreshAgents } = useOnlineAgents();
   const { orders, loading: ordersLoading, error: ordersError, refresh: refreshRecoveries } = useRecoveryOrders();
 
-  // Active recovery orders
+  // Active recovery orders (placed, packed, out_for_delivery)
   const activeRecoveries = useMemo(() => {
     return orders.filter(
       o => o.type === 'recovery' && o.status !== 'delivered' && o.status !== 'cancelled',
     );
   }, [orders]);
 
+  // Completed recovery runs (delivered empty cans)
+  const completedRecoveries = useMemo(() => {
+    return orders.filter(
+      o => o.type === 'recovery' && o.status === 'delivered',
+    );
+  }, [orders]);
+
+  // Map of active recovery cans per customer
   const activeRecoveryCansByCustomer = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const run of activeRecoveries) {
-      counts[run.customerId] = (counts[run.customerId] || 0) + Math.max(0, Number(run.pendingCansToCollect || 0));
+      if (run.customerId) {
+        counts[run.customerId] = (counts[run.customerId] || 0) + Math.max(0, Number(run.pendingCansToCollect || 0));
+      }
     }
     return counts;
   }, [activeRecoveries]);
 
-  const cansNotYetAssigned = (customer: User) => Math.max(
+  // Map of active recovery run per customer
+  const activeRunByCustomerId = useMemo(() => {
+    const map: Record<string, Order> = {};
+    for (const run of activeRecoveries) {
+      if (run.customerId && !map[run.customerId]) {
+        map[run.customerId] = run;
+      }
+    }
+    return map;
+  }, [activeRecoveries]);
+
+  // Outstanding cans customer holds that are NOT yet assigned to any recovery order
+  const cansNotYetAssigned = useCallback((customer: User) => Math.max(
     0,
     Number(customer.pendingCans || 0) - (activeRecoveryCansByCustomer[customer.id] || 0),
-  );
+  ), [activeRecoveryCansByCustomer]);
 
-  // Customers who hold pending empty cans and don't yet have an active recovery order
-  const pendingCustomers = useMemo(() => {
-    return customers.filter(c => cansNotYetAssigned(c) > 0);
-  }, [customers, activeRecoveryCansByCustomer]);
+  // All customers who hold unreturned empty cans
+  const customersHoldingCans = useMemo(() => {
+    return customers.filter(c => Number(c.pendingCans || 0) > 0);
+  }, [customers]);
 
   // Total cans currently with customers across town
   const totalCansOutside = useMemo(() => {
-    const unassigned = customers.reduce((sum, c) => sum + cansNotYetAssigned(c), 0);
-    const alreadyAssigned = activeRecoveries.reduce((sum, r) => sum + Math.max(0, Number(r.pendingCansToCollect || 0)), 0);
-    return unassigned + alreadyAssigned;
-  }, [customers, activeRecoveries, activeRecoveryCansByCustomer]);
+    const fromCustomers = customersHoldingCans.reduce((sum, c) => sum + Number(c.pendingCans || 0), 0);
+    const fromActiveRuns = activeRecoveries.reduce((sum, r) => sum + Math.max(0, Number(r.pendingCansToCollect || 0)), 0);
+    return Math.max(fromCustomers, fromActiveRuns);
+  }, [customersHoldingCans, activeRecoveries]);
 
   // Open Assign Agent Sheet for customer
   const handleOpenAssignCustomer = (cust: User) => {
@@ -181,45 +204,97 @@ export default function CansOutsideScreen() {
     }
   };
 
-  const renderCustomerItem = ({ item }: { item: User }) => (
-    <View style={s.card}>
-      <View style={s.cardHeader}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.nameTxt}>{item.name}</Text>
-          <Text style={s.phoneTxt}>{item.phone}</Text>
-          <Text style={s.addrTxt}>
-            {[item.address?.door, item.address?.street, item.address?.locality]
-              .filter(Boolean)
-              .join(', ') || 'No address saved'}
-          </Text>
+  const renderCustomerItem = ({ item }: { item: User }) => {
+    const activeRun = activeRunByCustomerId[item.id];
+    const unassignedCount = cansNotYetAssigned(item);
+    const totalPending = Number(item.pendingCans || 0);
+
+    return (
+      <View style={s.card}>
+        <View style={s.cardHeader}>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <Text style={s.nameTxt}>{item.name}</Text>
+              {activeRun ? (
+                <View style={[s.badgeActiveRun, { backgroundColor: '#E0F2FE', borderColor: '#BAE6FD', borderWidth: 1 }]}>
+                  <Text style={[s.badgeActiveRunTxt, { color: '#0369A1' }]}>Run #{activeRun.orderNo}</Text>
+                </View>
+              ) : (
+                <View style={[s.badgeActiveRun, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A', borderWidth: 1 }]}>
+                  <Text style={[s.badgeActiveRunTxt, { color: '#D97706' }]}>Unassigned</Text>
+                </View>
+              )}
+            </View>
+            <Text style={s.phoneTxt}>📞 {item.phone}</Text>
+            <Text style={s.addrTxt}>
+              📍 {[item.address?.door, item.address?.street, item.address?.locality]
+                .filter(Boolean)
+                .join(', ') || 'No address saved'}
+            </Text>
+          </View>
+
+          <View style={s.canBadge}>
+            <Ionicons name="water" size={16} color="#0284C7" />
+            <Text style={s.canBadgeNum}>{totalPending}</Text>
+            <Text style={s.canBadgeTxt}>held</Text>
+          </View>
         </View>
 
-        <View style={s.canBadge}>
-          <Ionicons name="water" size={16} color="#0284C7" />
-          <Text style={s.canBadgeNum}>{cansNotYetAssigned(item)}</Text>
-          <Text style={s.canBadgeTxt}>cans</Text>
+        {/* Collection status breakdown */}
+        {activeRun ? (
+          <View style={s.customerRunNotice}>
+            <Ionicons name="bicycle" size={16} color="#0284C7" />
+            <View style={{ flex: 1 }}>
+              <Text style={s.customerRunNoticeTitle}>
+                Collection assigned to {activeRun.agentName || 'Agent'}
+              </Text>
+              <Text style={s.customerRunNoticeSub}>
+                Status: {activeRun.status === 'out_for_delivery' ? 'Partner En Route' : 'Assigned (Pickup Pending)'}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
+        <View style={s.cardFooter}>
+          <TouchableOpacity
+            style={s.callBtn}
+            onPress={() => Linking.openURL(`tel:${item.phone}`)}
+          >
+            <Ionicons name="call-outline" size={14} color={Colors.green700} />
+            <Text style={s.callBtnTxt}>Call</Text>
+          </TouchableOpacity>
+
+          {item.address?.lat && item.address?.lng ? (
+            <TouchableOpacity
+              style={s.mapBtn}
+              onPress={() => openMapChoice(item.address?.lat, item.address?.lng, item.name)}
+            >
+              <Ionicons name="navigate-outline" size={14} color={Colors.green700} />
+              <Text style={s.mapBtnTxt}>Maps</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {activeRun ? (
+            <TouchableOpacity
+              style={s.reassignBtn}
+              onPress={() => handleOpenReassignRun(activeRun)}
+            >
+              <Ionicons name="swap-horizontal" size={14} color={Colors.amber} />
+              <Text style={s.reassignBtnTxt}>Reassign Agent</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={s.assignBtn}
+              onPress={() => handleOpenAssignCustomer(item)}
+            >
+              <Ionicons name="bicycle" size={14} color="#FFFFFF" />
+              <Text style={s.assignBtnTxt}>Assign Collection Run</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
-
-      <View style={s.cardFooter}>
-        <TouchableOpacity
-          style={s.callBtn}
-          onPress={() => Linking.openURL(`tel:${item.phone}`)}
-        >
-          <Ionicons name="call-outline" size={14} color={Colors.green700} />
-          <Text style={s.callBtnTxt}>Call</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={s.assignBtn}
-          onPress={() => handleOpenAssignCustomer(item)}
-        >
-          <Ionicons name="bicycle" size={14} color="#FFFFFF" />
-          <Text style={s.assignBtnTxt}>Assign Collection Run</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
+  };
 
   const renderRecoveryItem = ({ item }: { item: Order }) => (
     <View style={[s.card, s.activeCard]}>
@@ -234,7 +309,7 @@ export default function CansOutsideScreen() {
             Assigned Agent: <Text style={{ fontFamily: 'Manrope_700Bold' }}>{item.agentName || 'Pending'}</Text>
           </Text>
           <Text style={s.addrTxt}>
-            {item.addressSnapshot?.locality || item.addressSnapshot?.street || 'Chennai'}
+            📍 {item.addressSnapshot?.locality || item.addressSnapshot?.street || 'Chennai'}
           </Text>
         </View>
 
@@ -255,6 +330,20 @@ export default function CansOutsideScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
+          style={s.mapBtn}
+          onPress={() =>
+            openMapChoice(
+              item.addressSnapshot?.lat,
+              item.addressSnapshot?.lng,
+              item.customerName,
+            )
+          }
+        >
+          <Ionicons name="navigate-outline" size={14} color={Colors.green700} />
+          <Text style={s.mapBtnTxt}>Maps</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={s.reassignBtn}
           onPress={() => handleOpenReassignRun(item)}
         >
@@ -265,8 +354,69 @@ export default function CansOutsideScreen() {
     </View>
   );
 
-  const loading = customersLoading || ordersLoading;
-  const onRefresh = () => { refreshCustomers(); refreshRecoveries(); };
+  const renderHistoryItem = ({ item }: { item: Order }) => {
+    const deliveredTime = item.deliveredAt?.toMillis
+      ? new Date(item.deliveredAt.toMillis()).toLocaleString('en-IN', {
+          day: 'numeric',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : 'Delivered';
+
+    return (
+      <View style={[s.card, { borderColor: Colors.line }]}>
+        <View style={s.cardHeader}>
+          <View style={{ flex: 1 }}>
+            <View style={s.orderNoRow}>
+              <Text style={s.nameTxt}>{item.orderNo}</Text>
+              <View style={[s.badgeActiveRun, { backgroundColor: '#DCFCE7', borderColor: '#BBF7D0', borderWidth: 1 }]}>
+                <Ionicons name="checkmark-circle" size={12} color={Colors.green700} />
+                <Text style={[s.badgeActiveRunTxt, { color: Colors.green700 }]}>Collected</Text>
+              </View>
+            </View>
+            <Text style={s.customerSub}>Customer: {item.customerName}</Text>
+            <Text style={s.agentSub}>
+              Collected by: <Text style={{ fontFamily: 'Manrope_700Bold' }}>{item.agentName || 'Agent'}</Text>
+            </Text>
+            <Text style={s.addrTxt}>
+              📍 {item.addressSnapshot?.locality || item.addressSnapshot?.street || 'Chennai'} • {deliveredTime}
+            </Text>
+          </View>
+
+          <View style={[s.canBadge, { backgroundColor: '#DCFCE7' }]}>
+            <Ionicons name="water" size={16} color={Colors.green700} />
+            <Text style={[s.canBadgeNum, { color: Colors.green700 }]}>
+              {item.pendingCansToCollect || item.emptyCansCollected || 1}
+            </Text>
+            <Text style={[s.canBadgeTxt, { color: Colors.green700 }]}>collected</Text>
+          </View>
+        </View>
+
+        <View style={s.cardFooter}>
+          {item.customerPhone ? (
+            <TouchableOpacity
+              style={s.callBtn}
+              onPress={() => Linking.openURL(`tel:${item.customerPhone}`)}
+            >
+              <Ionicons name="call-outline" size={14} color={Colors.green700} />
+              <Text style={s.callBtnTxt}>Call Customer</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="shield-checkmark-outline" size={14} color={Colors.green700} />
+            <Text style={{ fontSize: FontSize.xs - 1, color: Colors.green700, fontFamily: 'Manrope_600SemiBold' }}>
+              Returned to Store
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const loading = customersLoading || ordersLoading || agentsLoading;
+  const onRefresh = () => { refreshCustomers(); refreshRecoveries(); refreshAgents(); };
 
   return (
     <View style={s.container}>
@@ -281,7 +431,7 @@ export default function CansOutsideScreen() {
           <Text style={s.heroLabel}>Total Empty Cans in Market</Text>
           <Text style={s.heroCount}>{totalCansOutside}</Text>
           <Text style={s.heroSub}>
-            {pendingCustomers.length} customer holding cans • {activeRecoveries.length} active collection runs
+            {customersHoldingCans.length} customer{customersHoldingCans.length !== 1 ? 's' : ''} holding cans • {activeRecoveries.length} active collection run{activeRecoveries.length !== 1 ? 's' : ''} • {completedRecoveries.length} recovered
           </Text>
         </View>
         <Ionicons name="water" size={48} color="#FFFFFF" style={{ opacity: 0.85 }} />
@@ -289,20 +439,6 @@ export default function CansOutsideScreen() {
 
       {/* Segmented Tabs */}
       <View style={s.tabsRow}>
-        <TouchableOpacity
-          style={[s.tabItem, activeTab === 'unassigned' && s.tabItemActive]}
-          onPress={() => {
-            Haptics.selectionAsync();
-            setActiveTab('unassigned');
-          }}
-        >
-          <Text
-            style={[s.tabTxt, activeTab === 'unassigned' && s.tabTxtActive]}
-          >
-            Pending with Customers ({pendingCustomers.length})
-          </Text>
-        </TouchableOpacity>
-
         <TouchableOpacity
           style={[s.tabItem, activeTab === 'active' && s.tabItemActive]}
           onPress={() => {
@@ -316,22 +452,67 @@ export default function CansOutsideScreen() {
             Active Runs ({activeRecoveries.length})
           </Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[s.tabItem, activeTab === 'customers' && s.tabItemActive]}
+          onPress={() => {
+            Haptics.selectionAsync();
+            setActiveTab('customers');
+          }}
+        >
+          <Text
+            style={[s.tabTxt, activeTab === 'customers' && s.tabTxtActive]}
+          >
+            Customers with Cans ({customersHoldingCans.length})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[s.tabItem, activeTab === 'history' && s.tabItemActive]}
+          onPress={() => {
+            Haptics.selectionAsync();
+            setActiveTab('history');
+          }}
+        >
+          <Text
+            style={[s.tabTxt, activeTab === 'history' && s.tabTxtActive]}
+          >
+            History ({completedRecoveries.length})
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* List */}
-      {ordersError || customersError ? (
+      {ordersError || customersError || agentsError ? (
         <ErrorState
-          message="Could not load can recovery data."
-          onRetry={() => { refreshCustomers(); refreshRecoveries(); }}
+          message={`Could not load can recovery data. ${(ordersError || customersError || agentsError)?.message || ''}`}
+          onRetry={onRefresh}
         />
       ) : loading ? (
         <View style={{ padding: Spacing.lg, gap: Spacing.md }}>
           <CardSkeleton />
           <CardSkeleton />
         </View>
-      ) : activeTab === 'unassigned' ? (
+      ) : activeTab === 'active' ? (
         <FlatList
-          data={pendingCustomers}
+          data={activeRecoveries}
+          keyExtractor={item => item.id}
+          renderItem={renderRecoveryItem}
+          contentContainerStyle={s.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor={Colors.green700} />
+          }
+          ListEmptyComponent={
+            <EmptyState
+              title="No Active Recovery Runs"
+              subtitle="Empty can collection runs assigned to delivery agents will appear here."
+            />
+          }
+        />
+      ) : activeTab === 'customers' ? (
+        <FlatList
+          data={customersHoldingCans}
           keyExtractor={item => item.id}
           renderItem={renderCustomerItem}
           contentContainerStyle={s.listContent}
@@ -352,9 +533,9 @@ export default function CansOutsideScreen() {
         />
       ) : (
         <FlatList
-          data={activeRecoveries}
+          data={completedRecoveries}
           keyExtractor={item => item.id}
-          renderItem={renderRecoveryItem}
+          renderItem={renderHistoryItem}
           contentContainerStyle={s.listContent}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -362,8 +543,8 @@ export default function CansOutsideScreen() {
           }
           ListEmptyComponent={
             <EmptyState
-              title="No Active Recovery Runs"
-              subtitle="Dispatch an agent from the Pending tab to initiate an empty can collection run."
+              title="No Completed Collections Yet"
+              subtitle="Delivered and recovered empty cans will be archived here."
             />
           }
         />
@@ -696,5 +877,55 @@ const s = StyleSheet.create({
     fontSize: FontSize.xs - 1,
     fontFamily: 'Manrope_800ExtraBold',
     color: '#FFFFFF',
+  },
+  badgeActiveRun: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: Radius.chip,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  badgeActiveRunTxt: {
+    fontSize: FontSize.xs - 2,
+    fontFamily: 'Manrope_700Bold',
+  },
+  customerRunNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F9FF',
+    borderRadius: Radius.button,
+    padding: Spacing.sm,
+    gap: Spacing.sm,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    marginTop: 4,
+  },
+  customerRunNoticeTitle: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_700Bold',
+    color: '#0369A1',
+  },
+  customerRunNoticeSub: {
+    fontSize: FontSize.xs - 2,
+    fontFamily: 'Manrope_500Medium',
+    color: '#0284C7',
+    marginTop: 1,
+  },
+  mapBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: Radius.chip,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    backgroundColor: Colors.card,
+    gap: 4,
+  },
+  mapBtnTxt: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_700Bold',
+    color: Colors.green700,
   },
 });

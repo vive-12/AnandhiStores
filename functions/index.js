@@ -122,6 +122,31 @@ exports.adminCreateAgent = onCall(async request => {
   return { uid: account.uid };
 });
 
+exports.adminDeleteAgent = onCall(async request => {
+  requireAdmin(request);
+  const { uid, phone } = request.data || {};
+  if (typeof uid !== 'string' || !uid) {
+    throw new HttpsError('invalid-argument', 'A user ID is required.');
+  }
+
+  // 1. Delete Firestore user document
+  await db.collection('users').doc(uid).delete().catch(() => {});
+  await db.collection('agents').doc(uid).delete().catch(() => {});
+
+  // 2. Delete Auth user if exists
+  try {
+    await auth.deleteUser(uid);
+  } catch (err) {
+    if (validPhone(phone)) {
+      const email = `${phone}@anandhi.app`;
+      const account = await auth.getUserByEmail(email).catch(() => null);
+      if (account) await auth.deleteUser(account.uid).catch(() => {});
+    }
+  }
+
+  return { ok: true };
+});
+
 exports.changeOwnPin = onCall(async request => {
   const caller = requireSignedIn(request);
   const { uid, phone, hashedPin } = request.data || {};

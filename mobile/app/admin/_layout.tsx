@@ -91,6 +91,10 @@ export default function AdminLayout() {
 
         const fresh = placed.find(o => !dismissedIdsRef.current.has(o.id));
         if (fresh) {
+          if (fresh.type === 'recovery') {
+            dismissedIdsRef.current.add(fresh.id);
+            return;
+          }
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           setNewOrderAlert(fresh);
         }

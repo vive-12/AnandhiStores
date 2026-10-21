@@ -33,6 +33,7 @@ import {
   Card,
   Button,
   EmptyState,
+  ErrorState,
   CardSkeleton,
   useToast,
 } from '../../components/ui';
@@ -50,6 +51,7 @@ export default function InventoryScreen() {
   const [activeSection, setActiveSection] = useState<'products' | 'offers'>('products');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [stockFilter, setStockFilter] = useState<'all' | 'in_stock' | 'out_of_stock'>('all');
 
   // Add / Edit Modal state
   const [modalVisible, setModalVisible] = useState(false);
@@ -76,11 +78,17 @@ export default function InventoryScreen() {
         selectedCategory === 'All' || item.category === selectedCategory;
       const matchesSearch =
         !searchQuery ||
-        (item.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.category || '').toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
+        (item.name || '').toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
+        (item.category || '').toLowerCase().includes(searchQuery.toLowerCase().trim());
+      const matchesStock =
+        stockFilter === 'all'
+          ? true
+          : stockFilter === 'in_stock'
+          ? item.inStock
+          : !item.inStock;
+      return matchesCategory && matchesSearch && matchesStock;
     });
-  }, [items, selectedCategory, searchQuery]);
+  }, [items, selectedCategory, searchQuery, stockFilter]);
 
   // Inventory summary counts
   const summary = useMemo(() => {
@@ -403,83 +411,186 @@ export default function InventoryScreen() {
         <OffersScreen showHeader={false} />
       ) : (
         <>
-          {/* Summary Strip */}
+          {/* Summary Strip — Interactive Quick Filtering */}
           <View style={s.summaryStrip}>
-        <View style={s.summaryItem}>
-          <Text style={s.summaryVal}>{summary.total}</Text>
-          <Text style={s.summaryLabel}>Total Items</Text>
-        </View>
-        <View style={s.summaryDiv} />
-        <View style={s.summaryItem}>
-          <Text style={[s.summaryVal, { color: Colors.green700 }]}>
-            {summary.inStockCount}
-          </Text>
-          <Text style={s.summaryLabel}>In Stock</Text>
-        </View>
-        <View style={s.summaryDiv} />
-        <View style={s.summaryItem}>
-          <Text style={[s.summaryVal, { color: Colors.coral }]}>
-            {summary.outOfStockCount}
-          </Text>
-          <Text style={s.summaryLabel}>Out of Stock</Text>
-        </View>
-      </View>
-
-      {/* Search & Add Action Bar */}
-      <View style={s.actionBar}>
-        <View style={s.searchWrap}>
-          <Ionicons name="search" size={16} color={Colors.inkSoft} style={{ marginRight: 6 }} />
-          <TextInput
-            style={s.searchInput}
-            placeholder="Search items..."
-            placeholderTextColor={Colors.inkSoft}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery ? (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={16} color={Colors.inkSoft} />
+            <TouchableOpacity
+              style={[s.summaryItem, stockFilter === 'all' && s.summaryItemActiveAll]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setStockFilter('all');
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={s.summaryVal}>{summary.total}</Text>
+              <Text style={s.summaryLabel}>Total Items</Text>
             </TouchableOpacity>
-          ) : null}
-        </View>
 
-        <TouchableOpacity style={s.addBtn} onPress={openAdd} activeOpacity={0.8}>
-          <Ionicons name="add" size={18} color="#FFFFFF" />
-          <Text style={s.addBtnTxt}>Add Item</Text>
-        </TouchableOpacity>
-      </View>
+            <View style={s.summaryDiv} />
 
-      {/* Category Pills */}
-      <View style={s.categoryBar}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.categoryScroll}
-        >
-          {CATEGORIES.map(cat => {
-            const isSelected = selectedCategory === cat;
-            return (
-              <TouchableOpacity
-                key={cat}
-                style={[s.categoryChip, isSelected && s.categoryChipActive]}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setSelectedCategory(cat);
-                }}
-              >
-                <Text
-                  style={[s.categoryChipTxt, isSelected && s.categoryChipTxtActive]}
-                >
-                  {cat}
+            <TouchableOpacity
+              style={[s.summaryItem, stockFilter === 'in_stock' && s.summaryItemActiveIn]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setStockFilter('in_stock');
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={[s.summaryVal, { color: Colors.green700 }]}>
+                {summary.inStockCount}
+              </Text>
+              <Text style={s.summaryLabel}>In Stock</Text>
+            </TouchableOpacity>
+
+            <View style={s.summaryDiv} />
+
+            <TouchableOpacity
+              style={[s.summaryItem, stockFilter === 'out_of_stock' && s.summaryItemActiveOut]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setStockFilter('out_of_stock');
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={[s.summaryVal, { color: Colors.coral }]}>
+                {summary.outOfStockCount}
+              </Text>
+              <Text style={[s.summaryLabel, summary.outOfStockCount > 0 && { color: Colors.coral, fontFamily: 'Manrope_700Bold' }]}>
+                {summary.outOfStockCount > 0 ? 'Out of Stock ⚠️' : 'Out of Stock'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Search & Add Action Bar */}
+          <View style={s.actionBar}>
+            <View style={s.searchWrap}>
+              <Ionicons name="search" size={16} color={Colors.inkSoft} style={{ marginRight: 6 }} />
+              <TextInput
+                style={s.searchInput}
+                placeholder="Search items..."
+                placeholderTextColor={Colors.inkSoft}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery ? (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Ionicons name="close-circle" size={16} color={Colors.inkSoft} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            <TouchableOpacity style={s.addBtn} onPress={openAdd} activeOpacity={0.8}>
+              <Ionicons name="add" size={18} color="#FFFFFF" />
+              <Text style={s.addBtnTxt}>Add Item</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Stock Status Filter Bar */}
+          <View style={s.stockFilterRow}>
+            <TouchableOpacity
+              style={[s.stockChip, stockFilter === 'all' && s.stockChipActiveAll]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setStockFilter('all');
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={[s.stockChipTxt, stockFilter === 'all' && s.stockChipTxtActiveAll]}>
+                📦 All ({summary.total})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[s.stockChip, stockFilter === 'in_stock' && s.stockChipActiveIn]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setStockFilter('in_stock');
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="checkmark-circle"
+                size={13}
+                color={stockFilter === 'in_stock' ? '#FFFFFF' : Colors.green700}
+              />
+              <Text style={[s.stockChipTxt, stockFilter === 'in_stock' && s.stockChipTxtActiveIn]}>
+                In Stock ({summary.inStockCount})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[s.stockChip, stockFilter === 'out_of_stock' && s.stockChipActiveOut]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setStockFilter('out_of_stock');
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="alert-circle"
+                size={13}
+                color={stockFilter === 'out_of_stock' ? '#FFFFFF' : Colors.coral}
+              />
+              <Text style={[s.stockChipTxt, stockFilter === 'out_of_stock' && s.stockChipTxtActiveOut]}>
+                Out of Stock ({summary.outOfStockCount})
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Refill Prompt Banner when viewing Out of Stock */}
+          {stockFilter === 'out_of_stock' && (
+            <View style={s.refillBanner}>
+              <Ionicons name="refresh-circle" size={20} color="#B45309" />
+              <View style={{ flex: 1 }}>
+                <Text style={s.refillBannerTitle}>
+                  {summary.outOfStockCount > 0
+                    ? `${summary.outOfStockCount} Product${summary.outOfStockCount > 1 ? 's' : ''} Need Refilling`
+                    : 'All Products In Stock'}
                 </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
+                <Text style={s.refillBannerSub}>
+                  {summary.outOfStockCount > 0
+                    ? 'Check items below and toggle the stock switch once refilled to make them available for customers.'
+                    : 'Everything is currently stocked and ready for customer orders!'}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Category Pills */}
+          <View style={s.categoryBar}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.categoryScroll}
+            >
+              {CATEGORIES.map(cat => {
+                const isSelected = selectedCategory === cat;
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[s.categoryChip, isSelected && s.categoryChipActive]}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setSelectedCategory(cat);
+                    }}
+                  >
+                    <Text
+                      style={[s.categoryChipTxt, isSelected && s.categoryChipTxtActive]}
+                    >
+                      {cat}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
 
       {/* List */}
-      {loading ? (
+      {error ? (
+        <ErrorState
+          message={`Could not load products. ${error.message}`}
+          onRetry={refresh}
+        />
+      ) : loading ? (
         <View style={{ padding: Spacing.lg, gap: Spacing.md }}>
           <CardSkeleton />
           <CardSkeleton />
@@ -501,14 +612,28 @@ export default function InventoryScreen() {
           }
           ListEmptyComponent={
             <EmptyState
-              title="No Items Found"
+              title={
+                stockFilter === 'out_of_stock'
+                  ? 'All Items In Stock! 🎉'
+                  : 'No Items Found'
+              }
               subtitle={
-                searchQuery
+                stockFilter === 'out_of_stock'
+                  ? 'Great job! There are currently no out of stock items to refill in this category.'
+                  : searchQuery
                   ? `No items matching "${searchQuery}".`
                   : `No products listed in ${selectedCategory}.`
               }
-              actionLabel="+ Add New Product"
-              onAction={openAdd}
+              actionLabel={
+                stockFilter !== 'all'
+                  ? 'Show All Items'
+                  : '+ Add New Product'
+              }
+              onAction={
+                stockFilter !== 'all'
+                  ? () => setStockFilter('all')
+                  : openAdd
+              }
             />
           }
         />
@@ -807,6 +932,18 @@ const s = StyleSheet.create({
   summaryItem: {
     flex: 1,
     alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+    borderRadius: Radius.sm,
+  },
+  summaryItemActiveAll: {
+    backgroundColor: '#F3F4F6',
+  },
+  summaryItemActiveIn: {
+    backgroundColor: '#F0FDF4',
+  },
+  summaryItemActiveOut: {
+    backgroundColor: '#FEF2F2',
   },
   summaryVal: {
     fontSize: FontSize.md,
@@ -824,6 +961,78 @@ const s = StyleSheet.create({
     height: 24,
     backgroundColor: Colors.line,
     alignSelf: 'center',
+  },
+
+  // Stock Filter
+  stockFilterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: 8,
+    gap: Spacing.xs,
+    backgroundColor: Colors.cream,
+  },
+  stockChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 7,
+    borderRadius: Radius.chip,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.line,
+  },
+  stockChipActiveAll: {
+    backgroundColor: Colors.ink,
+    borderColor: Colors.ink,
+  },
+  stockChipActiveIn: {
+    backgroundColor: Colors.green700,
+    borderColor: Colors.green700,
+  },
+  stockChipActiveOut: {
+    backgroundColor: Colors.coral,
+    borderColor: Colors.coral,
+  },
+  stockChipTxt: {
+    fontSize: FontSize.xs - 1,
+    fontFamily: 'Manrope_700Bold',
+    color: Colors.inkSoft,
+  },
+  stockChipTxtActiveAll: {
+    color: '#FFFFFF',
+  },
+  stockChipTxtActiveIn: {
+    color: '#FFFFFF',
+  },
+  stockChipTxtActiveOut: {
+    color: '#FFFFFF',
+  },
+  refillBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    backgroundColor: '#FEF3C7',
+    borderRadius: Radius.card,
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+  },
+  refillBannerTitle: {
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: '#92400E',
+  },
+  refillBannerSub: {
+    fontSize: FontSize.xs - 2,
+    fontFamily: 'Manrope_500Medium',
+    color: '#78350F',
+    marginTop: 1,
+    lineHeight: 15,
   },
 
   // Action bar

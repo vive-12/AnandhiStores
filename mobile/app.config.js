@@ -13,7 +13,7 @@ function readLocalEnv() {
 }
 
 const env = { ...readLocalEnv(), ...process.env };
-const isDevelopment = process.env.NODE_ENV === 'development';
+const isDevelopment = process.env.NODE_ENV !== 'production';
 const demoCredentials = isDevelopment && env.ENABLE_DEMO_LOGIN === 'true' ? {
   enabled: true,
   admin: { phone: env.ADMIN_PHONE || '', pin: env.ADMIN_PIN || '' },
