@@ -377,3 +377,42 @@
 * `npx tsc --noEmit` — 0 errors.
 * `npm test` — all 37 test assertions passed with 0 failures.
 
+## 37. Data Hygiene, Duplicate Profile Reconciliation & Standalone APK Push Notifications — 2026-10-28
+
+**Author: Antigravity**
+
+### 1. Database Hygiene & Duplicate Profile Reconciliation
+* **Pre-Migration Safety Backup**: Created full JSON snapshot of `users` and `agents` collections stored at `mobile/scripts/backup_users_*.json`.
+* **Duplicate Agent Profile Cleanup**:
+  * Removed duplicate agent record `users/zu4vb6bow2RMQdYUET2C` (`phone: 9940405016`, name: `vivr`).
+  * Preserved the canonical active agent record `users/3` (`phone: 9940405016`, name: `Smallvivek`) referenced across existing order histories.
+* **Plaintext PIN Removal & SHA-256 Alignment**:
+  * **Admin (`47R43Kf4qXkflR3T3k2W`)**: Removed legacy `plainPin` field; preserved one-way salted hash (`SHA256(1234 + 9876543219)`).
+  * **Customer (`lClrsyxdfA8Gbh6shIQi`)**: Converted unhashed PIN to SHA-256 (`SHA256(1211 + 9789042245)`), removed plaintext PIN field, normalized status to `approved`, and set display name `Shivani R`.
+  * **Agent 3 (`3`)**: Removed legacy `plainPin` field; preserved one-way salted hash (`SHA256(1211 + 9940405016)`).
+  * **Agent 1 (`1`)**: Removed legacy `plainPin` field; preserved one-way salted hash.
+  * **Agent 2 (`2`)**: Converted plaintext PIN to SHA-256 (`SHA256(1226 + 9876543211)`).
+  * **Legacy `agents/` collection**: Replaced all unhashed PINs with SHA-256 hashes and removed plaintext references.
+* **Preserved Frontend Credentials**:
+  * Verified all 3 UI login presets remain 100% operational in dev demo configuration:
+    * Admin: `9876543219` / `1234`
+    * Customer: `9789042245` / `1211`
+    * Agent: `9940405016` / `1211`
+
+### 2. Standalone APK Notification & Heads-Up Alerts
+* **Notification Handler Configuration (`mobile/components/ui/NotificationBell.tsx`)**:
+  * Initialized `setNotificationHandler` with `shouldShowAlert`, `shouldShowBanner`, `shouldShowList`, `shouldPlaySound`, and `shouldSetBadge` enabled.
+* **Android Notification Channel (`default`)**:
+  * Configured native Android notification channel (`Notifications.AndroidImportance.MAX`, custom vibration pattern, LED light color `#1B4332`, default sound) for Android 8.0+ devices running standalone APK.
+* **Native System Drawer Notifications**:
+  * Integrated `scheduleNotificationAsync` whenever new real-time notifications are received so Android generates system tray alerts and audible notifications even when the app is in the foreground.
+* **Notification Tap Navigation**:
+  * Added `addNotificationResponseReceivedListener` to automatically direct users to `/track/[id]`, `/admin/alerts`, or `/agent/dashboard` when tapping system notifications.
+
+### 3. Verification
+* `npx tsc --noEmit` — 0 errors.
+* `npm test` — all 37 test assertions passed with 0 failures.
+* `npm run test:order` — all 37 assertions passed with 0 failures.
+* `npm run test:auth` — 3/3 development demo profile & hashed PIN checks passed.
+
+

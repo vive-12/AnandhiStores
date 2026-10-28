@@ -54,7 +54,7 @@ Review scope: admin screens, their navigation/actions, order/recovery/auth/stati
 - [ ] Add cursor pagination if expected order history can exceed 200 retail records or the recovery queue can exceed 500 records. The listeners are bounded now; records beyond those caps are not reachable in these screens yet.
 - [ ] Exercise the flows against Firebase after Functions are deployed: register/approve/login, reset a customer and agent PIN, create an agent, concurrent delivery taps, auto-recovery assignment/reassignment/completion, can balance reconciliation, and Analytics across IST midnight/week/month boundaries.
 - [ ] Exercise the signup notification against the connected Firestore project and the one-time PIN forced-change path against deployed Functions and a real Auth account; current local order simulation does not cover Auth or notifications.
-- [ ] Resolve existing legacy records with plaintext PINs and reconcile any recovery runs created before the new queue/balance logic.
+- [x] Resolve existing legacy records with plaintext PINs and reconcile any recovery runs created before the new queue/balance logic.
 
 ## Review checks performed
 

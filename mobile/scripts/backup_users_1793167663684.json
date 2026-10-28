@@ -1,0 +1,137 @@
+{
+  "timestamp": "2026-10-28T06:07:43.684Z",
+  "users": {
+    "1": {
+      "id": 1,
+      "status": "approved",
+      "isOnline": false,
+      "createdAt": "21/9/2026, 12:27:45 am",
+      "role": "agent",
+      "is_available": true,
+      "name": "Ravi Kumar",
+      "phone": "9876543210",
+      "created_at": "21/9/2026, 12:27:45 am",
+      "plainPin": "1211",
+      "pin": "2fd7d885baa60aa32687938203c0b0d24a6db4b2c35d32553f9b821567fe068f"
+    },
+    "2": {
+      "status": "approved",
+      "name": "Suresh Babu",
+      "phone": "9876543211",
+      "pin": "1226",
+      "id": 2,
+      "role": "agent",
+      "created_at": "21/9/2026, 12:27:45 am",
+      "createdAt": "21/9/2026, 12:27:45 am",
+      "isOnline": true,
+      "is_available": 1
+    },
+    "3": {
+      "createdAt": "2026-09-20T20:49:35.327Z",
+      "is_available": true,
+      "created_at": "2026-09-20T20:49:35.327Z",
+      "status": "approved",
+      "plainPin": "1211",
+      "isOnline": true,
+      "role": "agent",
+      "pin": "d95637a4bba479dc94b48f6cae51689fdcf16909f6bcb08d65de59c979c2e4e6",
+      "id": 3,
+      "phone": "9940405016",
+      "pushToken": "ExponentPushToken[3_rmCbD3ePGAN8Fk9C496R]",
+      "name": "Smallvivek"
+    },
+    "47R43Kf4qXkflR3T3k2W": {
+      "isOnline": false,
+      "pushToken": "ExponentPushToken[3_rmCbD3ePGAN8Fk9C496R]",
+      "pin": "9c6b90ef99ae85ad16a6d71db80350396332b5941138df965d225afde91e2c7d",
+      "status": "approved",
+      "phone": "9876543219",
+      "name": "Store Admin",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1790948265,
+        "nanoseconds": 865000000
+      },
+      "plainPin": "1234",
+      "role": "admin"
+    },
+    "lClrsyxdfA8Gbh6shIQi": {
+      "address": {
+        "door": "Ggg",
+        "street": "36, Karnam Street, Karnam Street",
+        "locality": "Selaiyur",
+        "city": "Chennai",
+        "lng": 80.13722754808784,
+        "lat": 12.919164419462174,
+        "landmark": ""
+      },
+      "locality": "Selaiyur",
+      "first_name": "Shivani",
+      "status": "active",
+      "pendingCans": 0,
+      "flat_house_name": "Karnam Street ",
+      "landmark": "A2b opposite road",
+      "pin": "1211",
+      "last_name": "R",
+      "pending_cans": 0,
+      "role": "customer",
+      "created_at": "2026-09-25T21:17:10.638Z",
+      "lat": 12.919076633885675,
+      "lng": 80.13718964559841,
+      "door_number": "36",
+      "city": "Chennai",
+      "street_number": "36 Karnam Street",
+      "pushToken": "ExponentPushToken[3_rmCbD3ePGAN8Fk9C496R]",
+      "phone": "9789042245"
+    },
+    "zu4vb6bow2RMQdYUET2C": {
+      "status": "approved",
+      "phone": "9940405016",
+      "isOnline": false,
+      "role": "agent",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1790804069,
+        "nanoseconds": 933000000
+      },
+      "name": "vivr",
+      "pin": "d95637a4bba479dc94b48f6cae51689fdcf16909f6bcb08d65de59c979c2e4e6",
+      "address": {
+        "city": "Chennai",
+        "lng": null,
+        "lat": null,
+        "landmark": "",
+        "door": "",
+        "street": "",
+        "locality": ""
+      }
+    }
+  },
+  "agents": {
+    "1": {
+      "isOnline": true,
+      "pin": "1211",
+      "phone": "9876543210",
+      "id": 1,
+      "is_available": true,
+      "name": "Ravi Kumar",
+      "created_at": "21/9/2026, 12:27:45 am"
+    },
+    "2": {
+      "pin": "1226",
+      "phone": "9876543211",
+      "is_available": 1,
+      "created_at": "21/9/2026, 12:27:45 am",
+      "id": 2,
+      "name": "Suresh Babu"
+    },
+    "3": {
+      "pin": "1211",
+      "is_available": true,
+      "created_at": "2026-09-20T20:49:35.327Z",
+      "name": "Smallvivek",
+      "phone": "9940405016",
+      "id": 3
+    }
+  }
+}

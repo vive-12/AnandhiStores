@@ -27,6 +27,17 @@ let NotificationsModule: typeof import('expo-notifications') | null = null;
 try {
   if (Platform.OS !== 'web') {
     NotificationsModule = require('expo-notifications');
+    if (NotificationsModule?.setNotificationHandler) {
+      NotificationsModule.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+        }),
+      });
+    }
   }
 } catch {
   // Gracefully ignored in environments without native push support
@@ -96,6 +107,16 @@ export function NotificationBell({ color = '#FFFFFF', size = 22 }: NotificationB
 
     async function registerForPush() {
       try {
+        if (Platform.OS === 'android' && NotificationsModule?.setNotificationChannelAsync) {
+          await NotificationsModule.setNotificationChannelAsync('default', {
+            name: 'default',
+            importance: NotificationsModule.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#1B4332',
+            sound: 'default',
+          });
+        }
+
         const { status: existingStatus } = await NotificationsModule!.getPermissionsAsync();
         let finalStatus = existingStatus;
 
@@ -118,6 +139,24 @@ export function NotificationBell({ color = '#FFFFFF', size = 22 }: NotificationB
     registerForPush();
   }, [uid]);
 
+  // Handle tapping a native notification from system tray
+  useEffect(() => {
+    if (!NotificationsModule?.addNotificationResponseReceivedListener) return;
+    const sub = NotificationsModule.addNotificationResponseReceivedListener(response => {
+      const orderId = response?.notification?.request?.content?.data?.orderId;
+      if (orderId && typeof orderId === 'string') {
+        if (role === 'customer') {
+          router.push(`/track/${orderId}` as any);
+        } else if (role === 'admin') {
+          router.push('/admin/alerts' as any);
+        } else if (role === 'agent') {
+          router.push('/agent/dashboard' as any);
+        }
+      }
+    });
+    return () => sub.remove();
+  }, [role, router]);
+
   // Live in-app banner trigger for today's new notifications
   useEffect(() => {
     if (todayNotifications.length > 0 && todayUnreadCount > prevCountRef.current) {
@@ -125,6 +164,20 @@ export function NotificationBell({ color = '#FFFFFF', size = 22 }: NotificationB
       if (!newest.read) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setLatestBanner(newest);
+
+        // Schedule native notification in Android notification drawer on standalone APK
+        if (NotificationsModule?.scheduleNotificationAsync) {
+          NotificationsModule.scheduleNotificationAsync({
+            content: {
+              title: newest.title,
+              body: newest.body,
+              data: { orderId: newest.orderId, notificationId: newest.id },
+              sound: 'default',
+            },
+            trigger: null,
+          }).catch(() => {});
+        }
+
         const timer = setTimeout(() => setLatestBanner(null), 4000);
         return () => clearTimeout(timer);
       }
