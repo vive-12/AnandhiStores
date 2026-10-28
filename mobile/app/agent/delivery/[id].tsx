@@ -56,10 +56,11 @@ export default function ActiveDeliveryScreen() {
   const [showQRModal, setShowQRModal] = useState(false);
   const [deliveryPaymentMethod, setDeliveryPaymentMethod] = useState<PaymentMethod>('cash');
 
-  // Subscribe to order
   useEffect(() => {
     if (!id) return;
     setLoading(true);
+    setOrder(null);
+    setCheckedItems({});
 
     // Load cached checklist from AsyncStorage immediately
     AsyncStorage.getItem(`@order_checklist_${id}`)
@@ -263,6 +264,7 @@ export default function ActiveDeliveryScreen() {
         order,
         toStatus: 'out_for_delivery',
         actor,
+        checkedItems,
       });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -313,6 +315,7 @@ export default function ActiveDeliveryScreen() {
         order,
         toStatus: 'delivered',
         actor,
+        checkedItems,
         emptyCansCollected: hasWaterCans ? emptyCansCollected : undefined,
         paymentMethod: method,
         qrId: isUpi ? (defaultQR?.id || null) : null,
@@ -742,10 +745,18 @@ export default function ActiveDeliveryScreen() {
               <Text style={s.swipeInstruction}>
                 Slide right after arriving at customer's doorstep:
               </Text>
+              {!allChecklistItemsChecked && (
+                <View style={[s.checklistWarningBanner, { marginBottom: Spacing.xs }]}>
+                  <Ionicons name="alert-circle" size={18} color="#B45309" />
+                  <Text style={s.checklistWarningTxt}>
+                    Check off all items on the checklist above ({checkedCount}/{totalChecklistCount} checked) before delivery.
+                  </Text>
+                </View>
+              )}
               <SwipeToConfirm
-                label="Slide to Mark Delivered"
+                label={allChecklistItemsChecked ? "Slide to Mark Delivered" : `Check All Items (${checkedCount}/${totalChecklistCount})`}
                 onConfirm={handleSwipeDelivered}
-                disabled={updating}
+                disabled={updating || !allChecklistItemsChecked}
               />
             </View>
           )}

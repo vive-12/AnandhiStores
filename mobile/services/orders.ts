@@ -409,6 +409,7 @@ export async function transitionOrder(params: {
   order: Order;
   toStatus: OrderStatus;
   actor: Actor;
+  checkedItems?: Record<string | number, boolean>;
   cancelReason?: string;
   adminUid?: string;
   emptyCansCollected?: number;
@@ -424,6 +425,24 @@ export async function transitionOrder(params: {
     if (!orderSnap.exists()) throw new Error('Order no longer exists.');
     const order = { id: orderSnap.id, ...orderSnap.data() } as Order;
     validateTransition(order.status, toStatus, actor);
+
+    // Strict checklist enforcement: Retail orders with items cannot move to out_for_delivery or delivered without verifying all items
+    const isRetail = order.type !== 'recovery' && (order.items || []).length > 0;
+    if (isRetail && (toStatus === 'out_for_delivery' || toStatus === 'delivered')) {
+      const mergedChecked = {
+        ...(order.checkedItems || {}),
+        ...(params.checkedItems || {}),
+      };
+      const totalItems = order.items.length;
+      const allChecked = order.items.every((_, idx) => {
+        return !!mergedChecked[idx] || !!(mergedChecked as any)[String(idx)];
+      });
+      if (!allChecked) {
+        throw new Error(
+          `Cannot transition order to ${toStatus}: All ${totalItems} items on the pickup checklist must be verified and checked first.`
+        );
+      }
+    }
 
     const now = Timestamp.now();
     const today = getISTDateKey(now.toDate());
@@ -451,6 +470,7 @@ export async function transitionOrder(params: {
       status: toStatus,
       updatedAt: now,
       statusHistory: [...(order.statusHistory || []), { status: toStatus, at: now, byUid: actor.uid, byRole: actor.role }],
+      ...(params.checkedItems !== undefined ? { checkedItems: params.checkedItems } : {}),
       ...(toStatus === 'cancelled' ? { cancelReason: params.cancelReason ?? null, cancelledBy: actor.uid, cancelledAt: now } : {}),
       ...(toStatus === 'packed' ? { packedAt: now } : {}),
       ...(toStatus === 'out_for_delivery' ? { pickedUpAt: now } : {}),

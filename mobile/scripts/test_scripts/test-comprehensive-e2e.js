@@ -198,9 +198,29 @@ async function main() {
   await transitionOrder({ orderId, order: current, toStatus: 'packed', actor: admin });
   current = await getOrder(orderId);
   check(current.status === 'packed' && current.statusHistory.at(-1).byRole === 'admin', 'admin packing appends attributed history');
-  await transitionOrder({ orderId, order: current, toStatus: 'out_for_delivery', actor: agentA, adminUid: admin.uid });
+
+  // Pickup checklist validation tests
+  await expectReject(
+    transitionOrder({ orderId, order: current, toStatus: 'out_for_delivery', actor: agentA, adminUid: admin.uid }),
+    'agent pickup without checklist rejected',
+  );
+  await expectReject(
+    transitionOrder({ orderId, order: current, toStatus: 'out_for_delivery', actor: agentA, adminUid: admin.uid, checkedItems: { 0: true } }),
+    'agent pickup with incomplete checklist rejected',
+  );
+
+  // Transition with complete checklist (all 2 items checked)
+  await transitionOrder({
+    orderId,
+    order: current,
+    toStatus: 'out_for_delivery',
+    actor: agentA,
+    adminUid: admin.uid,
+    checkedItems: { 0: true, 1: true },
+  });
   current = await getOrder(orderId);
   check(current.status === 'out_for_delivery' && !!current.pickedUpAt, 'agent pickup persists state and timestamp');
+  check(!!current.checkedItems && (current.checkedItems[0] === true || current.checkedItems['0'] === true), 'pickup checklist persisted to order document');
 
   console.log('\n3. Deliver with two cans outstanding: exact metric delta and automatic recovery');
   store.set(key('users', customer.uid), { pendingCans: 0, name: customer.name });

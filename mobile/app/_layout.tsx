@@ -1,6 +1,6 @@
 // app/_layout.tsx — Root layout: fonts, providers, session restoration, role routing
 import { useEffect } from 'react';
-import { View, StatusBar } from 'react-native';
+import { Platform, View, StatusBar } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
@@ -23,6 +23,24 @@ import { initLogger, log } from '../utils/logger';
 import { registerDevicePushToken } from '../services/notifications';
 
 SplashScreen.preventAutoHideAsync();
+
+// Ensure notifications show alerts and play sound at module scope
+try {
+  const Notifications = require('expo-notifications');
+  if (Notifications?.setNotificationHandler) {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  }
+} catch {
+  // Gracefully ignored in environments without expo-notifications
+}
 
 // ─── Role → root route mapping ────────────────────────────────────────────────
 const ROLE_HOME = {
@@ -120,6 +138,28 @@ export default function RootLayout() {
     return () => {
       cleanupOutbox();
     };
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      try {
+        const Notifications = require('expo-notifications');
+        if (Notifications?.setNotificationChannelAsync) {
+          Notifications.setNotificationChannelAsync('default', {
+            name: 'Orders & Deliveries',
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#123524',
+            sound: 'default',
+            enableVibrate: true,
+            showBadge: true,
+          }).catch(() => {});
+        }
+        if (Notifications?.requestPermissionsAsync) {
+          Notifications.requestPermissionsAsync().catch(() => {});
+        }
+      } catch {}
+    }
   }, []);
 
   if (!fontsLoaded) {

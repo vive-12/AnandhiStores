@@ -2,13 +2,26 @@
 
 ## Date: 2026-10-28
 
-### 🛡️ Feature: Agent Delivery Checklist Enforcement
-* **Problem**: Delivery agents were able to tap "Pick Up & Start Delivery" and swipe "Mark Delivered" on retail orders without checking off products in the pickup checklist, leading to orders being marked delivered before items were verified.
+### 🛡️ Feature: Agent Delivery Checklist Enforcement (Deep Dive & Service-Layer Guard)
+* **Root Causes Uncovered**:
+  1. **UI State Leak in Screen Navigation**: In `mobile/app/agent/delivery/[id].tsx`, the component's `checkedItems` state was never reset when navigating between orders (`id` param changed). When an agent checked item 0 on an order with multiple items, then opened another order with only 1 item, `checkedItems[0]` remained `true` in React state, causing `allChecklistItemsChecked` to mistakenly evaluate to `true`.
+  2. **Missing Transaction-Level Validation**: The underlying `transitionOrder` Firestore transaction in `mobile/services/orders.ts` did not check or enforce that items were verified on retail orders before permitting a status change to `out_for_delivery` or `delivered`.
 * **Fixes Implemented**:
-  1. **Strict Validation**: Added checklist verification in `mobile/app/agent/delivery/[id].tsx` across `handleMarkPickedUp`, `handleSwipeDelivered`, and `handleConfirmDelivered`.
-  2. **Blocking Alert & Toast**: If an agent attempts to pick up or deliver an order without checking all items (`checkedCount < totalChecklistCount`), an alert dialog and toast block the action.
-  3. **Visual Badge & Warning Banner**: Added a progress badge `[X/Y Checked]` in the checklist header and a warning banner above the pickup button.
-  4. **"Check All" / "Uncheck All" Button**: Added a toggle button in the checklist header for faster verification.
+  1. **State Isolation**: Added `setOrder(null); setCheckedItems({});` on order ID transition in `mobile/app/agent/delivery/[id].tsx`.
+  2. **Atomic Firestore Transaction Guard**: In `transitionOrder`, retail orders (`order.type !== 'recovery'` with items) strictly require that every item `0 <= idx < items.length` is verified in `mergedChecked` (`params.checkedItems` or `order.checkedItems`). Unverified transitions throw an explicit blocking error.
+  3. **SwipeToConfirm Guard**: Updated `SwipeToConfirm` in `isOut` status to remain disabled with label `Check All Items (X/Y)` until the checklist is complete.
+  4. **E2E Test Coverage**: Added assertions to `mobile/scripts/test_scripts/test-comprehensive-e2e.js` ensuring unverified and partially verified transitions are strictly rejected by the transaction engine.
+
+### 🔔 Feature: Android Background Push Notifications with Sound (Deep Dive)
+* **Root Causes Uncovered**:
+  1. **Missing Android 13+ Notification Permission in `app.json`**: Standalone APK builds on EAS override Android manifest permissions with `android.permissions`. Previously, only `ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION` were declared, omitting `android.permission.POST_NOTIFICATIONS`, `VIBRATE`, and `RECEIVE_BOOT_COMPLETED`. Without `POST_NOTIFICATIONS`, Android 13/14 silently suppressed all notifications when the app was closed or in the background.
+  2. **Scoped Notification Handler**: `Notifications.setNotificationHandler` was scoped inside `NotificationBell.tsx` (which is only mounted inside logged-in dashboard screens) rather than running globally at the root module level.
+  3. **Channel Initialization Timing**: The Android high-importance sound channel was only created inside `registerDevicePushToken` upon login, rather than immediately when the app launches.
+* **Fixes Implemented**:
+  1. **Android Manifest Permissions**: Added `"android.permission.POST_NOTIFICATIONS"`, `"android.permission.VIBRATE"`, and `"android.permission.RECEIVE_BOOT_COMPLETED"` to `app.json`.
+  2. **Expo Notification Plugin**: Added `expo-notifications` plugin configuration in `app.json` with `defaultChannel: "default"`.
+  3. **Root Module Handler**: Added global `setNotificationHandler` in `mobile/app/_layout.tsx` at module evaluation scope to ensure alerts, banners, sounds, and badges are active across all app states.
+  4. **Immediate Channel & Permission Request**: Added root `useEffect` in `mobile/app/_layout.tsx` to configure Android channel `default` with `AndroidImportance.MAX` and request permissions immediately on cold start.
 
 ### 🔔 Feature: Remote Push Notifications with Sound (Active Even When App is Closed)
 * **Root Cause**: The application previously only listened to Firestore via `onSnapshot` when the app was actively open in the foreground. No remote HTTP push requests were sent to the user's `pushToken` via Expo's Push API (`https://exp.host/--/api/v2/push/send`). As a result, when the app was in the background or closed, no notifications or sounds were triggered by the OS.
