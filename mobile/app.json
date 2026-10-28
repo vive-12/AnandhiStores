@@ -9,7 +9,10 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.anandhistores.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Anandhi Stores needs your location to set your doorstep delivery address."
+        "NSLocationWhenInUseUsageDescription": "Anandhi Stores needs your location to set your doorstep delivery address.",
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {

@@ -141,25 +141,29 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (Platform.OS === 'android') {
-      try {
-        const Notifications = require('expo-notifications');
-        if (Notifications?.setNotificationChannelAsync) {
-          Notifications.setNotificationChannelAsync('default', {
-            name: 'Orders & Deliveries',
-            importance: Notifications.AndroidImportance.MAX,
-            vibrationPattern: [0, 250, 250, 250],
-            lightColor: '#123524',
-            sound: 'default',
-            enableVibrate: true,
-            showBadge: true,
-          }).catch(() => {});
-        }
-        if (Notifications?.requestPermissionsAsync) {
-          Notifications.requestPermissionsAsync().catch(() => {});
-        }
-      } catch {}
-    }
+    try {
+      const Notifications = require('expo-notifications');
+      if (Platform.OS === 'android' && Notifications?.setNotificationChannelAsync) {
+        Notifications.setNotificationChannelAsync('default', {
+          name: 'Orders & Deliveries',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#123524',
+          sound: 'default',
+          enableVibrate: true,
+          showBadge: true,
+        }).catch(() => {});
+      }
+      if (Notifications?.requestPermissionsAsync) {
+        Notifications.requestPermissionsAsync({
+          ios: {
+            allowAlert: true,
+            allowBadge: true,
+            allowSound: true,
+          },
+        }).catch(() => {});
+      }
+    } catch {}
   }, []);
 
   if (!fontsLoaded) {
