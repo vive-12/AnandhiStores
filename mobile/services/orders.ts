@@ -19,6 +19,7 @@ import type {
   AppNotification, NotificationType, PaymentMethod,
 } from '../types';
 import { log } from '../utils/logger';
+import { sendRemotePushNotification } from './notifications';
 
 const ORDERS_COL       = 'orders';
 const COUNTERS_COL     = 'counters';
@@ -220,11 +221,13 @@ export async function createOrder(params: {
 }): Promise<string> {
   const counterRef = doc(db, COUNTERS_COL, 'orders');
   const ordersRef  = collection(db, ORDERS_COL);
+  let createdOrderNo = '';
 
-  return runTransaction(db, async tx => {
+  const orderId = await runTransaction(db, async tx => {
     const counterSnap = await tx.get(counterRef);
     const next: number = counterSnap.exists() ? (counterSnap.data().next as number) : 1000;
     const orderNo = `AS-${next}`;
+    createdOrderNo = orderNo;
 
     tx.set(counterRef, { next: next + 1 }, { merge: true });
 
@@ -285,6 +288,17 @@ export async function createOrder(params: {
 
     return newOrderRef.id;
   });
+
+  // Dispatch high-priority push notification to admin(s) with sound
+  sendRemotePushNotification({
+    toRole: 'admin',
+    toUid: params.adminUid,
+    title: `📦 New Order ${createdOrderNo}`,
+    body: `${params.customerName} placed an order for ₹${params.total} (${params.items.length} item${params.items.length > 1 ? 's' : ''})`,
+    data: { orderId, orderNo: createdOrderNo, screen: 'admin_order' },
+  }).catch(() => {});
+
+  return orderId;
 }
 
 /**
@@ -348,6 +362,35 @@ export async function assignAgent(params: {
     agentUid:  params.agent.uid,
     reassigned: !!committedOrder.agentId && committedOrder.agentId !== params.agent.uid,
   });
+
+  // Dispatch high-priority push notifications with sound
+  const isRecovery = committedOrder.type === 'recovery';
+  sendRemotePushNotification({
+    toUid: params.agent.uid,
+    title: isRecovery ? `♻️ Can Recovery Assigned: ${committedOrder.orderNo}` : `🚀 New Delivery Assigned: ${committedOrder.orderNo}`,
+    body: isRecovery
+      ? `Collect ${committedOrder.pendingCansToCollect || 0} empty cans from ${committedOrder.customerName}`
+      : `Deliver ${committedOrder.orderNo} to ${committedOrder.customerName} (₹${committedOrder.total})`,
+    data: { orderId: params.orderId, screen: 'agent_delivery' },
+  }).catch(() => {});
+
+  sendRemotePushNotification({
+    toUid: params.customerId,
+    title: isRecovery ? '♻️ Can Collection Agent Assigned' : '🚴 Delivery Partner Assigned',
+    body: isRecovery
+      ? `${params.agent.name} will collect ${committedOrder.pendingCansToCollect || 0} empty cans`
+      : `${params.agent.name} will deliver your order ${committedOrder.orderNo}`,
+    data: { orderId: params.orderId, screen: 'customer_track' },
+  }).catch(() => {});
+
+  if (committedOrder.agentId && committedOrder.agentId !== params.agent.uid) {
+    sendRemotePushNotification({
+      toUid: committedOrder.agentId,
+      title: isRecovery ? 'Recovery Run Reassigned' : 'Order Reassigned',
+      body: `Order ${committedOrder.orderNo} has been assigned to another agent`,
+      data: { orderId: params.orderId },
+    }).catch(() => {});
+  }
 }
 
 /**
@@ -501,6 +544,98 @@ export async function transitionOrder(params: {
     actorRole: actor.role,
     actorUid: actor.uid,
   });
+
+  // Dispatch background remote push notifications with sound
+  const orderObj = params.order;
+  const isRecoveryOrder = orderObj.type === 'recovery';
+  const orderNo = orderObj.orderNo;
+  const customerId = orderObj.customerId;
+  const agentId = orderObj.agentId;
+  const customerName = orderObj.customerName;
+  const agentName = orderObj.agentName || actor.name;
+  const total = orderObj.total;
+
+  if (toStatus === 'packed') {
+    if (customerId) {
+      sendRemotePushNotification({
+        toUid: customerId,
+        title: '📦 Order Packed',
+        body: `Order ${orderNo} is packed and ready for delivery`,
+        data: { orderId, screen: 'customer_track' },
+      }).catch(() => {});
+    }
+    if (agentId) {
+      sendRemotePushNotification({
+        toUid: agentId,
+        title: '📦 Order Ready for Pickup',
+        body: `Order ${orderNo} is packed and ready for pickup at store`,
+        data: { orderId, screen: 'agent_delivery' },
+      }).catch(() => {});
+    }
+  } else if (toStatus === 'out_for_delivery') {
+    if (customerId) {
+      sendRemotePushNotification({
+        toUid: customerId,
+        title: '🚴 Out for Delivery!',
+        body: `${agentName} has picked up your order and is on the way`,
+        data: { orderId, screen: 'customer_track' },
+      }).catch(() => {});
+    }
+    sendRemotePushNotification({
+      toRole: 'admin',
+      toUid: params.adminUid,
+      title: `🚴 Order ${orderNo} Out for Delivery`,
+      body: `${agentName} picked up order and is on the way to ${customerName}`,
+      data: { orderId, screen: 'admin_order' },
+    }).catch(() => {});
+  } else if (toStatus === 'delivered') {
+    if (customerId) {
+      sendRemotePushNotification({
+        toUid: customerId,
+        title: '🎉 Order Delivered!',
+        body: `Order ${orderNo} has been delivered. Thank you for choosing Anandhi Stores!`,
+        data: { orderId, screen: 'customer_track' },
+      }).catch(() => {});
+    }
+    // Admin notification: Delivery & Cash/UPI Collected
+    sendRemotePushNotification({
+      toRole: 'admin',
+      toUid: params.adminUid,
+      title: isRecoveryOrder ? `♻️ Can Recovery ${orderNo} Completed` : `💰 Order ${orderNo} Delivered & Cash Collected`,
+      body: isRecoveryOrder
+        ? `Empty cans collected from ${customerName} by ${agentName}`
+        : params.paymentMethod === 'upi_qr'
+        ? `UPI QR Payment recorded for ₹${total} from ${customerName} (${agentName})`
+        : `Cash Collected: ₹${total} from ${customerName} by ${agentName}`,
+      data: { orderId, screen: 'admin_order' },
+    }).catch(() => {});
+  } else if (toStatus === 'cancelled') {
+    if (agentId) {
+      sendRemotePushNotification({
+        toUid: agentId,
+        title: '❌ Order Cancelled',
+        body: `Order ${orderNo} has been cancelled`,
+        data: { orderId },
+      }).catch(() => {});
+    }
+    if (actor.role !== 'customer' && customerId) {
+      sendRemotePushNotification({
+        toUid: customerId,
+        title: '❌ Order Cancelled',
+        body: params.cancelReason ? `Order ${orderNo} was cancelled: ${params.cancelReason}` : `Order ${orderNo} was cancelled`,
+        data: { orderId, screen: 'customer_track' },
+      }).catch(() => {});
+    }
+    if (actor.role !== 'admin') {
+      sendRemotePushNotification({
+        toRole: 'admin',
+        toUid: params.adminUid,
+        title: `❌ Order ${orderNo} Cancelled`,
+        body: `Order ${orderNo} cancelled by ${actor.role}`,
+        data: { orderId, screen: 'admin_order' },
+      }).catch(() => {});
+    }
+  }
 }
 
 /** Update order item checklist (persisted across sessions & devices) */

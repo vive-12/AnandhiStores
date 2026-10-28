@@ -1,12 +1,142 @@
-// services/notifications.ts — Notification service
 import {
-  collection, doc, updateDoc, deleteDoc, writeBatch, onSnapshot,
+  collection, doc, getDoc, updateDoc, deleteDoc, writeBatch, onSnapshot,
   query, where, orderBy, limit, Unsubscribe, getDocs, serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { AppNotification } from '../types';
 
 const COL = 'notifications';
+const EAS_PROJECT_ID = '89170e22-3b73-4828-a94e-172135ffe4f9';
+
+export interface SendRemotePushParams {
+  toUid?: string | null;
+  toRole?: 'admin' | 'agent' | 'customer';
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+  sound?: 'default' | null;
+}
+
+/**
+ * Dispatch remote push notifications via the Expo Push API.
+ * This guarantees notifications and sound are delivered even when
+ * the application is closed or in the background.
+ */
+export async function sendRemotePushNotification(params: SendRemotePushParams): Promise<void> {
+  try {
+    if (typeof getDoc !== 'function' || typeof getDocs !== 'function') return;
+    const tokens: string[] = [];
+
+    // 1. If targeted to a specific UID
+    if (params.toUid && params.toUid !== 'admin') {
+      const userSnap = await getDoc(doc(db, 'users', params.toUid));
+      if (userSnap.exists()) {
+        const token = userSnap.data()?.pushToken;
+        if (typeof token === 'string' && token.startsWith('ExponentPushToken[')) {
+          tokens.push(token);
+        }
+      }
+    }
+
+    // 2. If targeted to admins (or toRole is admin)
+    if (params.toRole === 'admin' || params.toUid === 'admin') {
+      const adminsQuery = query(collection(db, 'users'), where('role', '==', 'admin'), limit(25));
+      const adminSnaps = await getDocs(adminsQuery);
+      adminSnaps.forEach(d => {
+        const token = d.data()?.pushToken;
+        if (typeof token === 'string' && token.startsWith('ExponentPushToken[')) {
+          if (!tokens.includes(token)) {
+            tokens.push(token);
+          }
+        }
+      });
+    }
+
+    if (!tokens.length) {
+      return;
+    }
+
+    const messages = tokens.map(to => ({
+      to,
+      sound: params.sound === null ? null : 'default',
+      title: params.title,
+      body: params.body,
+      data: params.data || {},
+      priority: 'high',
+      channelId: 'default',
+      _displayInForeground: true,
+    }));
+
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Accept-encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(messages),
+    });
+  } catch (err) {
+    // Non-fatal: background push error must never crash or disrupt primary order flow
+    console.warn('[Push Notification] Error sending remote push notification:', err);
+  }
+}
+
+/**
+ * Register the device for native push notifications with high-priority Android channel.
+ * Saves the token to users/{uid}.pushToken.
+ */
+export async function registerDevicePushToken(uid: string): Promise<string | null> {
+  try {
+    const { Platform } = require('react-native');
+    if (Platform?.OS === 'web') return null;
+
+    // Dynamically require to prevent breaking environments where native modules aren't available
+    const Notifications = require('expo-notifications');
+    if (!Notifications?.getPermissionsAsync) return null;
+
+    if (Platform?.OS === 'android' && Notifications.setNotificationChannelAsync) {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'Orders & Deliveries',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#1B4332',
+        sound: 'default',
+        enableVibrate: true,
+        showBadge: true,
+      });
+    }
+
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') {
+      return null;
+    }
+
+    const tokenResult = await Notifications.getExpoPushTokenAsync({
+      projectId: EAS_PROJECT_ID,
+    }).catch(async () => {
+      return await Notifications.getExpoPushTokenAsync();
+    });
+
+    const pushToken = tokenResult?.data;
+    if (pushToken && typeof pushToken === 'string') {
+      await updateDoc(doc(db, 'users', uid), {
+        pushToken,
+        pushTokenUpdatedAt: serverTimestamp(),
+      }).catch(() => {});
+      return pushToken;
+    }
+    return null;
+  } catch (err) {
+    console.log('[PUSH] Registration skipped:', err);
+    return null;
+  }
+}
 
 /** Create bounded in-app alerts for admins after a pending customer signs up. */
 export async function notifyAdminsOfCustomerSignup(user: { id: string; name: string; phone: string }): Promise<void> {
@@ -28,6 +158,14 @@ export async function notifyAdminsOfCustomerSignup(user: { id: string; name: str
     });
   });
   await batch.commit();
+
+  // Dispatch push notification to admin devices
+  sendRemotePushNotification({
+    toRole: 'admin',
+    title: '👤 New Customer Signup',
+    body: `${user.name} (+${user.phone}) is waiting for approval.`,
+    data: { type: 'customer_registered', userId: user.id },
+  }).catch(() => {});
 }
 
 function sortNotifsDesc(notifications: AppNotification[]): AppNotification[] {

@@ -169,6 +169,25 @@ export default function ActiveDeliveryScreen() {
     openMapChoice(lat, lng, label);
   };
 
+  // Total checklist items required for retail orders
+  const checklistItems = useMemo(() => {
+    return order?.items || [];
+  }, [order?.items]);
+
+  const totalChecklistCount = checklistItems.length;
+
+  const checkedCount = useMemo(() => {
+    if (!checklistItems.length) return 0;
+    return checklistItems.filter((_, idx) => !!checkedItems[idx] || !!(checkedItems as any)[String(idx)]).length;
+  }, [checklistItems, checkedItems]);
+
+  const allChecklistItemsChecked = useMemo(() => {
+    // Recovery orders do not have product checklist items
+    if (order?.type === 'recovery') return true;
+    if (totalChecklistCount === 0) return true;
+    return checkedCount >= totalChecklistCount;
+  }, [order?.type, totalChecklistCount, checkedCount]);
+
   // Toggle item checklist (persisted to AsyncStorage & Firestore, editable ONLY before delivered)
   const toggleItemCheck = async (idx: number) => {
     if (isDelivered) {
@@ -194,12 +213,46 @@ export default function ActiveDeliveryScreen() {
     }
   };
 
+  // Toggle all items at once for faster agent verification
+  const handleToggleCheckAll = async () => {
+    if (isDelivered || !order?.items?.length) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const targetVal = !allChecklistItemsChecked;
+    const updated: Record<string | number, boolean> = {};
+    order.items.forEach((_, idx) => {
+      updated[idx] = targetVal;
+      updated[String(idx)] = targetVal;
+    });
+    setCheckedItems(updated);
+    if (order?.id) {
+      AsyncStorage.setItem(`@order_checklist_${order.id}`, JSON.stringify(updated)).catch(() => {});
+      try {
+        await updateOrderChecklist(order.id, updated);
+      } catch (e) {
+        console.error('Failed to sync checklist to Firestore:', e);
+      }
+    }
+    showToast(targetVal ? 'All items marked as checked' : 'All items unchecked', 'info');
+  };
+
   // Action: Mark Picked Up
   const handleMarkPickedUp = async () => {
     if (!order) return;
 
     if (order.status !== 'placed' && order.status !== 'packed') {
       showToast('This order cannot be picked up right now.', 'info');
+      return;
+    }
+
+    // Strict checklist enforcement: Must check off all items before pickup
+    if (!allChecklistItemsChecked) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert(
+        'Checklist Incomplete',
+        `You cannot pick up this order without verifying the products.\n\nPlease check off all ${totalChecklistCount} items on the checklist before starting delivery.\n\nCurrently checked: ${checkedCount} of ${totalChecklistCount}`,
+        [{ text: 'OK' }]
+      );
+      showToast(`Please check all ${totalChecklistCount} items before pickup`, 'error');
       return;
     }
 
@@ -224,6 +277,17 @@ export default function ActiveDeliveryScreen() {
 
   // Action: Prompt Swipe confirmation
   const handleSwipeDelivered = () => {
+    // Safety check: Cannot deliver without completing checklist
+    if (!allChecklistItemsChecked) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert(
+        'Checklist Incomplete',
+        `All ${totalChecklistCount} items must be verified and checked off on the checklist before marking the order as delivered.\n\nCurrently checked: ${checkedCount} of ${totalChecklistCount}`,
+        [{ text: 'OK' }]
+      );
+      showToast('Checklist incomplete. Please check all items.', 'error');
+      return;
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     setShowConfirmModal(true);
   };
@@ -231,6 +295,12 @@ export default function ActiveDeliveryScreen() {
   // Action: Confirm and Mark Delivered
   const handleConfirmDelivered = async (method: PaymentMethod = deliveryPaymentMethod) => {
     if (!order) return;
+
+    // Safety guard
+    if (!allChecklistItemsChecked) {
+      showToast('Checklist incomplete. Please check all items.', 'error');
+      return;
+    }
 
     try {
       setUpdating(true);
@@ -497,11 +567,53 @@ export default function ActiveDeliveryScreen() {
         {/* Items Checklist (P18) */}
         {order.items && order.items.length > 0 && (
           <Card style={s.card}>
-            <View style={s.sectionHeader}>
-              <Text style={s.sectionTitle}>Order Checklist ({order.items.length} items)</Text>
-              <Text style={s.sectionSubtitle}>
-                {isDelivered ? 'Checklist locked (Order delivered)' : 'Tap items to check off before delivery'}
-              </Text>
+            <View style={s.sectionHeaderRow}>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={s.sectionTitle}>Order Checklist ({order.items.length})</Text>
+                  <View
+                    style={[
+                      s.checklistStatusBadge,
+                      allChecklistItemsChecked ? s.checklistBadgeDone : s.checklistBadgePending,
+                    ]}
+                  >
+                    <Ionicons
+                      name={allChecklistItemsChecked ? 'checkmark-circle' : 'time-outline'}
+                      size={12}
+                      color={allChecklistItemsChecked ? Colors.green700 : '#B45309'}
+                    />
+                    <Text
+                      style={[
+                        s.checklistBadgeTxt,
+                        allChecklistItemsChecked ? s.checklistBadgeTxtDone : s.checklistBadgeTxtPending,
+                      ]}
+                    >
+                      {checkedCount}/{totalChecklistCount} Checked
+                    </Text>
+                  </View>
+                </View>
+                <Text style={s.sectionSubtitle}>
+                  {isDelivered
+                    ? 'Checklist locked (Order delivered)'
+                    : allChecklistItemsChecked
+                    ? 'All items verified and ready for delivery'
+                    : 'Tap items to check off before picking up'}
+                </Text>
+              </View>
+
+              {!isDelivered && (
+                <TouchableOpacity
+                  style={s.checkAllBtn}
+                  onPress={handleToggleCheckAll}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={allChecklistItemsChecked ? 'Uncheck all items' : 'Check all items'}
+                >
+                  <Text style={s.checkAllBtnTxt}>
+                    {allChecklistItemsChecked ? 'Uncheck All' : 'Check All'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             <View style={s.checklist}>
@@ -573,12 +685,28 @@ export default function ActiveDeliveryScreen() {
         {/* Status Action Buttons (P19) */}
         <View style={s.actionSection}>
           {(isPlaced || isPacked) && (
-            <Button
-              label={updating ? 'Updating...' : 'Pick Up & Start Delivery'}
-              onPress={handleMarkPickedUp}
-              loading={updating}
-              variant="primary"
-            />
+            <View style={{ gap: Spacing.xs }}>
+              {!allChecklistItemsChecked && (
+                <View style={s.checklistWarningBanner}>
+                  <Ionicons name="alert-circle" size={18} color="#B45309" />
+                  <Text style={s.checklistWarningTxt}>
+                    Please check off all items on the checklist above ({checkedCount}/{totalChecklistCount} checked) before picking up.
+                  </Text>
+                </View>
+              )}
+              <Button
+                label={
+                  updating
+                    ? 'Updating...'
+                    : !allChecklistItemsChecked
+                    ? `Pick Up (${checkedCount}/${totalChecklistCount} Checked)`
+                    : 'Pick Up & Start Delivery'
+                }
+                onPress={handleMarkPickedUp}
+                loading={updating}
+                variant={allChecklistItemsChecked ? 'primary' : 'secondary'}
+              />
+            </View>
           )}
 
           {isOut && (
@@ -1086,6 +1214,65 @@ const s = StyleSheet.create({
   // Checklist
   sectionHeader: {
     marginBottom: Spacing.xs,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.xs,
+  },
+  checklistStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: Radius.chip,
+  },
+  checklistBadgePending: {
+    backgroundColor: '#FEF3C7',
+  },
+  checklistBadgeDone: {
+    backgroundColor: '#E8F5E9',
+  },
+  checklistBadgeTxt: {
+    fontSize: FontSize.xs - 2,
+    fontFamily: 'Manrope_700Bold',
+  },
+  checklistBadgeTxtPending: {
+    color: '#B45309',
+  },
+  checklistBadgeTxtDone: {
+    color: Colors.green700,
+  },
+  checkAllBtn: {
+    backgroundColor: Colors.cream,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.chip,
+    borderWidth: 1,
+    borderColor: Colors.line,
+  },
+  checkAllBtnTxt: {
+    fontSize: FontSize.xs - 1,
+    fontFamily: 'Manrope_700Bold',
+    color: Colors.green900,
+  },
+  checklistWarningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    padding: Spacing.sm,
+    borderRadius: Radius.button,
+    gap: Spacing.xs,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  checklistWarningTxt: {
+    flex: 1,
+    fontSize: FontSize.xs,
+    fontFamily: 'Manrope_600SemiBold',
+    color: '#92400E',
   },
   sectionTitle: {
     fontSize: FontSize.sm,

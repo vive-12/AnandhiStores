@@ -20,6 +20,7 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 import { OfflineBanner } from '../components/ui/OfflineBanner';
 import { initOutboxListener } from '../services/outbox';
 import { initLogger, log } from '../utils/logger';
+import { registerDevicePushToken } from '../services/notifications';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -45,6 +46,8 @@ function RouteGuard() {
     const isRoot      = !segments.length || segments[0] === 'index';
 
     if (isLoggedIn) {
+      // Register device for background push notifications with sound
+      registerDevicePushToken(uid).catch(() => {});
       if (mustChangePin && segments.join('/') !== 'auth/reset-pin') {
         router.replace('/auth/reset-pin');
         return;

@@ -18,7 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, Radius, FontSize, Shadow } from '../../theme';
 import { useSession } from '../../hooks/useSession';
 import { useNotifications } from '../../hooks/useNotifications';
-import { markRead, markAllRead, deleteNotification, clearAllNotifications } from '../../services/notifications';
+import { markRead, markAllRead, deleteNotification, clearAllNotifications, registerDevicePushToken } from '../../services/notifications';
 import { updateUser } from '../../services/users';
 import type { AppNotification } from '../../types';
 
@@ -101,42 +101,12 @@ export function NotificationBell({ color = '#FFFFFF', size = 22 }: NotificationB
   const [latestBanner, setLatestBanner] = useState<AppNotification | null>(null);
   const prevCountRef = useRef(todayUnreadCount);
 
-  // Push notification token registration (graceful in Expo Go)
+  // Push notification token registration with EAS projectId & high-priority sound channel
   useEffect(() => {
-    if (!uid || !NotificationsModule?.getPermissionsAsync) return;
-
-    async function registerForPush() {
-      try {
-        if (Platform.OS === 'android' && NotificationsModule?.setNotificationChannelAsync) {
-          await NotificationsModule.setNotificationChannelAsync('default', {
-            name: 'default',
-            importance: NotificationsModule.AndroidImportance.MAX,
-            vibrationPattern: [0, 250, 250, 250],
-            lightColor: '#1B4332',
-            sound: 'default',
-          });
-        }
-
-        const { status: existingStatus } = await NotificationsModule!.getPermissionsAsync();
-        let finalStatus = existingStatus;
-
-        if (existingStatus !== 'granted') {
-          const { status } = await NotificationsModule!.requestPermissionsAsync();
-          finalStatus = status;
-        }
-
-        if (finalStatus === 'granted') {
-          const tokenData = await NotificationsModule!.getExpoPushTokenAsync();
-          if (tokenData?.data) {
-            await updateUser(uid!, { pushToken: tokenData.data } as Record<string, unknown>);
-          }
-        }
-      } catch (err) {
-        console.log('Push token registration skipped or unsupported in environment:', err);
-      }
-    }
-
-    registerForPush();
+    if (!uid) return;
+    registerDevicePushToken(uid).catch(err => {
+      console.log('Push token registration skipped or unsupported in environment:', err);
+    });
   }, [uid]);
 
   // Handle tapping a native notification from system tray
