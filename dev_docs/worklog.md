@@ -1,5 +1,35 @@
 # Project Worklog: Anandhi Stores (AquaRush)
 
+## Date: 2026-10-28
+
+### 🛡️ Feature: Agent Delivery Checklist Enforcement
+* **Problem**: Delivery agents were able to tap "Pick Up & Start Delivery" and swipe "Mark Delivered" on retail orders without checking off products in the pickup checklist, leading to orders being marked delivered before items were verified.
+* **Fixes Implemented**:
+  1. **Strict Validation**: Added checklist verification in `mobile/app/agent/delivery/[id].tsx` across `handleMarkPickedUp`, `handleSwipeDelivered`, and `handleConfirmDelivered`.
+  2. **Blocking Alert & Toast**: If an agent attempts to pick up or deliver an order without checking all items (`checkedCount < totalChecklistCount`), an alert dialog and toast block the action.
+  3. **Visual Badge & Warning Banner**: Added a progress badge `[X/Y Checked]` in the checklist header and a warning banner above the pickup button.
+  4. **"Check All" / "Uncheck All" Button**: Added a toggle button in the checklist header for faster verification.
+
+### 🔔 Feature: Remote Push Notifications with Sound (Active Even When App is Closed)
+* **Root Cause**: The application previously only listened to Firestore via `onSnapshot` when the app was actively open in the foreground. No remote HTTP push requests were sent to the user's `pushToken` via Expo's Push API (`https://exp.host/--/api/v2/push/send`). As a result, when the app was in the background or closed, no notifications or sounds were triggered by the OS.
+* **Fixes Implemented**:
+  1. **Remote Push Dispatcher (`sendRemotePushNotification`)**: Added high-priority push dispatcher in `mobile/services/notifications.ts` querying the recipient's `pushToken` from Firestore (`users` collection) and POSTing to `https://exp.host/--/api/v2/push/send` with `sound: 'default'`, `priority: 'high'`, and `channelId: 'default'`.
+  2. **Android High-Priority Sound Channel**: Ensured Android notification channel `default` is created with `importance: AndroidImportance.MAX`, vibration pattern, sound, and badge.
+  3. **EAS Project ID**: Ensured `registerDevicePushToken` passes the EAS project ID (`89170e22-3b73-4828-a94e-172135ffe4f9`) so standalone APK builds always acquire an `ExponentPushToken`.
+  4. **Root Token Registration**: Added `registerDevicePushToken` call in `mobile/app/_layout.tsx` so any signed-in user (admin, agent, customer) registers their device push token immediately upon app launch.
+  5. **Lifecycle Push Triggers**: Wired push notifications across all key events in `mobile/services/orders.ts`:
+     - **Order Placed**: High-priority push to Admin(s) with sound (`📦 New Order #AS-XXXX: ₹total from Customer`).
+     - **Agent Assigned**: Push to Agent (`🚀 New Delivery Assigned: Deliver to Customer`) and Customer (`🚴 Delivery Partner Assigned`).
+     - **Order Packed**: Push to Customer (`📦 Order Packed`) and Agent (`📦 Order Ready for Pickup`).
+     - **Order Picked Up**: Push to Customer (`🚴 Out for Delivery!`) and Admin (`🚴 Order Out for Delivery`).
+     - **Order Delivered**: Push to Customer (`🎉 Order Delivered!`) and Admin (`💰 Order #AS-XXXX Delivered & Cash Collected: ₹total by Agent`).
+     - **Order Cancelled**: Push to affected customer, agent, and admin.
+     - **New Customer Signup**: Push to Admin(s) (`👤 New Customer Signup`).
+
+### 📦 EAS Build
+* **Build URL**: https://expo.dev/accounts/shivani2/projects/anandhi-stores/builds/c11b3193-8154-456c-b879-e3b37427d9a4
+* **Profile**: preview (standalone Android APK)
+
 ## Date: 2026-09-26
 
 ### 🏗️ Big Structural Changes
