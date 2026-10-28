@@ -9,6 +9,7 @@ import {
   useFonts,
   Manrope_500Medium,
   Manrope_600SemiBold,
+  Manrope_700Bold,
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
 import * as SplashScreen from 'expo-splash-screen';
@@ -126,6 +127,7 @@ export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     Manrope_500Medium,
     Manrope_600SemiBold,
+    Manrope_700Bold,
     Manrope_800ExtraBold,
   });
 
