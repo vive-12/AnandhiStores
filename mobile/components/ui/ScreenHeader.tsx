@@ -1,7 +1,7 @@
 // components/ui/ScreenHeader.tsx
 // Curved green900 header with title and optional subtitle + back button.
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, StatusBar, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Colors, FontSize, Spacing } from '../../theme';
@@ -28,7 +28,7 @@ export function ScreenHeader({ title, subtitle, showBack = false, onBack, right 
 
   return (
     <View style={[styles.header, { paddingTop: insets.top + Spacing.sm }]}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.green900} />
+      <StatusBar barStyle="light-content" {...(Platform.OS === 'android' ? { backgroundColor: Colors.green900 } : {})} />
       <View style={styles.row}>
         {showBack ? (
           <TouchableOpacity

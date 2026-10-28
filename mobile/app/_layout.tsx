@@ -176,11 +176,12 @@ export default function RootLayout() {
         <ErrorBoundary>
           <BottomSheetModalProvider>
             <ToastProvider>
-              <StatusBar barStyle="light-content" backgroundColor={Colors.green900} />
+              <StatusBar barStyle="light-content" {...(Platform.OS === 'android' ? { backgroundColor: Colors.green900 } : {})} />
               <OfflineBanner />
               <SessionRestorer />
               <RouteGuard />
               <Stack
+                id="root-stack"
                 screenOptions={{
                   headerShown: false,
                   headerStyle: { backgroundColor: Colors.green900 },

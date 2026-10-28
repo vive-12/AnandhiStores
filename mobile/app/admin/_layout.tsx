@@ -121,7 +121,7 @@ export default function AdminLayout() {
 
   return (
     <View style={{ flex: 1 }} {...panResponder.panHandlers}>
-      <Tabs screenOptions={{
+      <Tabs id="admin-tabs" screenOptions={{
         headerShown:             false,
         tabBarActiveTintColor:   Colors.amber,
         tabBarInactiveTintColor: 'rgba(255,255,255,0.6)',

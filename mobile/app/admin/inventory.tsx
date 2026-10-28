@@ -60,7 +60,7 @@ export default function InventoryScreen() {
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
 
   // Focus ref for rapid successive entry
-  const nameInputRef = useRef<TextInput>(null);
+  const nameInputRef = useRef<any>(null);
 
   // Form fields
   const [name, setName] = useState('');

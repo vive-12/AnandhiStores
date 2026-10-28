@@ -16,6 +16,7 @@ export default function AgentLayout() {
 
   return (
     <Stack
+      id="agent-stack"
       screenOptions={{
         headerStyle:      { backgroundColor: Colors.green900 },
         headerTintColor:  '#fff',

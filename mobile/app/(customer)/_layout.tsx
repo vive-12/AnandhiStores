@@ -22,6 +22,7 @@ export default function CustomerLayout() {
 
   return (
     <Tabs
+      id="customer-tabs"
       screenOptions={{
         headerShown:             false,   // Each screen uses ScreenHeader
         tabBarActiveTintColor:   Colors.green700,
