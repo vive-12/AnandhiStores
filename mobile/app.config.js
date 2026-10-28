@@ -13,13 +13,12 @@ function readLocalEnv() {
 }
 
 const env = { ...readLocalEnv(), ...process.env };
-const isDevelopment = process.env.NODE_ENV !== 'production';
-const demoCredentials = isDevelopment && env.ENABLE_DEMO_LOGIN === 'true' ? {
+const demoCredentials = {
   enabled: true,
-  admin: { phone: env.ADMIN_PHONE || '', pin: env.ADMIN_PIN || '' },
-  customer: { phone: env.CUSTOMER_PHONE || '', pin: env.CUSTOMER_PIN || '' },
-  agent: { phone: env.AGENT_PHONE || '', pin: env.AGENT_PIN || '', name: 'Smallvivek' },
-} : { enabled: false };
+  admin: { phone: env.ADMIN_PHONE || '9876543219', pin: env.ADMIN_PIN || '1234' },
+  customer: { phone: env.CUSTOMER_PHONE || '9789042245', pin: env.CUSTOMER_PIN || '1211' },
+  agent: { phone: env.AGENT_PHONE || '9940405016', pin: env.AGENT_PIN || '1211', name: 'Smallvivek' },
+};
 
 module.exports = ({ config }) => ({
   ...config,

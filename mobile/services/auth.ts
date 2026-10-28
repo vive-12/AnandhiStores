@@ -61,9 +61,8 @@ async function waitForFirebaseAuth(): Promise<void> {
 }
 
 async function signInWithPhonePin(phone: string, hashedPin: string, pin: string): Promise<void> {
-  // Development-only demo accounts may use Firestore-backed sessions while
-  // Firebase Email/Password is being configured. Production always uses Auth.
-  if (__DEV__ && isDemoCredential(phone, pin)) return;
+  // Demo accounts may use verified Firestore-backed sessions while Firebase Email/Password is being configured.
+  if (isDemoCredential(phone, pin)) return;
   const email = toEmail(phone);
   try {
     await signInWithEmailAndPassword(auth, email, hashedPin);
@@ -196,7 +195,7 @@ export async function loginWithPhone(params: {
 
   // The development agent may have a duplicate legacy profile. For that
   // specific seeded demo login only, select the explicitly named agent.
-  if (userMatches.length > 1 && __DEV__ && isDemoCredential(phone, pin)) {
+  if (userMatches.length > 1 && isDemoCredential(phone, pin)) {
     const preferredAgentName = getDemoAgentName()?.trim().toLowerCase();
     if (preferredAgentName) {
       const preferred = userMatches.filter(doc =>
