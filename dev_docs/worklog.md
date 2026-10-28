@@ -415,4 +415,25 @@
 * `npm run test:order` — all 37 assertions passed with 0 failures.
 * `npm run test:auth` — 3/3 development demo profile & hashed PIN checks passed.
 
+## 38. Standalone Preview APK Build with In-App Demo Credentials — 2026-10-28
+
+**Author: Antigravity**
+
+### 1. In-App Demo Credentials for Standalone APK
+* **Unrestricted Demo Panel (`mobile/config/demoCredentials.ts`, `mobile/app.config.js`)**:
+  * Removed `!__DEV__` guard that previously suppressed demo credentials on standalone preview builds.
+  * Configured default fallback credentials so the 3 test roles are always visible on the sign-in screen on APK builds:
+    * **Store Admin**: Phone `9876543219` · PIN `1234`
+    * **Customer (Shivani R)**: Phone `9789042245` · PIN `1211`
+    * **Delivery Agent (Smallvivek)**: Phone `9940405016` · PIN `1211`
+* **Direct Firestore-Backed Profile Login (`mobile/services/auth.ts`)**:
+  * Allowed verified demo logins on APK builds to use the verified Firestore profile/PIN path without requiring Firebase Email/Password Auth provider.
+
+### 2. Standalone Android APK EAS Build
+* **Build Profile**: `preview` (generates standalone installable `.apk`)
+* **Build ID**: `28674b85-ebf3-4dec-8ae6-69156468e187`
+* **Status**: `in-progress`
+* **Live Build & Logs Page**: https://expo.dev/accounts/shivani2/projects/anandhi-stores/builds/28674b85-ebf3-4dec-8ae6-69156468e187
+
+
 
