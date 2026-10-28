@@ -12,16 +12,26 @@
   3. **SwipeToConfirm Guard**: Updated `SwipeToConfirm` in `isOut` status to remain disabled with label `Check All Items (X/Y)` until the checklist is complete.
   4. **E2E Test Coverage**: Added assertions to `mobile/scripts/test_scripts/test-comprehensive-e2e.js` ensuring unverified and partially verified transitions are strictly rejected by the transaction engine.
 
-### 🔔 Feature: Android Background Push Notifications with Sound (Deep Dive)
-* **Root Causes Uncovered**:
-  1. **Missing Android 13+ Notification Permission in `app.json`**: Standalone APK builds on EAS override Android manifest permissions with `android.permissions`. Previously, only `ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION` were declared, omitting `android.permission.POST_NOTIFICATIONS`, `VIBRATE`, and `RECEIVE_BOOT_COMPLETED`. Without `POST_NOTIFICATIONS`, Android 13/14 silently suppressed all notifications when the app was closed or in the background.
-  2. **Scoped Notification Handler**: `Notifications.setNotificationHandler` was scoped inside `NotificationBell.tsx` (which is only mounted inside logged-in dashboard screens) rather than running globally at the root module level.
-  3. **Channel Initialization Timing**: The Android high-importance sound channel was only created inside `registerDevicePushToken` upon login, rather than immediately when the app launches.
-* **Fixes Implemented**:
-  1. **Android Manifest Permissions**: Added `"android.permission.POST_NOTIFICATIONS"`, `"android.permission.VIBRATE"`, and `"android.permission.RECEIVE_BOOT_COMPLETED"` to `app.json`.
-  2. **Expo Notification Plugin**: Added `expo-notifications` plugin configuration in `app.json` with `defaultChannel: "default"`.
-  3. **Root Module Handler**: Added global `setNotificationHandler` in `mobile/app/_layout.tsx` at module evaluation scope to ensure alerts, banners, sounds, and badges are active across all app states.
-  4. **Immediate Channel & Permission Request**: Added root `useEffect` in `mobile/app/_layout.tsx` to configure Android channel `default` with `AndroidImportance.MAX` and request permissions immediately on cold start.
+### 🔔 Feature: Android & iOS Push Notifications with Sound (Full Platform Support)
+* **iOS Support Added**:
+  1. **Background Modes**: Added `"UIBackgroundModes": ["remote-notification"]` to `ios.infoPlist` in [`mobile/app.json`](file:///d:/Vivek/Can/mobile/app.json).
+  2. **Startup Permissions**: In [`mobile/app/_layout.tsx`](file:///d:/Vivek/Can/mobile/app/_layout.tsx), updated root permission request so `Notifications.requestPermissionsAsync({ ios: { allowAlert: true, allowBadge: true, allowSound: true } })` is triggered for iOS users on launch.
+  3. **Payload Configuration**: iOS receives `sound: 'default'`, high priority, and `_displayInForeground: true` in `sendRemotePushNotification`.
+* **Android Fixes**:
+  1. Added `android.permission.POST_NOTIFICATIONS`, `VIBRATE`, and `RECEIVE_BOOT_COMPLETED` in `app.json`.
+  2. Created MAX-importance sound channel `default` on startup.
+
+### 📱 Expo Go Support (SDK 58 Upgrade)
+* **Problem**: When attempting to open the project via Expo Go on Android and iOS devices, Expo Go rejected the project with the error:
+  `ERROR Project is incompatible with this version of Expo Go. The installed version of Expo Go is for SDK 58. The project you opened uses SDK 57.`
+* **Solution**:
+  1. Upgraded project from Expo SDK 57 to **Expo SDK 58** (`expo@58.0.21`, `react-native@0.88.0`, `react@19.3.0`, `expo-router@58.0.28`).
+  2. Updated all supporting packages and plugins (`expo-font`, `expo-image`, `expo-splash-screen`, `expo-status-bar`).
+  3. Configured required navigation IDs (`root-stack`, `customer-tabs`, `admin-tabs`, `agent-stack`) for Expo Router v58.
+  4. Resolved TypeScript types for React 19 / RN 0.88 (`npx tsc --noEmit` passing with 0 errors).
+  5. Tested with `npx expo-doctor` (`20/20 checks passed`).
+  6. Verified `npm test` (`40/40 assertions passed`).
+  7. Metro server is now running and compatible with Expo Go on both Android and iOS!
 
 ### 🔔 Feature: Remote Push Notifications with Sound (Active Even When App is Closed)
 * **Root Cause**: The application previously only listened to Firestore via `onSnapshot` when the app was actively open in the foreground. No remote HTTP push requests were sent to the user's `pushToken` via Expo's Push API (`https://exp.host/--/api/v2/push/send`). As a result, when the app was in the background or closed, no notifications or sounds were triggered by the OS.
