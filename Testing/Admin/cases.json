@@ -1,0 +1,182 @@
+[
+  {
+    "id": "A-LOGIN",
+    "title": "Admin login, tabs and role protection",
+    "steps": "Use Vivek; exercise all sections and protected navigation.",
+    "expected": "Correct admin identity and no role leakage.",
+    "relatedAutomatedSuites": [
+      "Testing/Admin/admin.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "A-APPROVE",
+    "title": "Approve pending customer and set temporary PIN",
+    "steps": "Approve a pending customer and inspect customer state/login.",
+    "expected": "Status approved, must-change flag, session version advance, same profile/order links.",
+    "relatedAutomatedSuites": [
+      "Testing/Admin/admin.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "A-RESET",
+    "title": "Admin reset and failed-login assistance",
+    "steps": "Reset customer/agent during active runs; inspect 3+ failure queue; resolve and contact links.",
+    "expected": "Only admin reset; correct recipient/help row, old session invalidated, no delivery or can data lost.",
+    "relatedAutomatedSuites": [
+      "Testing/Admin/admin.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "A-BLOCK",
+    "title": "Block/unblock and warm-client reflection",
+    "steps": "Block/unblock customer/agent while open; try checkout/pickup.",
+    "expected": "Correct immediate refusal/return access, retained history and assignments.",
+    "relatedAutomatedSuites": [
+      "Testing/Admin/admin.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "A-PHONE",
+    "title": "Controlled phone change and duplicate prevention",
+    "steps": "Try duplicate phone; change with temporary PIN; restore original.",
+    "expected": "Same profile ID and ownership; session invalidated; no SMS OTP; all three known phone/PIN pairs restored.",
+    "relatedAutomatedSuites": [
+      "Testing/Admin/admin.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "A-ADHOC",
+    "title": "Ad hoc retail and manual can recovery",
+    "steps": "Create for selected customer, optional assignment, pack/cancel/deliver; reserve recovery.",
+    "expected": "Correct customer/agent references; no sales until retail delivery; no anonymous/duplicate recovery reservation.",
+    "relatedAutomatedSuites": [
+      "Testing/Admin/admin.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "A-ASSIGN",
+    "title": "Assign/reassign, packing and cancellation race",
+    "steps": "Use online/offline/blocked agents, change assignment and race customer cancellation with packing.",
+    "expected": "Authoritative ownership/availability, old/new/customer/admin events, no duplicate state or orphan work.",
+    "relatedAutomatedSuites": [
+      "Testing/Admin/admin.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "A-QR",
+    "title": "Create/edit/default/archive all payment scanner actions",
+    "steps": "Upload matching QR/UPI, change default, edit metadata during/after closure, archive default.",
+    "expected": "Single active default, agent sees same scanner, frozen delivered payee, totals retained, valid limits and edit window.",
+    "relatedAutomatedSuites": [
+      "Testing/Admin/admin.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "A-OFFERS",
+    "title": "Offer presets, photo upload, edit/reorder/active/delete",
+    "steps": "Create each template, upload/cancel invalid/large photo, reorder/toggle/archive and tap as customer.",
+    "expected": "Accurate preview and limits, intended product target, honest offer text, no legacy resurrection.",
+    "relatedAutomatedSuites": [
+      "Testing/Admin/admin.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "A-INVENTORY",
+    "title": "Create/edit/stock/archive product",
+    "steps": "Change product name/price/unit/category, stock/soft-delete and inspect customer/cart/history.",
+    "expected": "Live catalog reflects allowed changes, historical price snapshots preserved, no unavailable checkout.",
+    "relatedAutomatedSuites": [
+      "Testing/Admin/admin.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "A-SETTINGS",
+    "title": "Shop instant toggle, slots and delivery pricing",
+    "steps": "Modify instant availability, hours/overrides, slots, fees/minimum/free-delivery threshold and contact.",
+    "expected": "Correct checkout/agent behavior; scheduled ordering remains possible when instant is off.",
+    "relatedAutomatedSuites": [
+      "Testing/Admin/admin.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "A-REPORTS",
+    "title": "Revenue, popular products, orders and customer expense",
+    "steps": "Capture all views before and after every stage with COD, UPI, cancelled and recovery work; date-filter.",
+    "expected": "Retail/recovery segregated; admin/agent/customer figures reconcile; popularity quantity and customer spend rankings correct; no unverifiable ETA claim.",
+    "relatedAutomatedSuites": [
+      "Testing/Admin/admin.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "A-NOTICES",
+    "title": "Inbox read/open/all-read/delete/clear and pending help",
+    "steps": "Act on order, assignment, delivery, signup and account-help notices.",
+    "expected": "Addressed to actual admin ID; right destination, badges/read state persist; other role inbox unaffected.",
+    "relatedAutomatedSuites": [
+      "Testing/Admin/admin.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "A-AGENTS",
+    "title": "Agent create/edit/online/archive and permissions",
+    "steps": "Use disposable local fixture; create with temporary PIN, reject duplicate phone, edit/assign/archive.",
+    "expected": "No orphan work, historical links kept; admin server route denial visible; real named accounts preserved.",
+    "relatedAutomatedSuites": [
+      "Testing/Admin/admin.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "A-ERROR",
+    "title": "All admin controls and offline/failure recovery",
+    "steps": "Exercise each inventoried admin action, modal cancel/back, empty queues, load-more and failed writes.",
+    "expected": "No false success/empty state or accidental duplicate; affected roles and data stay consistent.",
+    "relatedAutomatedSuites": [
+      "Testing/Admin/admin.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  }
+]

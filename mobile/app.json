@@ -46,6 +46,13 @@
           "color": "#123524",
           "defaultChannel": "default"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose product, offer and store payment QR photos.",
+          "cameraPermission": "Take product and offer photos for Anandhi Stores."
+        }
       ]
     ],
     "scheme": "anandhistores",

@@ -1,0 +1,1346 @@
+{
+  "role": "customer",
+  "actions": [
+    {
+      "id": "UI-132ee783bb",
+      "role": "customer",
+      "file": "mobile/app/(customer)/account.tsx",
+      "line": 212,
+      "event": "onRetry",
+      "label": "() => setProfileRevision(n => n + 1)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-18fbd28535",
+      "role": "customer",
+      "file": "mobile/app/(customer)/account.tsx",
+      "line": 219,
+      "event": "onPress",
+      "label": "() => toggleSection('profile')",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-aecaa1d6b9",
+      "role": "customer",
+      "file": "mobile/app/(customer)/account.tsx",
+      "line": 250,
+      "event": "onChangeText",
+      "label": "Enter full name",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-81d617a72c",
+      "role": "customer",
+      "file": "mobile/app/(customer)/account.tsx",
+      "line": 256,
+      "event": "onPress",
+      "label": "Change PIN",
+      "expectation": "Expected route/modal opens or closes; no unintended order, money or can mutation."
+    },
+    {
+      "id": "UI-3f40bcb105",
+      "role": "customer",
+      "file": "mobile/app/(customer)/account.tsx",
+      "line": 263,
+      "event": "onPress",
+      "label": "() => toggleSection('address')",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-2b0438c7cd",
+      "role": "customer",
+      "file": "mobile/app/(customer)/account.tsx",
+      "line": 275,
+      "event": "onPress",
+      "label": "handleDetectLocation",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-60f99b36d3",
+      "role": "customer",
+      "file": "mobile/app/(customer)/account.tsx",
+      "line": 312,
+      "event": "onChangeText",
+      "label": "e.g. Flat 3B, Sunshine Apts, #12",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-187814dd89",
+      "role": "customer",
+      "file": "mobile/app/(customer)/account.tsx",
+      "line": 323,
+      "event": "onChangeText",
+      "label": "e.g. 2nd Main Road, Gandhi Nagar",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-54ccbf64bf",
+      "role": "customer",
+      "file": "mobile/app/(customer)/account.tsx",
+      "line": 334,
+      "event": "onChangeText",
+      "label": "e.g. Adyar, Velachery, T. Nagar",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-cfdcbca027",
+      "role": "customer",
+      "file": "mobile/app/(customer)/account.tsx",
+      "line": 346,
+      "event": "onChangeText",
+      "label": "Chennai",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-a0efccf641",
+      "role": "customer",
+      "file": "mobile/app/(customer)/account.tsx",
+      "line": 357,
+      "event": "onChangeText",
+      "label": "e.g. Near Bus Stop",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-4a42093a16",
+      "role": "customer",
+      "file": "mobile/app/(customer)/account.tsx",
+      "line": 369,
+      "event": "onPress",
+      "label": "{saving ? 'Saving Address...' : 'Save Address'}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-a6d84a9c15",
+      "role": "customer",
+      "file": "mobile/app/(customer)/account.tsx",
+      "line": 376,
+      "event": "onPress",
+      "label": "() => toggleSection('support')",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-ce7b28ec87",
+      "role": "customer",
+      "file": "mobile/app/(customer)/account.tsx",
+      "line": 392,
+      "event": "onPress",
+      "label": "() => Linking.openURL( 'whatsapp://send?pho",
+      "expectation": "Correct external call/WhatsApp/map destination opens; no automatic message or payment is sent."
+    },
+    {
+      "id": "UI-5d55264fab",
+      "role": "customer",
+      "file": "mobile/app/(customer)/account.tsx",
+      "line": 406,
+      "event": "onPress",
+      "label": "() => Linking.openURL('tel:9003115101').catch(() => ",
+      "expectation": "Correct external call/WhatsApp/map destination opens; no automatic message or payment is sent."
+    },
+    {
+      "id": "UI-000959accd",
+      "role": "customer",
+      "file": "mobile/app/(customer)/account.tsx",
+      "line": 425,
+      "event": "onPress",
+      "label": "Log Out",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-4b551cc667",
+      "role": "customer",
+      "file": "mobile/app/(customer)/dashboard.tsx",
+      "line": 139,
+      "event": "onRetry",
+      "label": "refresh",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-3dffe1b989",
+      "role": "customer",
+      "file": "mobile/app/(customer)/dashboard.tsx",
+      "line": 144,
+      "event": "onRefresh",
+      "label": "onRefresh",
+      "expectation": "Correct role data refreshes; failures show error/retry rather than an empty success."
+    },
+    {
+      "id": "UI-47ad5c7106",
+      "role": "customer",
+      "file": "mobile/app/(customer)/dashboard.tsx",
+      "line": 149,
+      "event": "onPress",
+      "label": "() => setRange(value)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-8e5b0dad9f",
+      "role": "customer",
+      "file": "mobile/app/(customer)/history.tsx",
+      "line": 147,
+      "event": "onRefresh",
+      "label": "onRefresh",
+      "expectation": "Correct role data refreshes; failures show error/retry rather than an empty success."
+    },
+    {
+      "id": "UI-403e4001f0",
+      "role": "customer",
+      "file": "mobile/app/(customer)/history.tsx",
+      "line": 153,
+      "event": "onPress",
+      "label": "Purchases",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-d0d59721b9",
+      "role": "customer",
+      "file": "mobile/app/(customer)/history.tsx",
+      "line": 153,
+      "event": "onPress",
+      "label": "Empty cans",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-e36ad833b4",
+      "role": "customer",
+      "file": "mobile/app/(customer)/history.tsx",
+      "line": 155,
+      "event": "onRetry",
+      "label": "refresh",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-113505de30",
+      "role": "customer",
+      "file": "mobile/app/(customer)/history.tsx",
+      "line": 171,
+      "event": "onAction",
+      "label": "No orders yet",
+      "expectation": "Expected route/modal opens or closes; no unintended order, money or can mutation."
+    },
+    {
+      "id": "UI-7e2a574970",
+      "role": "customer",
+      "file": "mobile/app/(customer)/history.tsx",
+      "line": 175,
+      "event": "onPress",
+      "label": "Load older completed history",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-37da76aa72",
+      "role": "customer",
+      "file": "mobile/app/(customer)/history.tsx",
+      "line": 261,
+      "event": "onPress",
+      "label": "() => router.push(`/track/${order.id}`)",
+      "expectation": "Expected route/modal opens or closes; no unintended order, money or can mutation."
+    },
+    {
+      "id": "UI-80fdce8b64",
+      "role": "customer",
+      "file": "mobile/app/(customer)/history.tsx",
+      "line": 271,
+      "event": "onPress",
+      "label": "() => handleReorder(order)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-ee8d26f8e9",
+      "role": "customer",
+      "file": "mobile/app/(customer)/history.tsx",
+      "line": 281,
+      "event": "onPress",
+      "label": "() => handleCancelOrder(order)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-e6552cd792",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 467,
+      "event": "onPress",
+      "label": "() => router.push('/(customer)/account')",
+      "expectation": "Expected route/modal opens or closes; no unintended order, money or can mutation."
+    },
+    {
+      "id": "UI-f4adfcb187",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 488,
+      "event": "onChangeText",
+      "label": "Search groceries, water cans...",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-8c49a5afb0",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 492,
+      "event": "onPress",
+      "label": "() => setSearchQuery('')",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-9083403af8",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 508,
+      "event": "onScroll",
+      "label": "Animated.event( [{ nativeEvent: { contentOffset: { y: scrollY } } }], ",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-16928869fd",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 525,
+      "event": "onRefresh",
+      "label": "onRefresh",
+      "expectation": "Correct role data refreshes; failures show error/retry rather than an empty success."
+    },
+    {
+      "id": "UI-17e23ae7a5",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 551,
+      "event": "onPress",
+      "label": "() => router.push(`/track/${activeOrder.id}`)",
+      "expectation": "Expected route/modal opens or closes; no unintended order, money or can mutation."
+    },
+    {
+      "id": "UI-663b7aae64",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 583,
+      "event": "onPress",
+      "label": "() => handleBannerPress(item)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-f967d81b94",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 642,
+      "event": "onScroll",
+      "label": "e => { const index = Math.round( e.nativeEvent.",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-02ad040c44",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 680,
+      "event": "onPress",
+      "label": "{cat}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-8293827c90",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 695,
+      "event": "onPress",
+      "label": "() => { Haptics.selectionAsync(); setShowSortModa",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-e6e94e518a",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 714,
+      "event": "onPress",
+      "label": "() => { Haptics.selectionAsync(); if (opt",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-25d9902756",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 765,
+      "event": "onPress",
+      "label": "() => Linking.openURL( 'whatsapp://send?phone=9",
+      "expectation": "Correct external call/WhatsApp/map destination opens; no automatic message or payment is sent."
+    },
+    {
+      "id": "UI-e8e9bbff1e",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 780,
+      "event": "onPress",
+      "label": "() => Linking.openURL('tel:9003115101').catch(() => ",
+      "expectation": "Correct external call/WhatsApp/map destination opens; no automatic message or payment is sent."
+    },
+    {
+      "id": "UI-a760c58864",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 819,
+      "event": "onPress",
+      "label": "{`Switch to ${viewMode === 'grid' ? 'list' : 'grid'} view`}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-3732bec127",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 835,
+      "event": "onPress",
+      "label": "() => { Haptics.selectionAsync(); setShowSortModal(tr",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-7e88d4311d",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 863,
+      "event": "onRetry",
+      "label": "refreshItems",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-61d63cde7d",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 877,
+      "event": "onAction",
+      "label": "No items found",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-9709eec57b",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 974,
+      "event": "onAdd",
+      "label": "() => addItem(item.id)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-d296cb43fb",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 975,
+      "event": "onIncrement",
+      "label": "() => addItem(item.id)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-6784dca782",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 976,
+      "event": "onDecrement",
+      "label": "() => removeItem(item.id)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-76744854ce",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 1101,
+      "event": "onPress",
+      "label": "() => { Haptics.selectionAsync(); setVisibleCount",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-82d14770be",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 1121,
+      "event": "onPress",
+      "label": "handleOpenCart",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-d3e60b88d9",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 1136,
+      "event": "onAction",
+      "label": "Your cart is empty",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-da71523c5d",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 1193,
+      "event": "onAdd",
+      "label": "() => addItem(line.itemId)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-3cad0b7634",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 1194,
+      "event": "onIncrement",
+      "label": "() => addItem(line.itemId)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-c406a88e01",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 1195,
+      "event": "onDecrement",
+      "label": "() => removeItem(line.itemId)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-bcbb2907ad",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 1218,
+      "event": "onPress",
+      "label": "() => setSelectedSlot(slot)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-9d65f744d3",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 1241,
+      "event": "onChangeText",
+      "label": "e.g. Leave at door, call before arrival",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-a73e4c5c21",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 1297,
+      "event": "onPress",
+      "label": "{isPlacingOrder ? 'Placing Order...' : 'Place Order (COD)'}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-8685304f63",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 1311,
+      "event": "onRequestClose",
+      "label": "() => setShowSortModal(false)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-6f12e1b04c",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 1316,
+      "event": "onPress",
+      "label": "() => setShowSortModal(false)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-6bbae70dba",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 1318,
+      "event": "onStartShouldSetResponder",
+      "label": "() => true",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-49a8da3226",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 1331,
+      "event": "onPress",
+      "label": "() => { Haptics.selectionAsync(); setSortBy('popular'",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-0885327019",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 1354,
+      "event": "onPress",
+      "label": "() => { Haptics.selectionAsync(); setSortBy('price_as",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-307733a4cc",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 1377,
+      "event": "onPress",
+      "label": "() => { Haptics.selectionAsync(); setSortBy('price_de",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-5d2ee140d8",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 1400,
+      "event": "onPress",
+      "label": "() => { Haptics.selectionAsync(); setSelectedCategory",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-ec558c7f3e",
+      "role": "customer",
+      "file": "mobile/app/(customer)/index.tsx",
+      "line": 1425,
+      "event": "onPress",
+      "label": "() => { Haptics.selectionAsync(); setSortBy('recent')",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-77ce5b06c5-USER",
+      "role": "customer",
+      "file": "mobile/app/auth/awaiting-approval.tsx",
+      "line": 39,
+      "event": "onPress",
+      "label": "handleLogout",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-022927a8f9-USER",
+      "role": "customer",
+      "file": "mobile/app/auth/login.tsx",
+      "line": 81,
+      "event": "onChangeText",
+      "label": "9xxxxxxxxx",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-b75a685625-USER",
+      "role": "customer",
+      "file": "mobile/app/auth/login.tsx",
+      "line": 101,
+      "event": "onChangeText",
+      "label": "• • • •",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-612a417a3e-USER",
+      "role": "customer",
+      "file": "mobile/app/auth/login.tsx",
+      "line": 103,
+      "event": "onSubmitEditing",
+      "label": "• • • •",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-82ec449918-USER",
+      "role": "customer",
+      "file": "mobile/app/auth/login.tsx",
+      "line": 111,
+      "event": "onPress",
+      "label": "Prepare named development accounts",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-91a3c0d2c7-USER",
+      "role": "customer",
+      "file": "mobile/app/auth/login.tsx",
+      "line": 118,
+      "event": "onPress",
+      "label": "{`Fill ${role} test login`}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-996e5aa520-USER",
+      "role": "customer",
+      "file": "mobile/app/auth/login.tsx",
+      "line": 138,
+      "event": "onPress",
+      "label": "Sign in",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-e801f33136-USER",
+      "role": "customer",
+      "file": "mobile/app/auth/login.tsx",
+      "line": 145,
+      "event": "onPress",
+      "label": "New customer? Create account",
+      "expectation": "Expected route/modal opens or closes; no unintended order, money or can mutation."
+    },
+    {
+      "id": "UI-3b91b7c682-USER",
+      "role": "customer",
+      "file": "mobile/app/auth/register.tsx",
+      "line": 25,
+      "event": "onChangeText",
+      "label": "(value: string) => setter((previous: Field) => ({ ...previous, value, error: '' }))",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-2444eacad2-USER",
+      "role": "customer",
+      "file": "mobile/app/auth/register.tsx",
+      "line": 117,
+      "event": "onPress",
+      "label": "Create account",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-057380ed45-USER",
+      "role": "customer",
+      "file": "mobile/app/auth/register.tsx",
+      "line": 120,
+      "event": "onPress",
+      "label": "() => router.back()",
+      "expectation": "Expected route/modal opens or closes; no unintended order, money or can mutation."
+    },
+    {
+      "id": "UI-2f5b7aac31-USER",
+      "role": "customer",
+      "file": "mobile/app/auth/reset-pin.tsx",
+      "line": 74,
+      "event": "onChangeText",
+      "label": "• • • •",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-916271bac4-USER",
+      "role": "customer",
+      "file": "mobile/app/auth/reset-pin.tsx",
+      "line": 88,
+      "event": "onChangeText",
+      "label": "• • • •",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-cd3793c85f-USER",
+      "role": "customer",
+      "file": "mobile/app/auth/reset-pin.tsx",
+      "line": 103,
+      "event": "onChangeText",
+      "label": "• • • •",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-d4314c7d95-USER",
+      "role": "customer",
+      "file": "mobile/app/auth/reset-pin.tsx",
+      "line": 109,
+      "event": "onPress",
+      "label": "Save new PIN",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-3bdf394e5c-USER",
+      "role": "customer",
+      "file": "mobile/app/auth/reset-pin.tsx",
+      "line": 113,
+      "event": "onPress",
+      "label": "Go to Sign In",
+      "expectation": "Expected route/modal opens or closes; no unintended order, money or can mutation."
+    },
+    {
+      "id": "UI-ae62bfb22c-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/logs.tsx",
+      "line": 144,
+      "event": "onPress",
+      "label": "handleShare",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-b559032696-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/logs.tsx",
+      "line": 161,
+      "event": "onPress",
+      "label": "refresh",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-ff08fbeeaa-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/logs.tsx",
+      "line": 180,
+      "event": "onPress",
+      "label": "() => setCatFilter(cat as LogCategory | \"ALL\")",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-95ba4da6e0-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/logs.tsx",
+      "line": 196,
+      "event": "onPress",
+      "label": "() => setLvlFilter(lvl)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-d710986e6e-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/logs.tsx",
+      "line": 205,
+      "event": "onPress",
+      "label": "handleClear",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-c4ca1ba158-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 50,
+      "event": "onPress",
+      "label": "Primary (amber)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-c5bb07de1c-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 51,
+      "event": "onPress",
+      "label": "Secondary (green)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-76dec14863-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 52,
+      "event": "onPress",
+      "label": "Ghost",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-3474ded685-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 53,
+      "event": "onPress",
+      "label": "Danger",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-4432adba8d-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 54,
+      "event": "onPress",
+      "label": "Loading...",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-882a0070da-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 55,
+      "event": "onPress",
+      "label": "Disabled",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-833a0fdd74-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 71,
+      "event": "onPress",
+      "label": "{c}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-2ffb2e5a85-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 83,
+      "event": "onAdd",
+      "label": "() => setQty1(1)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-c31ae872c3-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 84,
+      "event": "onIncrement",
+      "label": "() => setQty1(q => q + 1)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-2328529fcd-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 85,
+      "event": "onDecrement",
+      "label": "() => setQty1(q => Math.max(0, q - 1))",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-a75dc3125e-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 92,
+      "event": "onAdd",
+      "label": "() => setQty2(1)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-a1391dba08-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 93,
+      "event": "onIncrement",
+      "label": "() => setQty2(q => q + 1)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-34c35db7a3-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 94,
+      "event": "onDecrement",
+      "label": "() => setQty2(q => Math.max(0, q - 1))",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-cd2c089e4b-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 121,
+      "event": "onPress",
+      "label": "Success toast",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-b9a13bf7a7-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 122,
+      "event": "onPress",
+      "label": "Error toast",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-4f50c9a342-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 123,
+      "event": "onPress",
+      "label": "Info toast",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-596dcae023-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 130,
+      "event": "onPress",
+      "label": "Open bottom sheet",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-d607358f26-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 139,
+      "event": "onConfirm",
+      "label": "Swipe to mark delivered",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-73bed99f19-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 151,
+      "event": "onAction",
+      "label": "No orders yet",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-1928f213da-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 159,
+      "event": "onRetry",
+      "label": "() => showToast('Retrying…', 'info')",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-3ba6ee5b67-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 166,
+      "event": "onPress",
+      "label": "() => showToast('Cart tapped', 'info')",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-cfa3acdc94-USER",
+      "role": "customer",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 171,
+      "event": "onPress",
+      "label": "Close",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-27fb3fea56-USER",
+      "role": "customer",
+      "file": "mobile/app/track/[id].tsx",
+      "line": 115,
+      "event": "onRetry",
+      "label": "refresh",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-d3a7bce31e-USER",
+      "role": "customer",
+      "file": "mobile/app/track/[id].tsx",
+      "line": 116,
+      "event": "onAction",
+      "label": "Order not found",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-238980ed1c-USER",
+      "role": "customer",
+      "file": "mobile/app/track/[id].tsx",
+      "line": 248,
+      "event": "onPress",
+      "label": "() => Linking.openURL(`tel:${order.agentPhone}`).catch(() => ",
+      "expectation": "Correct external call/WhatsApp/map destination opens; no automatic message or payment is sent."
+    },
+    {
+      "id": "UI-1f78c64231-USER",
+      "role": "customer",
+      "file": "mobile/app/track/[id].tsx",
+      "line": 340,
+      "event": "onPress",
+      "label": "{cancelling ? 'Cancelling...' : 'Cancel Order'}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-91286338c8-USER",
+      "role": "customer",
+      "file": "mobile/app/track/[id].tsx",
+      "line": 348,
+      "event": "onPress",
+      "label": "() => router.replace('/(customer)')",
+      "expectation": "Expected route/modal opens or closes; no unintended order, money or can mutation."
+    },
+    {
+      "id": "UI-06c7b60494-USER",
+      "role": "customer",
+      "file": "mobile/components/ErrorBoundary.tsx",
+      "line": 64,
+      "event": "onPress",
+      "label": "this.handleReset",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-baed081fec-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/AccountHelpPanel.tsx",
+      "line": 34,
+      "event": "onPress",
+      "label": "Call",
+      "expectation": "Correct external call/WhatsApp/map destination opens; no automatic message or payment is sent."
+    },
+    {
+      "id": "UI-d65ccf0000-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/AccountHelpPanel.tsx",
+      "line": 35,
+      "event": "onPress",
+      "label": "Set temporary PIN",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-42ab52ad67-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/AccountHelpPanel.tsx",
+      "line": 36,
+      "event": "onPress",
+      "label": "Resolved",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-e01cda7973-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/AccountHelpPanel.tsx",
+      "line": 41,
+      "event": "onChangeText",
+      "label": "Temporary PIN",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-79e4f4ee6e-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/AccountHelpPanel.tsx",
+      "line": 42,
+      "event": "onPress",
+      "label": "Reset PIN",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-4285fb31f6-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/AccountSupport.tsx",
+      "line": 9,
+      "event": "onPress",
+      "label": "Call Vivek",
+      "expectation": "Correct external call/WhatsApp/map destination opens; no automatic message or payment is sent."
+    },
+    {
+      "id": "UI-0e24afcbf4-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/AccountSupport.tsx",
+      "line": 10,
+      "event": "onPress",
+      "label": "WhatsApp Vivek",
+      "expectation": "Correct external call/WhatsApp/map destination opens; no automatic message or payment is sent."
+    },
+    {
+      "id": "UI-150de8a27a-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/BottomSheet.tsx",
+      "line": 89,
+      "event": "onClose",
+      "label": "handleClose",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-9b6df1af9b-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/BottomSheet.tsx",
+      "line": 95,
+      "event": "onPress",
+      "label": "handleClose",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-4ca5baf6fe-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/Button.tsx",
+      "line": 80,
+      "event": "onPress",
+      "label": "{label}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-0a86c3c573-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/Button.tsx",
+      "line": 81,
+      "event": "onPressIn",
+      "label": "{label}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-bcdb9b7b42-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/Button.tsx",
+      "line": 82,
+      "event": "onPressOut",
+      "label": "{label}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-19df3e110a-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/Card.tsx",
+      "line": 57,
+      "event": "onPress",
+      "label": "{accessibilityLabel}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-d463a600d8-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/Card.tsx",
+      "line": 58,
+      "event": "onPressIn",
+      "label": "{accessibilityLabel}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-e50c88c0e6-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/Card.tsx",
+      "line": 59,
+      "event": "onPressOut",
+      "label": "{accessibilityLabel}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-fadc6e397f-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/Chip.tsx",
+      "line": 26,
+      "event": "onPress",
+      "label": "onPress",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-7683d9e275-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/Chip.tsx",
+      "line": 27,
+      "event": "onPressIn",
+      "label": "handlePressIn",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-9c06ef75b0-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/Chip.tsx",
+      "line": 28,
+      "event": "onPressOut",
+      "label": "handlePressOut",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-4fd91f21bf-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/EmptyState.tsx",
+      "line": 23,
+      "event": "onPress",
+      "label": "{actionLabel}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-e727d2e63b-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/ErrorState.tsx",
+      "line": 23,
+      "event": "onPress",
+      "label": "Try again",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-5cde21e062-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/NotificationBell.tsx",
+      "line": 249,
+      "event": "onPress",
+      "label": "Today's Notifications",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-a75353c3ff-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/NotificationBell.tsx",
+      "line": 268,
+      "event": "onPress",
+      "label": "() => handleTapNotification(latestBanner)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-cc011e5397-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/NotificationBell.tsx",
+      "line": 280,
+      "event": "onPress",
+      "label": "() => setLatestBanner(null)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-5cf33da639-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/NotificationBell.tsx",
+      "line": 292,
+      "event": "onRequestClose",
+      "label": "handleCloseDrawer",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-5473b9f97c-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/NotificationBell.tsx",
+      "line": 300,
+      "event": "onPress",
+      "label": "handleCloseDrawer",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-f7a2753477-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/NotificationBell.tsx",
+      "line": 333,
+      "event": "onPress",
+      "label": "Close notifications",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-e133ee981e-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/NotificationBell.tsx",
+      "line": 350,
+      "event": "onPress",
+      "label": "handleClearTodayAll",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-fcb2d3dbb8-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/NotificationBell.tsx",
+      "line": 384,
+      "event": "onPress",
+      "label": "() => handleTapNotification(item)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-1a969f73d6-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/NotificationBell.tsx",
+      "line": 410,
+      "event": "onPress",
+      "label": "Delete notification",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-9309492bc3-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/QtyStepper.tsx",
+      "line": 47,
+      "event": "onPress",
+      "label": "Add to cart",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-f2e46da81f-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/QtyStepper.tsx",
+      "line": 65,
+      "event": "onPress",
+      "label": "Decrease quantity",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-91320673ff-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/QtyStepper.tsx",
+      "line": 76,
+      "event": "onPress",
+      "label": "Increase quantity",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-457a6100e5-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/ScreenHeader.tsx",
+      "line": 35,
+      "event": "onPress",
+      "label": "Go back",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-f807763a32-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/StickyBar.tsx",
+      "line": 39,
+      "event": "onPress",
+      "label": "onPress",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-9710ee0320-USER",
+      "role": "customer",
+      "file": "mobile/components/ui/Toast.tsx",
+      "line": 92,
+      "event": "onDone",
+      "label": "onDone",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    }
+  ]
+}

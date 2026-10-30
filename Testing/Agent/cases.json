@@ -1,0 +1,99 @@
+[
+  {
+    "id": "G-LOGIN",
+    "title": "Agent login, warm reset/block and logout",
+    "steps": "Use Suresh; restart; admin reset/block during assigned work.",
+    "expected": "Correct identity/queues; invalid sessions exit; work remains available to admin.",
+    "relatedAutomatedSuites": [
+      "Testing/Agent/agent.test.cjs",
+      "Testing/Integration/orders.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "G-ASSIGNED",
+    "title": "Assignment, retail/recovery filters and old active work",
+    "steps": "Assign/reassign; filter active sections; load older history.",
+    "expected": "Only owned work visible; old active runs never disappear behind bounded history.",
+    "relatedAutomatedSuites": [
+      "Testing/Agent/agent.test.cjs",
+      "Testing/Integration/orders.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "G-PICKUP",
+    "title": "Checklist, pickup and wrong-agent rejection",
+    "steps": "Try no/partial/full checklist, duplicate taps and stale assignment.",
+    "expected": "Only full owned pickup commits; all roles and notices reflect one state change.",
+    "relatedAutomatedSuites": [
+      "Testing/Agent/agent.test.cjs",
+      "Testing/Integration/orders.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "G-DELIVER",
+    "title": "COD/UPI completion and exact counts",
+    "steps": "Deliver retail order via each payment mode; record returned cans; retry completion.",
+    "expected": "One retail sale/delivery, accurate cash/QR attribution, fixed original payee, exact can debt and no duplicate metric delta.",
+    "relatedAutomatedSuites": [
+      "Testing/Agent/agent.test.cjs",
+      "Testing/Integration/orders.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "G-RECOVERY",
+    "title": "Partial recovery across days and final collection",
+    "steps": "Collect 0, partial, revisit later and complete remaining cans.",
+    "expected": "Zero cannot finish; same remaining run open; visit history cumulative; retail revenue/order/earnings not inflated.",
+    "relatedAutomatedSuites": [
+      "Testing/Agent/agent.test.cjs",
+      "Testing/Integration/orders.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "G-AVAILABLE",
+    "title": "Online/offline/deactivation invariants",
+    "steps": "Try offline/removal during delivery and waiting recovery, then after all work is settled.",
+    "expected": "No orphan/hidden assignment; archived identity preserves completed ownership; restored test availability.",
+    "relatedAutomatedSuites": [
+      "Testing/Agent/agent.test.cjs",
+      "Testing/Integration/orders.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "G-MONEY",
+    "title": "Collections versus actual delivery fees earned",
+    "steps": "Compare before/after each stage, daily/weekly/monthly dates, cash collected and agreed agentFee.",
+    "expected": "Earned delivery fees must be identified separately from COD cash, with recovery/cancelled work excluded and payout state not invented. This is currently a product/UI gap.",
+    "relatedAutomatedSuites": [
+      "Testing/Agent/agent.test.cjs",
+      "Testing/Integration/orders.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending",
+    "knownGap": "The current agent sheet does not render a separate earned-delivery-fee or payout tracker. Cash collections cannot satisfy this check."
+  },
+  {
+    "id": "G-DEVICE",
+    "title": "All agent controls, calls/maps, notices and permissions",
+    "steps": "Exercise each Agent control plus external actions, errors and push denial on device.",
+    "expected": "Expected route/state and affected-role effects; no spontaneous call/message; durable in-app notice regardless of push availability.",
+    "relatedAutomatedSuites": [
+      "Testing/Agent/agent.test.cjs",
+      "Testing/Integration/orders.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  }
+]

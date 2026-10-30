@@ -6,9 +6,9 @@ type DemoConfig = { enabled?: boolean } & Partial<Record<DemoRole, DemoCredentia
 
 const DEFAULT_CREDENTIALS: DemoConfig = {
   enabled: true,
-  admin: { phone: '9876543219', pin: '1234' },
-  customer: { phone: '9789042245', pin: '1211' },
-  agent: { phone: '9940405016', pin: '1211', name: 'Smallvivek' },
+  admin: { phone: '9003115101', name: 'Vivek', pin: '1234' },
+  customer: { phone: '9003115106', name: 'Shivani', pin: '1211' },
+  agent: { phone: '9940405016', pin: '1211', name: 'Suresh' },
 };
 
 const config = {

@@ -1,0 +1,98 @@
+[
+  {
+    "id": "U-LOGIN",
+    "title": "Login/logout, wrong PIN and account isolation",
+    "steps": "Sign in/out using Shivani; enter invalid PIN; switch roles and revisit protected routes.",
+    "expected": "Correct customer home, no other user cart/session, valid credential restored.",
+    "relatedAutomatedSuites": [
+      "Testing/User/user.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "U-REGISTER",
+    "title": "Registration and approval reflection",
+    "steps": "Type every registration field continuously; submit pending fixture; admin approves.",
+    "expected": "No input remount, pending state, admin signup notice, approved account gains ordering access.",
+    "relatedAutomatedSuites": [
+      "Testing/User/user.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "U-CART",
+    "title": "Cart add/minus/remove/reorder, live prices and stock",
+    "steps": "Add/change/remove lines; change price/stock as admin; switch identity and restart.",
+    "expected": "Live line totals, minimum/free-delivery threshold, unavailable checkout guard, scoped persistence.",
+    "relatedAutomatedSuites": [
+      "Testing/User/user.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "U-CHECKOUT",
+    "title": "Instant/scheduled windows and address snapshot",
+    "steps": "Place both slot types; toggle instant during checkout; change slots; save address.",
+    "expected": "Exact selected slot, current address on new purchase, previous snapshots unchanged; obsolete choices rejected.",
+    "relatedAutomatedSuites": [
+      "Testing/User/user.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "U-TRACK",
+    "title": "Every order status and cancellation race",
+    "steps": "Observe placed, assigned, packed, out-for-delivery, delivered/cancelled and partial recovery.",
+    "expected": "Current status, notices and history agree; stale packed cancellation rejected; debt remains tracked.",
+    "relatedAutomatedSuites": [
+      "Testing/User/user.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "U-EXPENSE",
+    "title": "Expense dashboard and top products at each stage",
+    "steps": "Compare baseline, placement, packing, COD/UPI delivery, cancellation, partial/final recovery and date filters.",
+    "expected": "Only delivered retail totals include fees; chart reconciles; category/product item spend excludes delivery fee; recovery is excluded.",
+    "relatedAutomatedSuites": [
+      "Testing/User/user.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "U-PIN",
+    "title": "Self PIN change, admin reset, third-failure help",
+    "steps": "Fail 3 times, inspect support links and admin help, reset during active delivery, change with current PIN.",
+    "expected": "One addressed help alert per threshold cycle, warm invalidation, no work lost, success exits form, original known PIN restored after test.",
+    "relatedAutomatedSuites": [
+      "Testing/User/user.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  },
+  {
+    "id": "U-ERROR",
+    "title": "All customer controls, empty/error/offline and external actions",
+    "steps": "Exercise every inventoried User control in normal/invalid/cancel/repeated-tap paths.",
+    "expected": "Visible state/route expected; errors are not empty success; no accidental call/message/payment.",
+    "relatedAutomatedSuites": [
+      "Testing/User/user.test.cjs",
+      "Testing/Integration/account-effects.test.cjs",
+      "Testing/Integration/stages.test.cjs"
+    ],
+    "nativeExecution": "pending"
+  }
+]

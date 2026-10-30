@@ -9,20 +9,22 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, Radius, FontSize, Shadow } from '../../theme';
 import { useSettings } from '../../hooks/useSettings';
 import { saveSettings } from '../../services/settings';
-import { ScreenHeader, Button, useToast } from '../../components/ui';
+import { ScreenHeader, Button, useToast, ErrorState } from '../../components/ui';
 import type { Settings } from '../../types';
 
 export default function AdminSettingsScreen() {
   const router = useRouter();
   const { showToast } = useToast();
-  const { settings, loading, error } = useSettings();
+  const { settings, loading, error, refresh } = useSettings();
 
+  const [instantDeliveryEnabled, setInstantDeliveryEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
 
   // Form states
@@ -39,6 +41,7 @@ export default function AdminSettingsScreen() {
   // Populate from Firestore
   useEffect(() => {
     if (settings) {
+      setInstantDeliveryEnabled(settings.instantDeliveryEnabled !== false);
       setMinOrderValue(String(settings.minOrderValue ?? 99));
       setDeliveryFee(String(settings.deliveryFee ?? 20));
       setFreeDeliveryAbove(String(settings.freeDeliveryAbove ?? 299));
@@ -142,6 +145,8 @@ export default function AdminSettingsScreen() {
     setSaving(true);
     try {
       const updatedSettings: Settings = {
+        instantDeliveryEnabled,
+        supportPhone: '9003115101',
         minOrderValue: minOrder,
         deliveryFee: fee,
         freeDeliveryAbove: freeAbove,
@@ -178,18 +183,19 @@ export default function AdminSettingsScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {loading ? (
+        {error ? <ErrorState message={error.message} onRetry={refresh} /> : loading ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="large" color={Colors.green700} />
             <Text style={styles.loadingText}>Loading settings...</Text>
           </View>
         ) : (
           <>
+            <View style={styles.card}><Text style={styles.cardTitle}>Instant delivery</Text><Text style={styles.cardSubtitle}>Turn off immediate orders when busy. Scheduled windows remain available.</Text><Switch value={instantDeliveryEnabled} onValueChange={setInstantDeliveryEnabled} /></View>
             {/* ─── Store Operational Status (Override) ────────────────────── */}
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Store Open / Closed Status</Text>
+              <Text style={styles.cardTitle}>Instant delivery hours override</Text>
               <Text style={styles.cardSubtitle}>
-                Control whether customers can place orders right now.
+                Control immediate ordering outside normal hours. Scheduled windows remain available.
               </Text>
 
               <View style={styles.overrideOptions}>

@@ -25,15 +25,18 @@ import {
 } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import {
-  collection, query, where, getDocs, limit,
+  collection, query, where, getDocs, limit, doc, setDoc, updateDoc, increment, Timestamp,
 } from 'firebase/firestore';
 import { auth, db, functions } from '../config/firebase';
-import { getDemoAgentName, isDemoCredential } from '../config/demoCredentials';
+import { getDemoAgentName, getDemoCredentials, isDemoCredential } from '../config/demoCredentials';
 import {
   createUser, getUser,
 } from './users';
-import { notifyAdminsOfCustomerSignup } from './notifications';
+import { notifyAdminsOfCustomerSignup, unregisterDevicePushToken } from './notifications';
 import type { User, UserStatus, Address } from '../types';
+import { recordPinFailure, clearPinFailures } from './accountHelp';
+import { useSession } from '../hooks/useSession';
+import { useCart } from '../hooks/useCart';
 import { log } from '../utils/logger';
 
 const SESSION_KEY = 'anandhi_session';
@@ -84,7 +87,7 @@ async function signInWithPhonePin(phone: string, hashedPin: string, pin: string)
 
 // ─── Session persistence ───────────────────────────────────────────────────────
 
-type StoredSession = Pick<User, 'id' | 'role' | 'name' | 'phone' | 'status'> & Partial<Pick<User, 'mustChangePin'>>;
+type StoredSession = Pick<User, 'id' | 'role' | 'name' | 'phone' | 'status'> & Partial<Pick<User, 'mustChangePin' | 'sessionVersion' | 'isDemo'>>;
 
 export async function saveSession(user: StoredSession): Promise<void> {
   await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(user));
@@ -114,7 +117,11 @@ export async function restoreSession(): Promise<User | null> {
 
   log.auth.info('restoreSession: found stored session', { uid: stored.id, role: stored.role });
 
+  await auth.authStateReady();
   const user = await getUser(stored.id);
+  const demoAllowed = stored.isDemo && getDemoCredentials().length > 0;
+  if (!demoAllowed && auth.currentUser?.uid !== stored.id) { await clearStoredSession(); return null; }
+  if (user && (stored.sessionVersion ?? 0) !== (user.sessionVersion ?? 0)) { await clearStoredSession(); return null; }
   if (!user) {
     log.auth.warn('restoreSession: user doc missing in Firestore — clearing session', { uid: stored.id });
     await clearStoredSession();
@@ -127,7 +134,7 @@ export async function restoreSession(): Promise<User | null> {
     return null;
   }
 
-  await saveSession({ id: user.id, role: user.role, name: user.name, phone: user.phone, status: user.status, mustChangePin: user.mustChangePin });
+  await saveSession({ id: user.id, role: user.role, name: user.name, phone: user.phone, status: user.status, mustChangePin: user.mustChangePin, sessionVersion: user.sessionVersion ?? 0, isDemo: user.isDemo });
   log.auth.info('restoreSession: session restored OK', { uid: user.id, role: user.role, status: user.status });
   return user;
 }
@@ -147,11 +154,14 @@ export async function registerCustomer(params: {
 
   // A profile without a matching Firebase Auth account cannot securely use
   // authenticated services, so fail registration instead of creating a local UID.
-  const cred = await createUserWithEmailAndPassword(auth, email, hashed);
-  const uid = cred.user.uid;
+  const development = getDemoCredentials().length > 0;
+  const cred = development ? null : await createUserWithEmailAndPassword(auth, email, hashed);
+  const uid = cred?.user.uid || doc(collection(db, 'users')).id;
 
   // Create Firestore user doc (role: customer, status: pending)
   const userData: Omit<User, 'id' | 'createdAt'> = {
+    isDemo: development,
+    sessionVersion: 0,
     role:     'customer',
     name,
     phone,
@@ -163,7 +173,7 @@ export async function registerCustomer(params: {
   try {
     await createUser(uid, userData);
   } catch (error) {
-    await deleteUser(cred.user).catch(() => {});
+    if (cred) await deleteUser(cred.user).catch(() => {});
     throw error;
   }
 
@@ -174,7 +184,7 @@ export async function registerCustomer(params: {
   });
 
   const user: User = { id: uid, ...userData } as User;
-  await saveSession({ id: uid, role: user.role, name, phone, status: 'pending' });
+  await saveSession({ id: uid, role: user.role, name, phone, status: 'pending', isDemo: development, sessionVersion: 0 });
   return user;
 }
 
@@ -187,6 +197,16 @@ export async function loginWithPhone(params: {
   const { phone, pin } = params;
 
   const hashed = await hashPin(pin, phone);
+  const demo = getDemoCredentials().find(d => d.credential.phone === phone && d.credential.pin === pin);
+  if (demo) {
+    const candidates = await getDocs(query(collection(db, 'users'), where('phone', '==', phone), limit(10)));
+    const match = candidates.docs.find(d => d.data().role === demo.role);
+    if (!match) await setDoc(doc(db, 'users', 'demo-' + demo.role), { name: demo.credential.name || demo.role, phone, role: demo.role, status: 'approved', pin: hashed, isDemo: true, isOnline: demo.role === 'agent', sessionVersion: 0, createdAt: Timestamp.now() });
+    else if (!match.data().isDemo) {
+      // Reuse the profile ID to preserve all existing order links; never overwrite its PIN.
+      await updateDoc(match.ref, { name: demo.credential.name || match.data().name, isDemo: true });
+    }
+  }
   const usersQuery = query(collection(db, 'users'), where('phone', '==', phone), limit(10));
   const usersSnap = await getDocs(usersQuery);
   const matchesPin = (data: Record<string, any>) =>
@@ -232,8 +252,10 @@ export async function loginWithPhone(params: {
       throw new Error('Your account has been blocked. Contact the store.');
     }
 
-    await signInWithPhonePin(phone, hashed, pin);
-    await saveSession({ id: userData.id, role: userData.role, name: userData.name, phone, status: userData.status, mustChangePin: userData.mustChangePin });
+    if (userData.isDemo && getDemoCredentials().length > 0) await fbSignOut(auth);
+    else await signInWithPhonePin(phone, hashed, pin);
+    await clearPinFailures(phone).catch(() => {});
+    await saveSession({ id: userData.id, role: userData.role, name: userData.name, phone, status: userData.status, mustChangePin: userData.mustChangePin, sessionVersion: userData.sessionVersion ?? 0, isDemo: userData.isDemo });
     log.auth.info('Phone + PIN login succeeded', { role: userData.role, status: userData.status });
     return userData;
   }
@@ -267,16 +289,21 @@ export async function loginWithPhone(params: {
 
   if (!usersSnap.empty || !agentsSnap.empty) {
     log.auth.warn('Phone + PIN login rejected: profile exists but PIN did not match');
-    throw new Error('Incorrect PIN.');
+    const attempts = await recordPinFailure(phone, 'login', usersSnap.docs[0]?.data().name || agentsSnap.docs[0]?.data().name);
+    throw Object.assign(new Error(attempts >= 3 ? 'Three unsuccessful attempts. Vivek has been notified; call or WhatsApp for help.' : 'Incorrect PIN.'), { attempts });
   }
   log.auth.warn('Phone + PIN login rejected: no matching profile');
-  throw new Error('No account found with this phone number.');
+  const attempts = await recordPinFailure(phone, 'login');
+  throw Object.assign(new Error('No account found with this phone number. ' + (attempts >= 3 ? 'Vivek has been notified.' : '')), { attempts });
 }
 
 
 export async function logout(): Promise<void> {
   log.auth.info('logout: clearing session and signing out of Firebase Auth');
+  const previous = await loadStoredSession();
+  if (previous) await unregisterDevicePushToken(previous.id).catch(() => {});
   await clearStoredSession();
+  useCart.getState().clearCart();
   try { await fbSignOut(auth); } catch { /* ignore if already signed out */ }
   log.auth.info('logout: done');
 }
@@ -290,6 +317,12 @@ export async function adminResetPin(uid: string, phone: string, newPin: string):
     throw new Error('A valid 10-digit phone number and 4-digit PIN are required.');
   }
   const hashed = await hashPin(newPin, cleanPhone);
+  const target = await getUser(uid);
+  if (useSession.getState().role === 'admin' && useSession.getState().isDemo && target?.isDemo) {
+    await updateDoc(doc(db, 'users', uid), { pin: hashed, mustChangePin: true, sessionVersion: increment(1), status: 'approved' });
+    await clearPinFailures(cleanPhone);
+    return;
+  }
   await waitForFirebaseAuth();
   const reset = httpsCallable(functions, 'adminResetPin');
   await reset({ uid: String(uid), phone: cleanPhone, hashedPin: hashed });
@@ -308,6 +341,13 @@ export async function createAgent(params: {
     throw new Error('A valid 10-digit phone number and 4-digit PIN are required.');
   }
   const hashedPin = await hashPin(pin, phone);
+  if (useSession.getState().isDemo && useSession.getState().role === 'admin') {
+    const existing = await getDocs(query(collection(db, 'users'), where('phone', '==', phone), limit(1)));
+    if (!existing.empty) throw new Error('Phone already has a profile.');
+    const ref = doc(collection(db, 'users'));
+    await createUser(ref.id, { name: name.trim(), phone, pin: hashedPin, role: 'agent', status: 'approved', isDemo: true, sessionVersion: 0, mustChangePin: true, isOnline: false, activeOrderCount: 0 });
+    return ref.id;
+  }
   await waitForFirebaseAuth();
   const create = httpsCallable<{ name: string; phone: string; hashedPin: string }, { uid: string }>(functions, 'adminCreateAgent');
   const result = await create({ name: name.trim(), phone, hashedPin });
@@ -321,10 +361,50 @@ export async function changePin(uid: string, phone: string, oldPin: string, newP
   const cleanPhone = phone ? String(phone).replace(/\D/g, '').slice(-10) : '';
   const hashedOld = cleanPhone ? await hashPin(oldPin, cleanPhone) : oldPin;
   const pinOk = user.pin === hashedOld || user.pin === oldPin || user.plainPin === oldPin;
-  if (!pinOk) throw new Error('Incorrect current PIN.');
+  if (!pinOk) { const attempts = await recordPinFailure(cleanPhone, 'change_pin', user.name); throw Object.assign(new Error('Incorrect current PIN. ' + (attempts >= 3 ? 'Vivek has been notified.' : '')), { attempts }); }
 
   const hashedNew = cleanPhone ? await hashPin(newPin, cleanPhone) : newPin;
+  if (user.isDemo && getDemoCredentials().length > 0) {
+    await updateDoc(doc(db, 'users', uid), { pin: hashedNew, mustChangePin: false });
+    await clearPinFailures(cleanPhone);
+    return;
+  }
   await waitForFirebaseAuth();
   const reset = httpsCallable(functions, 'changeOwnPin');
-  await reset({ uid: String(uid), phone: cleanPhone, hashedPin: hashedNew });
+  await reset({ uid: String(uid), phone: cleanPhone, hashedPin: hashedNew, oldHashedPin: hashedOld });
+  await clearPinFailures(cleanPhone).catch(() => {});
+}
+
+/** Explicit development setup. Existing document IDs and order links are retained. */
+export async function prepareDevelopmentAccounts(): Promise<void> {
+  const configured = getDemoCredentials();
+  if (!configured.length) throw new Error('Development accounts are disabled for this build.');
+  for (const { role, credential } of configured) {
+    const snap = await getDocs(query(collection(db, 'users'), where('phone', '==', credential.phone), limit(10)));
+    const matches = snap.docs.filter(d => d.data().role === role);
+    if (matches.length > 1) throw new Error('Duplicate ' + role + ' profiles for ' + credential.phone + '. Resolve duplicates before preparing this account.');
+    if (matches.length === 1) {
+      await updateDoc(matches[0].ref, { name: credential.name || role, isDemo: true });
+    } else {
+      await setDoc(doc(db, 'users', 'demo-' + role), {
+        role, name: credential.name || role, phone: credential.phone, pin: await hashPin(credential.pin, credential.phone),
+        status: 'approved', isDemo: true, sessionVersion: 0, isOnline: role === 'agent', activeOrderCount: 0,
+        address: { door: '', street: '', locality: '', city: 'Chennai', landmark: '', lat: null, lng: null },
+        createdAt: Timestamp.now(),
+      });
+    }
+  }
+}
+
+export async function adminChangePhone(uid: string, phone: string, temporaryPin: string): Promise<void> {
+  if (useSession.getState().role !== 'admin') throw new Error('Only admin can change account phone numbers.');
+  if (!/^[6-9]\d{9}$/.test(phone) || !/^\d{4}$/.test(temporaryPin)) throw new Error('Enter a valid phone and 4-digit temporary PIN.');
+  const existing = await getDocs(query(collection(db, 'users'), where('phone', '==', phone), limit(2)));
+  if (existing.docs.some(d => d.id !== uid)) throw new Error('Phone already belongs to another account.');
+  const hashedPin = await hashPin(temporaryPin, phone);
+  if (useSession.getState().isDemo) {
+    const target = await getUser(uid);
+    if (!target?.isDemo) throw new Error('Use an authenticated admin session for this account.');
+    await updateDoc(doc(db, 'users', uid), { phone, pin: hashedPin, mustChangePin: true, sessionVersion: increment(1) });
+  } else await httpsCallable(functions, 'adminChangePhone')({ uid, phone, hashedPin });
 }

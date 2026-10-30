@@ -1,0 +1,1175 @@
+{
+  "role": "agent",
+  "actions": [
+    {
+      "id": "UI-b910aabd4c",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 348,
+      "event": "onPress",
+      "label": "() => router.push(`/agent/delivery/${item.id}`)",
+      "expectation": "Expected route/modal opens or closes; no unintended order, money or can mutation."
+    },
+    {
+      "id": "UI-a587f8e641",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 407,
+      "event": "onPress",
+      "label": "() => handleCall(item.customerPhone)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-7c734c0e94",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 461,
+      "event": "onPress",
+      "label": "() => handleOpenMap(item)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-23bc0143a6",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 536,
+      "event": "onPress",
+      "label": "() => earningsSheetRef.current?.expand()",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-ccb543e290",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 546,
+      "event": "onPress",
+      "label": "Sign Out",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-a6e9b99c44",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 584,
+      "event": "onPress",
+      "label": "handleToggleOnline",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-21e3e11435",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 598,
+      "event": "onPress",
+      "label": "() => { Haptics.selectionAsync(); setActiveTab('assigned'",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-fac53ce5c5",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 625,
+      "event": "onPress",
+      "label": "() => { Haptics.selectionAsync(); setActiveTab('out'); ",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-f07f96b946",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 652,
+      "event": "onPress",
+      "label": "() => { Haptics.selectionAsync(); setActiveTab('completed",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-f29a62a61c",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 683,
+      "event": "onPress",
+      "label": "{`Filter today runs, total ${effectiveTodayDeliveries}`}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-9d6ca5e853",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 698,
+      "event": "onPress",
+      "label": "{`Filter weekly runs, total ${effectiveWeeklyDeliveries}`}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-531783b37c",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 713,
+      "event": "onPress",
+      "label": "{`Filter monthly runs, total ${effectiveMonthlyDeliveries}`}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-3b46870541",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 733,
+      "event": "onPress",
+      "label": "() => { Haptics.selectionAsync(); setAssignedSubFilte",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-0b32945982",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 745,
+      "event": "onPress",
+      "label": "() => { Haptics.selectionAsync(); setAssignedSubFilte",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-57a01bb159",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 761,
+      "event": "onPress",
+      "label": "() => { Haptics.selectionAsync(); setAssignedSubFilte",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-be019132ab",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 784,
+      "event": "onPress",
+      "label": "Delivery history",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-064fbb4580",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 784,
+      "event": "onPress",
+      "label": "Can collection history",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-0264904304",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 785,
+      "event": "onPress",
+      "label": "Load older completed history",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-1bfff309ed",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 787,
+      "event": "onRetry",
+      "label": "refreshOrders",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-0019cef7d3",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 914,
+      "event": "onPress",
+      "label": "{`Filter today runs from 12 AM, total ${effectiveTodayDeliveries}`}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-344570b1cb",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 929,
+      "event": "onPress",
+      "label": "{`Filter weekly runs, total ${effectiveWeeklyDeliveries}`}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-2798b30414",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 944,
+      "event": "onPress",
+      "label": "{`Filter monthly runs, total ${effectiveMonthlyDeliveries}`}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-48ee7c9d4c",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 1013,
+      "event": "onRequestClose",
+      "label": "() => setNewAssignmentAlert(null)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-236141d9cd",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 1032,
+      "event": "onPress",
+      "label": "() => { const id = newAssignmentAlert.id; set",
+      "expectation": "Expected route/modal opens or closes; no unintended order, money or can mutation."
+    },
+    {
+      "id": "UI-944ebf12de",
+      "role": "agent",
+      "file": "mobile/app/agent/dashboard.tsx",
+      "line": 1043,
+      "event": "onPress",
+      "label": "() => setNewAssignmentAlert(null)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-99bbdb94a0",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 368,
+      "event": "onAction",
+      "label": "Order Not Found",
+      "expectation": "Expected route/modal opens or closes; no unintended order, money or can mutation."
+    },
+    {
+      "id": "UI-d5667fe9d0",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 386,
+      "event": "onAction",
+      "label": "Run Reassigned",
+      "expectation": "Expected route/modal opens or closes; no unintended order, money or can mutation."
+    },
+    {
+      "id": "UI-8215fd6f94",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 495,
+      "event": "onPress",
+      "label": "handleCall",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-f3cfa57664",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 500,
+      "event": "onPress",
+      "label": "handleOpenMaps",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-405240a1e3",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 540,
+      "event": "onPress",
+      "label": "Decrease empty cans collected",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-eaff860472",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 561,
+      "event": "onPress",
+      "label": "Increase empty cans collected",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-8cbbe6e134",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 617,
+      "event": "onPress",
+      "label": "{allChecklistItemsChecked ? 'Uncheck all items' : 'Check all items'}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-005fef5de7",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 640,
+      "event": "onPress",
+      "label": "{`Item ${item.name}, quantity ${item.qty}`}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-5b8e986b71",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 715,
+      "event": "onPress",
+      "label": "{\n                  updating\n                    ? 'Updating...'\n                    : !allChecklistItemsChecked\n                    ? `Pick Up (${checkedCount}/${totalChecklistCount} Checked)`\n                    : 'Pick Up & Start Delivery'\n                }",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-14ee919db3",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 727,
+      "event": "onPress",
+      "label": "Show QR code for customer to scan and pay",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-906ef6c283",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 766,
+      "event": "onConfirm",
+      "label": "{allChecklistItemsChecked ? (isRecovery ? \"Slide to record collected cans\" : \"Slide to Mark Delivered\") : `Check All Items (${checkedCount}/${totalChecklistCount})`}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-b90e95a782",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 805,
+      "event": "onRequestClose",
+      "label": "() => setShowQRModal(false)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-fcbbd8fffd",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 817,
+      "event": "onPress",
+      "label": "Close QR sheet",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-02bf79abcc",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 858,
+      "event": "onPress",
+      "label": "{updating ? 'Confirming...' : 'I verified the QR payment • Complete run'}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-5cfa4a78f7",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 865,
+      "event": "onPress",
+      "label": "() => setShowQRModal(false)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-1fb3ed46e3",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 880,
+      "event": "onRequestClose",
+      "label": "() => setShowConfirmModal(false)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-7879f3b9b9",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 904,
+      "event": "onPress",
+      "label": "() => setDeliveryPaymentMethod('cash')",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-32b89096ab",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 928,
+      "event": "onPress",
+      "label": "() => setDeliveryPaymentMethod('upi_qr')",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-2b47590a5d",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 950,
+      "event": "onPress",
+      "label": "() => { setShowConfirmModal(false); setSelectedQR",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-b91a0bb0a2",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 980,
+      "event": "onPress",
+      "label": "{\n                  updating\n                    ? 'Confirming...'\n                    : deliveryPaymentMethod === 'upi_qr'\n                    ? 'Confirm UPI QR Payment'\n                    : 'Confirm Cash Collected'\n                }",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-3ac37b9b54",
+      "role": "agent",
+      "file": "mobile/app/agent/delivery/[id].tsx",
+      "line": 987,
+      "event": "onPress",
+      "label": "() => setShowConfirmModal(false)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-77ce5b06c5-AGENT",
+      "role": "agent",
+      "file": "mobile/app/auth/awaiting-approval.tsx",
+      "line": 39,
+      "event": "onPress",
+      "label": "handleLogout",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-022927a8f9-AGENT",
+      "role": "agent",
+      "file": "mobile/app/auth/login.tsx",
+      "line": 81,
+      "event": "onChangeText",
+      "label": "9xxxxxxxxx",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-b75a685625-AGENT",
+      "role": "agent",
+      "file": "mobile/app/auth/login.tsx",
+      "line": 101,
+      "event": "onChangeText",
+      "label": "• • • •",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-612a417a3e-AGENT",
+      "role": "agent",
+      "file": "mobile/app/auth/login.tsx",
+      "line": 103,
+      "event": "onSubmitEditing",
+      "label": "• • • •",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-82ec449918-AGENT",
+      "role": "agent",
+      "file": "mobile/app/auth/login.tsx",
+      "line": 111,
+      "event": "onPress",
+      "label": "Prepare named development accounts",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-91a3c0d2c7-AGENT",
+      "role": "agent",
+      "file": "mobile/app/auth/login.tsx",
+      "line": 118,
+      "event": "onPress",
+      "label": "{`Fill ${role} test login`}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-996e5aa520-AGENT",
+      "role": "agent",
+      "file": "mobile/app/auth/login.tsx",
+      "line": 138,
+      "event": "onPress",
+      "label": "Sign in",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-e801f33136-AGENT",
+      "role": "agent",
+      "file": "mobile/app/auth/login.tsx",
+      "line": 145,
+      "event": "onPress",
+      "label": "New customer? Create account",
+      "expectation": "Expected route/modal opens or closes; no unintended order, money or can mutation."
+    },
+    {
+      "id": "UI-3b91b7c682-AGENT",
+      "role": "agent",
+      "file": "mobile/app/auth/register.tsx",
+      "line": 25,
+      "event": "onChangeText",
+      "label": "(value: string) => setter((previous: Field) => ({ ...previous, value, error: '' }))",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-2444eacad2-AGENT",
+      "role": "agent",
+      "file": "mobile/app/auth/register.tsx",
+      "line": 117,
+      "event": "onPress",
+      "label": "Create account",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-057380ed45-AGENT",
+      "role": "agent",
+      "file": "mobile/app/auth/register.tsx",
+      "line": 120,
+      "event": "onPress",
+      "label": "() => router.back()",
+      "expectation": "Expected route/modal opens or closes; no unintended order, money or can mutation."
+    },
+    {
+      "id": "UI-2f5b7aac31-AGENT",
+      "role": "agent",
+      "file": "mobile/app/auth/reset-pin.tsx",
+      "line": 74,
+      "event": "onChangeText",
+      "label": "• • • •",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-916271bac4-AGENT",
+      "role": "agent",
+      "file": "mobile/app/auth/reset-pin.tsx",
+      "line": 88,
+      "event": "onChangeText",
+      "label": "• • • •",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-cd3793c85f-AGENT",
+      "role": "agent",
+      "file": "mobile/app/auth/reset-pin.tsx",
+      "line": 103,
+      "event": "onChangeText",
+      "label": "• • • •",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-d4314c7d95-AGENT",
+      "role": "agent",
+      "file": "mobile/app/auth/reset-pin.tsx",
+      "line": 109,
+      "event": "onPress",
+      "label": "Save new PIN",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-3bdf394e5c-AGENT",
+      "role": "agent",
+      "file": "mobile/app/auth/reset-pin.tsx",
+      "line": 113,
+      "event": "onPress",
+      "label": "Go to Sign In",
+      "expectation": "Expected route/modal opens or closes; no unintended order, money or can mutation."
+    },
+    {
+      "id": "UI-ae62bfb22c-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/logs.tsx",
+      "line": 144,
+      "event": "onPress",
+      "label": "handleShare",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-b559032696-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/logs.tsx",
+      "line": 161,
+      "event": "onPress",
+      "label": "refresh",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-ff08fbeeaa-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/logs.tsx",
+      "line": 180,
+      "event": "onPress",
+      "label": "() => setCatFilter(cat as LogCategory | \"ALL\")",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-95ba4da6e0-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/logs.tsx",
+      "line": 196,
+      "event": "onPress",
+      "label": "() => setLvlFilter(lvl)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-d710986e6e-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/logs.tsx",
+      "line": 205,
+      "event": "onPress",
+      "label": "handleClear",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-c4ca1ba158-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 50,
+      "event": "onPress",
+      "label": "Primary (amber)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-c5bb07de1c-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 51,
+      "event": "onPress",
+      "label": "Secondary (green)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-76dec14863-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 52,
+      "event": "onPress",
+      "label": "Ghost",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-3474ded685-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 53,
+      "event": "onPress",
+      "label": "Danger",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-4432adba8d-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 54,
+      "event": "onPress",
+      "label": "Loading...",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-882a0070da-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 55,
+      "event": "onPress",
+      "label": "Disabled",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-833a0fdd74-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 71,
+      "event": "onPress",
+      "label": "{c}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-2ffb2e5a85-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 83,
+      "event": "onAdd",
+      "label": "() => setQty1(1)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-c31ae872c3-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 84,
+      "event": "onIncrement",
+      "label": "() => setQty1(q => q + 1)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-2328529fcd-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 85,
+      "event": "onDecrement",
+      "label": "() => setQty1(q => Math.max(0, q - 1))",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-a75dc3125e-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 92,
+      "event": "onAdd",
+      "label": "() => setQty2(1)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-a1391dba08-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 93,
+      "event": "onIncrement",
+      "label": "() => setQty2(q => q + 1)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-34c35db7a3-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 94,
+      "event": "onDecrement",
+      "label": "() => setQty2(q => Math.max(0, q - 1))",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-cd2c089e4b-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 121,
+      "event": "onPress",
+      "label": "Success toast",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-b9a13bf7a7-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 122,
+      "event": "onPress",
+      "label": "Error toast",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-4f50c9a342-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 123,
+      "event": "onPress",
+      "label": "Info toast",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-596dcae023-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 130,
+      "event": "onPress",
+      "label": "Open bottom sheet",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-d607358f26-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 139,
+      "event": "onConfirm",
+      "label": "Swipe to mark delivered",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-73bed99f19-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 151,
+      "event": "onAction",
+      "label": "No orders yet",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-1928f213da-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 159,
+      "event": "onRetry",
+      "label": "() => showToast('Retrying…', 'info')",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-3ba6ee5b67-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 166,
+      "event": "onPress",
+      "label": "() => showToast('Cart tapped', 'info')",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-cfa3acdc94-AGENT",
+      "role": "agent",
+      "file": "mobile/app/dev/ui.tsx",
+      "line": 171,
+      "event": "onPress",
+      "label": "Close",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-27fb3fea56-AGENT",
+      "role": "agent",
+      "file": "mobile/app/track/[id].tsx",
+      "line": 115,
+      "event": "onRetry",
+      "label": "refresh",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-d3a7bce31e-AGENT",
+      "role": "agent",
+      "file": "mobile/app/track/[id].tsx",
+      "line": 116,
+      "event": "onAction",
+      "label": "Order not found",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-238980ed1c-AGENT",
+      "role": "agent",
+      "file": "mobile/app/track/[id].tsx",
+      "line": 248,
+      "event": "onPress",
+      "label": "() => Linking.openURL(`tel:${order.agentPhone}`).catch(() => ",
+      "expectation": "Correct external call/WhatsApp/map destination opens; no automatic message or payment is sent."
+    },
+    {
+      "id": "UI-1f78c64231-AGENT",
+      "role": "agent",
+      "file": "mobile/app/track/[id].tsx",
+      "line": 340,
+      "event": "onPress",
+      "label": "{cancelling ? 'Cancelling...' : 'Cancel Order'}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-91286338c8-AGENT",
+      "role": "agent",
+      "file": "mobile/app/track/[id].tsx",
+      "line": 348,
+      "event": "onPress",
+      "label": "() => router.replace('/(customer)')",
+      "expectation": "Expected route/modal opens or closes; no unintended order, money or can mutation."
+    },
+    {
+      "id": "UI-06c7b60494-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ErrorBoundary.tsx",
+      "line": 64,
+      "event": "onPress",
+      "label": "this.handleReset",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-baed081fec-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/AccountHelpPanel.tsx",
+      "line": 34,
+      "event": "onPress",
+      "label": "Call",
+      "expectation": "Correct external call/WhatsApp/map destination opens; no automatic message or payment is sent."
+    },
+    {
+      "id": "UI-d65ccf0000-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/AccountHelpPanel.tsx",
+      "line": 35,
+      "event": "onPress",
+      "label": "Set temporary PIN",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-42ab52ad67-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/AccountHelpPanel.tsx",
+      "line": 36,
+      "event": "onPress",
+      "label": "Resolved",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-e01cda7973-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/AccountHelpPanel.tsx",
+      "line": 41,
+      "event": "onChangeText",
+      "label": "Temporary PIN",
+      "expectation": "Visible input/selection changes; invalid values show validation; persist only on the relevant Save/Submit action."
+    },
+    {
+      "id": "UI-79e4f4ee6e-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/AccountHelpPanel.tsx",
+      "line": 42,
+      "event": "onPress",
+      "label": "Reset PIN",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-4285fb31f6-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/AccountSupport.tsx",
+      "line": 9,
+      "event": "onPress",
+      "label": "Call Vivek",
+      "expectation": "Correct external call/WhatsApp/map destination opens; no automatic message or payment is sent."
+    },
+    {
+      "id": "UI-0e24afcbf4-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/AccountSupport.tsx",
+      "line": 10,
+      "event": "onPress",
+      "label": "WhatsApp Vivek",
+      "expectation": "Correct external call/WhatsApp/map destination opens; no automatic message or payment is sent."
+    },
+    {
+      "id": "UI-150de8a27a-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/BottomSheet.tsx",
+      "line": 89,
+      "event": "onClose",
+      "label": "handleClose",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-9b6df1af9b-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/BottomSheet.tsx",
+      "line": 95,
+      "event": "onPress",
+      "label": "handleClose",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-4ca5baf6fe-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/Button.tsx",
+      "line": 80,
+      "event": "onPress",
+      "label": "{label}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-0a86c3c573-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/Button.tsx",
+      "line": 81,
+      "event": "onPressIn",
+      "label": "{label}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-bcdb9b7b42-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/Button.tsx",
+      "line": 82,
+      "event": "onPressOut",
+      "label": "{label}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-19df3e110a-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/Card.tsx",
+      "line": 57,
+      "event": "onPress",
+      "label": "{accessibilityLabel}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-d463a600d8-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/Card.tsx",
+      "line": 58,
+      "event": "onPressIn",
+      "label": "{accessibilityLabel}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-e50c88c0e6-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/Card.tsx",
+      "line": 59,
+      "event": "onPressOut",
+      "label": "{accessibilityLabel}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-fadc6e397f-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/Chip.tsx",
+      "line": 26,
+      "event": "onPress",
+      "label": "onPress",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-7683d9e275-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/Chip.tsx",
+      "line": 27,
+      "event": "onPressIn",
+      "label": "handlePressIn",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-9c06ef75b0-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/Chip.tsx",
+      "line": 28,
+      "event": "onPressOut",
+      "label": "handlePressOut",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-4fd91f21bf-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/EmptyState.tsx",
+      "line": 23,
+      "event": "onPress",
+      "label": "{actionLabel}",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-e727d2e63b-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/ErrorState.tsx",
+      "line": 23,
+      "event": "onPress",
+      "label": "Try again",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-5cde21e062-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/NotificationBell.tsx",
+      "line": 249,
+      "event": "onPress",
+      "label": "Today's Notifications",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-a75353c3ff-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/NotificationBell.tsx",
+      "line": 268,
+      "event": "onPress",
+      "label": "() => handleTapNotification(latestBanner)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-cc011e5397-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/NotificationBell.tsx",
+      "line": 280,
+      "event": "onPress",
+      "label": "() => setLatestBanner(null)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-5cf33da639-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/NotificationBell.tsx",
+      "line": 292,
+      "event": "onRequestClose",
+      "label": "handleCloseDrawer",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-5473b9f97c-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/NotificationBell.tsx",
+      "line": 300,
+      "event": "onPress",
+      "label": "handleCloseDrawer",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-f7a2753477-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/NotificationBell.tsx",
+      "line": 333,
+      "event": "onPress",
+      "label": "Close notifications",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-e133ee981e-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/NotificationBell.tsx",
+      "line": 350,
+      "event": "onPress",
+      "label": "handleClearTodayAll",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-fcb2d3dbb8-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/NotificationBell.tsx",
+      "line": 384,
+      "event": "onPress",
+      "label": "() => handleTapNotification(item)",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-1a969f73d6-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/NotificationBell.tsx",
+      "line": 410,
+      "event": "onPress",
+      "label": "Delete notification",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-9309492bc3-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/QtyStepper.tsx",
+      "line": 47,
+      "event": "onPress",
+      "label": "Add to cart",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-f2e46da81f-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/QtyStepper.tsx",
+      "line": 65,
+      "event": "onPress",
+      "label": "Decrease quantity",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-91320673ff-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/QtyStepper.tsx",
+      "line": 76,
+      "event": "onPress",
+      "label": "Increase quantity",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-457a6100e5-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/ScreenHeader.tsx",
+      "line": 35,
+      "event": "onPress",
+      "label": "Go back",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-f807763a32-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/StickyBar.tsx",
+      "line": 39,
+      "event": "onPress",
+      "label": "onPress",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    },
+    {
+      "id": "UI-9710ee0320-AGENT",
+      "role": "agent",
+      "file": "mobile/components/ui/Toast.tsx",
+      "line": 92,
+      "event": "onDone",
+      "label": "onDone",
+      "expectation": "Exercise this control and verify its visible result plus all affected-role order/history, notification, balance and reporting effects using the scenario checklist."
+    }
+  ]
+}

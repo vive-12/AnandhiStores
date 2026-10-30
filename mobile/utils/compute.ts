@@ -89,3 +89,11 @@ export function isValidPin(pin: string): boolean {
 export function normalisePhone(phone: string): string {
   return phone.replace(/\D/g, '').slice(-10);
 }
+
+/** Instant delivery availability is independent of scheduled ordering. */
+export function isImmediateSlot(label: string): boolean {
+  return /asap|instant|5 min/i.test(label);
+}
+export function canUseSlot(settings: Settings, label: string, now = new Date()): boolean {
+  return settings.slots.includes(label) && (!isImmediateSlot(label) || (settings.instantDeliveryEnabled !== false && isStoreOpen(settings, now)));
+}

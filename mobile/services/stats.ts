@@ -180,7 +180,7 @@ export async function getTodayStats(): Promise<DailyStats | null> {
 
 /** Fetch stats for the last N days (for 7-day / 30-day ranges) */
 export async function getRecentStats(days: number): Promise<DailyStats[]> {
-  const statsQuery = query(collection(db, COL), limit(days));
+  const statsQuery = query(collection(db, COL), orderBy(documentId(), 'desc'), limit(Math.max(days, 32)));
   const snap = await getDocs(statsQuery);
   return snap.docs
     .map(d => normalizeStatsDoc(d.data(), d.id))

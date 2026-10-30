@@ -25,6 +25,7 @@ import { useAgents } from '../../hooks/useAgents';
 import { useItems } from '../../hooks/useItems';
 import { useCustomers } from '../../hooks/useCustomers';
 import { useSettings } from '../../hooks/useSettings';
+import { useStats } from '../../hooks/useStats';
 import { getISTDateKey } from '../../services/stats';
 import { assignAgent, transitionOrder, createOrder } from '../../services/orders';
 import { logout } from '../../services/auth';
@@ -76,12 +77,14 @@ export default function AdminAlerts() {
   }, [clearSession, router]);
 
   // Data Hooks
-  const { orders, loading: ordersLoading, error: ordersError, refresh: refreshOrders } = useAdminOrders();
+  const { orders, loading: ordersLoading, error: ordersError, refresh: refreshOrders, loadMore, historyLimit } = useAdminOrders();
   const { orders: recoveryOrders } = useRecoveryOrders();
   const { agents } = useAgents();
   const { items } = useItems();
   const { customers } = useCustomers();
   const { settings } = useSettings();
+  const { computeMetrics } = useStats(32);
+  const dailyMetrics = computeMetrics('today');
   const retailOrders = useMemo(() => orders.filter(order => order.type !== 'recovery'), [orders]);
   const activeRecoveryCount = useMemo(() => {
     return recoveryOrders.filter(o => o.type === 'recovery' && o.status !== 'delivered' && o.status !== 'cancelled').length;
@@ -127,7 +130,7 @@ export default function AdminAlerts() {
     const map: Record<string, number> = {};
     for (const a of agents) map[a.id] = 0;
     for (const o of orders) {
-      if (o.agentId && (o.status === 'placed' || o.status === 'packed' || o.status === 'out_for_delivery')) {
+      if (o.agentId && (o.type !== 'recovery' || o.status === 'out_for_delivery') && (o.status === 'placed' || o.status === 'packed' || o.status === 'out_for_delivery')) {
         map[o.agentId] = (map[o.agentId] || 0) + 1;
       }
     }
@@ -164,10 +167,10 @@ export default function AdminAlerts() {
     return {
       total: retailOrders.length,
       active: active.length,
-      deliveredToday,
+      deliveredToday: dailyMetrics.deliveredCount,
       freeAgents,
     };
-  }, [retailOrders, agents, agentActiveOrdersMap]);
+  }, [retailOrders, agents, agentActiveOrdersMap, dailyMetrics.deliveredCount]);
 
   // Unassigned placed orders
   const unassignedOrders = useMemo(() => {
@@ -580,7 +583,7 @@ export default function AdminAlerts() {
             accessibilityLabel={`Filter all orders, total ${stats.total}`}
           >
             <Text style={[styles.statVal, { color: '#0ea5e9' }]}>{stats.total}</Text>
-            <Text style={styles.statLabel}>Recent Orders (max 200)</Text>
+            <Text style={styles.statLabel}>Recent history + all active</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -697,6 +700,7 @@ export default function AdminAlerts() {
           ))}
         </ScrollView>
 
+        <Button label="Load older completed history" variant="secondary" onPress={loadMore} />
         {/* ─── Loading Skeletons ───────────────────────────────────────────── */}
         {ordersLoading && (
           <View style={styles.skeletonsWrap}>
@@ -812,7 +816,7 @@ export default function AdminAlerts() {
                     <Text style={styles.itemsSummaryText} numberOfLines={1}>
                       {order.items?.map(i => `${i.qty}× ${i.name}`).join(', ') || 'Items'}
                     </Text>
-                    <Text style={styles.totalAmount}>₹{order.total} (COD)</Text>
+                    <Text style={styles.totalAmount}>₹{order.total} ({order.paymentMethod === 'upi_qr' ? 'UPI QR' : 'Cash'})</Text>
                   </View>
 
                   {/* Water Can Exchange Badge if applicable */}
@@ -942,7 +946,7 @@ export default function AdminAlerts() {
             </View>
           )}
 
-          <Text style={styles.sheetSubtitle}>Choose from registered delivery partners:</Text>
+          <Text style={styles.sheetSubtitle}>Choose an approved online partner. Waiting can collections are listed separately.</Text>
 
           {/* Agents List */}
           <ScrollView style={styles.sheetAgentList}>

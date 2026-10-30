@@ -31,7 +31,7 @@ import {
   CardSkeleton,
   useToast,
 } from '../../../components/ui';
-import type { Order, Actor, PaymentMethod } from '../../../types';
+import type { Order, Actor, PaymentMethod, QRCodeItem } from '../../../types';
 
 export default function ActiveDeliveryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -39,6 +39,8 @@ export default function ActiveDeliveryScreen() {
   const { uid, name: sessionName } = useSession();
   const { showToast } = useToast();
   const { defaultQR } = useQRCodes();
+  const [selectedQR, setSelectedQR] = useState<QRCodeItem | null>(null);
+  const paymentQR = selectedQR || defaultQR;
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,6 +63,8 @@ export default function ActiveDeliveryScreen() {
     setLoading(true);
     setOrder(null);
     setCheckedItems({});
+    setEmptyCansCollected(0);
+    setSelectedQR(null);
 
     // Load cached checklist from AsyncStorage immediately
     AsyncStorage.getItem(`@order_checklist_${id}`)
@@ -84,9 +88,7 @@ export default function ActiveDeliveryScreen() {
       id,
       orderData => {
         setOrder(orderData);
-        if (orderData?.pendingCansToCollect && emptyCansCollected === 0) {
-          setEmptyCansCollected(orderData.pendingCansToCollect);
-        }
+
         if (orderData?.checkedItems) {
           const loaded: Record<string | number, boolean> = {};
           Object.entries(orderData.checkedItems).forEach(([k, v]) => {
@@ -121,8 +123,7 @@ export default function ActiveDeliveryScreen() {
     if (order.type === 'recovery') return true;
     return (order.items || []).some(
       i =>
-        i.name.toLowerCase().includes('can') ||
-        (i.unit && i.unit.toLowerCase().includes('can')),
+        i.isWaterCan === true || i.unit?.toLowerCase() === 'can',
     );
   }, [order]);
 
@@ -131,8 +132,7 @@ export default function ActiveDeliveryScreen() {
     return order.items
       .filter(
         i =>
-          i.name.toLowerCase().includes('can') ||
-          (i.unit && i.unit.toLowerCase().includes('can')),
+          i.isWaterCan === true || i.unit?.toLowerCase() === 'can',
       )
       .reduce((sum, i) => sum + i.qty, 0);
   }, [order]);
@@ -290,8 +290,12 @@ export default function ActiveDeliveryScreen() {
       showToast('Checklist incomplete. Please check all items.', 'error');
       return;
     }
+    setSelectedQR(defaultQR);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    setShowConfirmModal(true);
+    if (order?.type === 'recovery') {
+      if (emptyCansCollected <= 0) { showToast('Keep this run open until cans are collected.', 'info'); return; }
+      Alert.alert('Record empty cans', 'Record ' + emptyCansCollected + ' cans? Any remainder stays open for a later visit.', [{ text: 'Back' }, { text: 'Record collection', onPress: () => handleConfirmDelivered('cash') }]);
+    } else setShowConfirmModal(true);
   };
 
   // Action: Confirm and Mark Delivered
@@ -309,7 +313,8 @@ export default function ActiveDeliveryScreen() {
       setShowConfirmModal(false);
       setShowQRModal(false);
 
-      const isUpi = method === 'upi_qr';
+      if (method === 'upi_qr' && (!paymentQR?.upiId || !paymentQR.imageUrl)) throw new Error('Admin must upload a payment QR and UPI ID first. Use cash for now.');
+      const isUpi = order.type !== 'recovery' && method === 'upi_qr';
       await transitionOrder({
         orderId: order.id,
         order,
@@ -318,13 +323,15 @@ export default function ActiveDeliveryScreen() {
         checkedItems,
         emptyCansCollected: hasWaterCans ? emptyCansCollected : undefined,
         paymentMethod: method,
-        qrId: isUpi ? (defaultQR?.id || null) : null,
-        qrLabel: isUpi ? (defaultQR?.name || 'Store UPI QR') : null,
+        qrId: isUpi ? (paymentQR?.id || null) : null,
+        qrUpiId: isUpi ? paymentQR?.upiId || null : null,
+        qrLabel: isUpi ? (paymentQR?.name || 'Store UPI QR') : null,
       });
 
+      setEmptyCansCollected(0);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showToast(
-        isUpi
+        order.type === 'recovery' ? 'Collection recorded. Any remaining cans stay open.' : isUpi
           ? 'Order Delivered & UPI QR Payment Recorded! 🎉'
           : 'Order Delivered & Cash Collected! 🎉',
         'success',
@@ -419,15 +426,15 @@ export default function ActiveDeliveryScreen() {
                   ? 'DELIVERY COMPLETED'
                   : isRecovery
                   ? 'EMPTY CAN COLLECTION'
-                  : 'COLLECT CASH ON DELIVERY'}
+                  : 'COLLECT CASH OR VERIFY QR PAYMENT'}
               </Text>
               <Text style={s.codHeroAmount}>
                 {isRecovery && order.total === 0 ? 'Collect Empty Cans' : `₹${order.total}`}
               </Text>
               <Text style={s.codHeroNote}>
                 {isDelivered
-                  ? 'Cash collected & recorded in today’s handover'
-                  : 'Cash on Delivery only. Please collect the exact bill amount.'}
+                  ? (isRecovery ? 'All empty cans collected. No sale or payment recorded.' : 'Delivery completed; payment recorded.')
+                  : 'Collect cash or verify the payment to the store QR. No payment gateway is used.'}
               </Text>
             </View>
           </View>
@@ -674,7 +681,7 @@ export default function ActiveDeliveryScreen() {
           </View>
           <View style={s.billDivider} />
           <View style={s.billRow}>
-            <Text style={s.billTotalLabel}>Total Cash to Collect</Text>
+            <Text style={s.billTotalLabel}>Order total</Text>
             <Text style={s.billTotalVal}>₹{order.total}</Text>
           </View>
           {order.agentFee !== null && order.agentFee !== undefined && (
@@ -714,12 +721,13 @@ export default function ActiveDeliveryScreen() {
 
           {isOut && (
             <View style={s.swipeContainer}>
-              {/* QR Button Requested by User */}
-              <TouchableOpacity
+              {/* Recovery has no sale/payment step. */}
+              {!isRecovery && (<TouchableOpacity
                 style={s.qrTriggerBtn}
                 onPress={() => {
+                  if (!paymentQR?.imageUrl || !paymentQR.upiId) { showToast('Admin must upload the payment QR and its UPI ID. Collect cash for now.', 'info'); return; }
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  setShowQRModal(true);
+                  setSelectedQR(current => current || defaultQR); setShowQRModal(true);
                 }}
                 activeOpacity={0.85}
                 accessibilityRole="button"
@@ -740,7 +748,7 @@ export default function ActiveDeliveryScreen() {
                   <Text style={s.qrActionBadgeTxt}>QR</Text>
                   <Ionicons name="chevron-forward" size={14} color={Colors.green900} />
                 </View>
-              </TouchableOpacity>
+              </TouchableOpacity>)}
 
               <Text style={s.swipeInstruction}>
                 Slide right after arriving at customer's doorstep:
@@ -754,7 +762,7 @@ export default function ActiveDeliveryScreen() {
                 </View>
               )}
               <SwipeToConfirm
-                label={allChecklistItemsChecked ? "Slide to Mark Delivered" : `Check All Items (${checkedCount}/${totalChecklistCount})`}
+                label={allChecklistItemsChecked ? (isRecovery ? "Slide to record collected cans" : "Slide to Mark Delivered") : `Check All Items (${checkedCount}/${totalChecklistCount})`}
                 onConfirm={handleSwipeDelivered}
                 disabled={updating || !allChecklistItemsChecked}
               />
@@ -764,7 +772,7 @@ export default function ActiveDeliveryScreen() {
           {isDelivered && (
             <View style={s.deliveredSuccessBox}>
               <Ionicons name="checkmark-circle" size={32} color={Colors.green500} />
-              <Text style={s.deliveredTitle}>Order Delivered 🎉</Text>
+              <Text style={s.deliveredTitle}>{isRecovery ? 'All empty cans collected' : 'Order delivered'}</Text>
               <Text style={s.deliveredSub}>
                 Delivered at{' '}
                 {order.deliveredAt?.toMillis
@@ -802,7 +810,7 @@ export default function ActiveDeliveryScreen() {
               <View>
                 <Text style={s.qrSheetTitle}>Scan to Pay UPI</Text>
                 <Text style={s.qrSheetSub}>
-                  {defaultQR?.name || 'Primary Store QR'}
+                  {paymentQR?.name || 'Primary Store QR'}
                 </Text>
               </View>
               <TouchableOpacity
@@ -824,21 +832,12 @@ export default function ActiveDeliveryScreen() {
               <Image
                 source={{
                   uri:
-                    defaultQR?.imageUrl ||
-                    getQRCodeImageUrl(
-                      generateUPIUri({
-                        upiId: defaultQR?.upiId || 'anandhistores@okaxis',
-                        merchantName: defaultQR?.merchantName || 'Anandhi Stores',
-                        amount: order.total,
-                        orderNo: order.orderNo,
-                      }),
-                      320,
-                    ),
+                    paymentQR?.imageUrl || ''
                 }}
                 style={s.qrCodeImg}
               />
-              <Text style={s.qrUpiText}>UPI: {defaultQR?.upiId || 'anandhistores@okaxis'}</Text>
-              <Text style={s.qrPayeeText}>Payee: {defaultQR?.merchantName || 'Anandhi Stores'}</Text>
+              <Text style={s.qrUpiText}>UPI: {paymentQR?.upiId || 'anandhistores@okaxis'}</Text>
+              <Text style={s.qrPayeeText}>Payee: {paymentQR?.merchantName || 'Anandhi Stores'}</Text>
               <Text style={s.qrAppHint}>
                 Ask customer to scan using Google Pay, PhonePe, Paytm, or any UPI app
               </Text>
@@ -855,7 +854,7 @@ export default function ActiveDeliveryScreen() {
 
             <View style={s.modalBtnStack}>
               <Button
-                label={updating ? 'Confirming...' : 'Customer Paid via QR • Complete Run'}
+                label={updating ? 'Confirming...' : 'I verified the QR payment • Complete run'}
                 onPress={() => handleConfirmDelivered('upi_qr')}
                 loading={updating}
                 variant="primary"
@@ -925,6 +924,7 @@ export default function ActiveDeliveryScreen() {
                   s.paymentToggleBtn,
                   deliveryPaymentMethod === 'upi_qr' && s.paymentToggleBtnActive,
                 ]}
+                disabled={!paymentQR?.imageUrl || !paymentQR.upiId}
                 onPress={() => setDeliveryPaymentMethod('upi_qr')}
                 activeOpacity={0.8}
               >
@@ -949,7 +949,7 @@ export default function ActiveDeliveryScreen() {
                 style={s.modalQrPrompt}
                 onPress={() => {
                   setShowConfirmModal(false);
-                  setShowQRModal(true);
+                  setSelectedQR(current => current || defaultQR); setShowQRModal(true);
                 }}
               >
                 <Ionicons name="scan-circle-outline" size={20} color={Colors.green700} />

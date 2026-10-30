@@ -490,3 +490,136 @@
 
 
 
+
+
+## 2026-10-30 — Codexpro implementation: recovery, account help and low-cost store operations
+
+Owner-approved direction: cash or store QR/UPI only; no gateway, SMS OTP, new paid service, billing upgrade or deployment. Preserve easy development role switching. Initial scale is roughly 30–100 daily orders, potentially up to 500/day and 2–3 agents.
+
+Role impact before implementation:
+- Customer: separate long-running can balances/history, live profile/cart updates, scheduled ordering while instant delivery is off, PIN help and successful PIN-change navigation.
+- Agent: independent active/history feeds, partial collection recording, retail/recovery segregation, accurate daily-summary totals and safe reset/offline behavior.
+- Admin: durable event recipients, unresolved PIN-help inbox, named development identities, assignment/deactivation safeguards, QR/UPI management and offer presets.
+
+### Implemented locally
+
+- Partial recovery records actual collection quantity and collection history, decrements the customer balance, and leaves the same run waiting for the remainder. It has no automatic 2/10-day expiry. Only the final collection counts as a completed recovery; retail sales, cash, items and paid-delivery counts remain separate.
+- Manual recovery now requires an explicit customer ID and reserves the outstanding quantity transactionally to prevent duplicate runs. Customer Orders has Purchases/Empty cans views; agent Assigned and Completed segregate collection work; admin Cans stays separate from retail dispatch.
+- Every order event resolves actual admin UIDs for durable notices, rather than the literal ID admin or an optional caller-supplied recipient. Assignment/reassignment appends an attributed audit entry.
+- PIN-help requests persist at account_help/{phone}. The third failed sign-in or current-PIN attempt sends one admin notice and shows call/WhatsApp support for Vivek (9003115101). Admin Profiles has a help inbox, assisted temporary PIN reset and resolution actions.
+- Root SessionMonitor owns approval, live blocking, reset-version invalidation and profile freshness. Admin reset changes sessionVersion without removing orders/assignments/balances. Self change requires the current PIN and explicitly exits to role home. Removed the duplicate approval-session listener, nested registration input definition and conditional admin safe-area hook.
+- Explicit “Prepare named development accounts” action configures Vivek/admin 9003115101, Shivani/customer 9003115106 and Suresh/agent 9940405016. Existing matching IDs/PINs are retained; duplicates are reported, not silently merged. New development-only profiles are created only when missing. Development registration/agent creation/reset need no callable deployment; real Auth accounts still use the existing privileged callables. No live account setup was executed by Codex.
+- Active orders are fetched in bounded live pages independently of terminal history. Load-older controls expand history. Daily stats drive admin/agent totals; statistics now write nested map fields, retaining reads of old dotted-field data. Customer reports disclose their recent-history scope and include delivery charges.
+- Assignment validates current agent availability in a transaction; busy and assigned-run counters conflict safely with offline/deactivation decisions. Waiting recoveries do not hold agents online for days; every assigned recovery must be reassigned before deactivation. Deactivation retains profile/UID/order references and reports failures instead of swallowing deletion errors.
+- Customer cancellation is placed-only even when packing races with the button tap. Checkout revalidates current slot availability in the creation transaction; instant-off leaves scheduled windows available. Changed/unavailable cart lines require review instead of silent removal; reorder preserves quantities.
+- Cart hydration and account changes are UID-scoped; logout clears only the local cart/session. Profile forms listen live without overwriting unsaved edits. Tracker/list failures have recovery states, and the unsupported delivery countdown was removed.
+- Each payment QR requires an uploaded image and matching UPI ID. Admin edits are permitted outside hours or when instant delivery is disabled. QR edits do not overwrite sales counters; removal archives historical accounting. Agent confirmation snapshots the displayed QR/UPI and explicitly records manual verification. Recoveries have no payment prompt.
+- Product/offer/QR images are resized/compressed on the phone via Expo ImageManipulator, with bounded payloads and no new hosted image/storage service. Offers has three reusable templates; banner motion and misleading “offer applied” copy were simplified.
+- Push records are durable. A bounded admin-app relay retries while open, with a lease, limited retries and a single root notification-response handler. Device token arrays and logout cleanup are supported. An optional server worker is source-prepared behind ENABLE_BACKGROUND_PUSH=false; it is not deployed or enabled.
+- Current development rules remain open by owner choice. firestore.production.rules is a separate fail-closed release guard, deliberately not selected by firebase.json. Production demo mode is explicitly disabled in eas.json.
+
+Sync-matrix coverage: rows 1–17 are affected by account/session, order-event, inventory/cart, settings or reporting changes. The additional account-help and persistent partial-recovery flows extend the original contract.
+
+### Validation
+
+- TypeScript no-emit compilation: passed during implementation; final run PASSED.
+- Local order-service simulation: 54 assertions passed with zero network calls and zero production writes. Includes partial recovery, duplicate replay/reservation, correct manual ownership requirement, packed-cancel race, wrong-agent pickup, durable real-admin notices and active-work/history separation.
+- Backend/config JavaScript syntax checked without initializing Firebase.
+- Expo offline web export: PASSED (1,748 modules). Android JavaScript export: PASSED (2,062 modules, no Hermes bytecode/device build). These are bundling checks, not device interaction tests.
+- Dependency note: local validation used pnpm because npm was absent from the runtime. package-lock.json was updated narrowly for Expo ImageManipulator from installed package metadata/integrity. No paid SDK/service dependency was introduced.
+
+### OPEN — explicitly deferred by owner
+
+- [ ] Full device/emulator regression matrix: three-role exercise, long-lived recovery over multiple days, partial/offline retries, PIN reset/block while a run is open, registration keyboard focus, instant/scheduled checkout, multiple devices, QR scan legibility and IST midnight.
+- [ ] Real Firestore transaction/contention and rules coverage. The local adapter is not an emulator. Preserve the new concrete local checks and complete the broader exercise before release.
+- [ ] Release evidence: deployed function/rules/index versions, real admin custom claim, supported Expo Go/dev-build behavior, native push credentials/cold-start behavior and private backup/restore exercise.
+- [ ] Production trust migration: route commercial/order/account-help mutations through trusted handlers before selecting firestore.production.rules. The fail-closed file intentionally denies client accounting/order writes and is not a drop-in working production configuration for current development services. Reconcile legacy profile/Auth IDs before disabling demo mode.
+- [ ] Optional background push deployment/receipt verification. All-apps-closed delivery is NOT guaranteed by an on-device relay. Enabling the optional server trigger depends on a reviewed Firebase billing/deployment decision; no free, always-on delivery guarantee is claimed.
+- [ ] Serviceable Chennai areas/radius, dated slot capacity/cutoffs, substitutions/partial fulfilment, failed doorstep delivery/retry, receipts and Tamil copy.
+- [ ] Daily cash handover/shortage acknowledgement and lost/damaged-can/deposit reconciliation ledger.
+- [ ] Review existing legacy/manual recovery ownership and old profile IDs before migrating real data. No destructive migration or blanket rewrite of existing balances was run.
+- [ ] Production cleanup of the already-committed private data backup/history. Future backup exports and local build outputs are ignored; current tracked dump was not silently deleted.
+
+### Cost boundary
+
+No billing plan was changed and no Firebase resources were deployed. Expo push itself is free, but Firebase operations/egress still depend on actual quotas and usage; 500 orders/day must not be assumed free. The development relay is limited to the admin app, history is loaded explicitly, admin recipient lookups are cached briefly and photos are compressed locally. No SMS OTP, payment gateway, paid scheduler, subscription or Cloud Storage bucket was added.
+
+References: [Expo push cost](https://docs.expo.dev/push-notifications/faq/), [Firebase pricing](https://firebase.google.com/pricing). These are planning references, not evidence of this project's live billing plan.
+
+### Files changed
+
+Modified: .gitignore; dev_docs/PROJECT_CONTEXT.md; dev_docs/worklog.md; firestore.indexes.json; firestore.rules; functions/index.js; mobile/.env.example; mobile/app.config.js; mobile/app.json; mobile/babel.config.js; mobile/eas.json; mobile/package.json; mobile/package-lock.json; review.md.
+
+Modified screens/layouts: mobile/app/_layout.tsx; mobile/app/(customer)/account.tsx; mobile/app/(customer)/dashboard.tsx; mobile/app/(customer)/history.tsx; mobile/app/(customer)/index.tsx; mobile/app/admin/_layout.tsx; mobile/app/admin/agents.tsx; mobile/app/admin/alerts.tsx; mobile/app/admin/cans.tsx; mobile/app/admin/inventory.tsx; mobile/app/admin/offers.tsx; mobile/app/admin/profiles.tsx; mobile/app/admin/qr.tsx; mobile/app/admin/settings.tsx; mobile/app/agent/dashboard.tsx; mobile/app/agent/delivery/[id].tsx; mobile/app/auth/awaiting-approval.tsx; mobile/app/auth/login.tsx; mobile/app/auth/register.tsx; mobile/app/auth/reset-pin.tsx; mobile/app/track/[id].tsx.
+
+Modified shared code: mobile/components/ui/NotificationBell.tsx; mobile/components/ui/OfflineBanner.tsx; mobile/config/demoCredentials.ts; mobile/hooks/useAuthUser.ts; mobile/hooks/useNotifications.ts; mobile/hooks/useOrder.ts; mobile/hooks/useOrders.ts; mobile/hooks/useQRCodes.ts; mobile/hooks/useSession.ts; mobile/services/auth.ts; mobile/services/notifications.ts; mobile/services/orders.ts; mobile/services/qr.ts; mobile/services/settings.ts; mobile/services/stats.ts; mobile/services/users.ts; mobile/types/index.ts; mobile/utils/compute.ts; mobile/hooks/useCart.ts; mobile/hooks/useSettings.ts; mobile/hooks/useItems.ts; mobile/hooks/useBanners.ts; mobile/scripts/test_scripts/test-comprehensive-e2e.js.
+
+Created: firestore.production.rules; functions/.env.example; mobile/components/ui/AccountHelpPanel.tsx; mobile/components/ui/AccountSupport.tsx; mobile/components/ui/RecoveryList.tsx; mobile/services/accountHelp.ts; mobile/services/photos.ts.
+
+Deleted: none. No commits, pushes, deployments or live data writes.
+
+
+### 2026-10-30 — Owner-authorized fresh-start data reset (pending authentication)
+
+Owner explicitly confirmed permanent removal of all orders/recoveries, reviews, sales/history, order notices/counters and zeroing customer can balances, agent work totals and QR sales totals. Keep accounts, catalog, pricing, payment QR/UPI configuration and store settings. Browser access failed before any mutation; client-SDK audit was denied. Only environment templates exist in this checkout; no admin credential or existing CLI login was found. No live reset has been executed or verified.
+
+Prepared functions/scripts/reset-store-data.js: explicit project guard, default read-only plan, ignored private snapshot before changes, recursive order/statistics/review/history cleanup, scoped notifications/counter reset, profile/QR balance updates and post-write checks. Apply requires --apply --confirm=anandhi-stores --writes-paused and Firebase Admin Application Default Credentials. Keep app/backend order writers stopped throughout reset; local app caches must be refreshed afterward. Authentication and live verification remain OPEN.
+
+
+### 2026-10-30 — Fresh-start reset completed and verified
+
+Owner supplied FIREBASE_TOKEN in ignored functions/.env and explicitly requested the discussed transaction reset, removal of offers, and exactly three app profiles. Authenticated through Google OAuth using the Firebase CLI refresh token; no token contents were logged. No rule/function deployment, new service, billing change or paid add-on was performed.
+
+Saved a private before/after Firestore snapshot, Auth snapshot, plan and verification result under .verify/fresh-start/2026-10-30T10-45-20-426Z/ (ignored; contains personal data). Before this operation, orders, stats_daily, notifications and Firebase Auth account listing were already empty. Applied one atomic Firestore commit with update-time preconditions: deleted four offers, four promotion banners, three legacy agents documents, two extra user profiles and the old order counter; updated the three retained profiles and reset three QR totals. Kept original profile IDs and existing configured PINs, rehashed against corrected phone numbers; cleared stale push-device tokens and incremented session versions.
+
+Verified exactly three canonical users: Vivek/admin/9003115101; Shivani/customer/9003115106; Suresh/agent/9940405016. Verified zero orders, recovery/history/review/sales records, daily stats, order notices, counters, offers/banners, legacy agents and help records. All retained customer-can and agent-work counters and QR sales totals are zero. Exactly 507 items, two legacy inventory documents, store settings and QR/UPI configuration remain unchanged against the private snapshot. Firebase Auth has zero accounts: these three are Firestore-backed development profiles, as before; no Firebase Auth accounts were created. Close/reopen or sign out/in on each device to refresh old local sessions/caches.
+
+This verified live operation supersedes the earlier pending-authentication reset entry. Existing release/device/production-rule/open regression tasks remain open.
+
+
+### 2026-10-30 — Private backup removal and local account environment
+
+At owner request, removed .verify/fresh-start and .verify/cleanup-repo after verifying their resolved paths stayed under this repository .verify directory. No Firebase backup files remain in those locations; this supersedes earlier statements that the private reset snapshots were retained. No remote data changed in this step.
+
+Populated ignored functions/.env with the three existing development phones/PINs, names and canonical Firestore user IDs. Created ignored root .env with only the same demo account configuration and demo flags, because mobile/app.config.js reads that location. Existing cloud tokens stay in functions/.env and were not copied into app configuration or printed. Verified loaded Expo config enables the three matching role credentials and mobile/app/auth/login.tsx still renders tap-to-fill development login entries. Restart Expo to pick up environment changes.
+
+
+### 2026-10-30 — Consolidated environment, documentation and regression layout
+
+Merged populated local values into one ignored root .env, verified every merged value, and removed functions/.env. Replaced mobile/functions environment templates with one root .env.example. Existing CLI credentials were preserved with trailing formatting trimmed; three demo phones/PINs/profile IDs remain populated. Verified private cloud tokens are excluded from Expo extra and all three development logins remain enabled. Updated the ignored Expo launcher to read root .env.
+
+Moved Guide/ intact to dev_docs/design/ and review.md intact to dev_docs/review.md before appending the new organization entry; previous review entries were not rewritten. Added dev_docs/SETUP.md and dev_docs/REGRESSION.md, replaced the document index and repaired current design/permissions file links. Historical worklog/review paths remain historical; the current index identifies the new locations.
+
+Moved both executable regression scripts to mobile/tests/regression/: orders.test.cjs (local real-service simulation) and auth.live.mjs (explicit connected-project smoke check). Updated mobile package commands, made live-auth source/env lookup independent of working directory, and made backend maintenance commands load the root .env. No live Firebase check, data write or deployment was performed during organization.
+
+Validation: 54 local order-service assertions passed; TypeScript no-emit passed; moved live-auth script syntax passed; git diff whitespace check passed; current index/setup/regression/design links have no missing targets. Targeted native-device/emulator checks remain OPEN as listed in REGRESSION.md. Recommendation: keep PROJECT_CONTEXT as the current spec, use worklog for completed/open decisions, run test:all before sharing a build, and prioritize multi-day partial recovery plus PIN reset during an active run for the next device exercise.
+
+
+### 2026-10-30 — One regression runner and restored banner coverage
+
+Added mobile/tests/regression/run.cjs as the single entry point. npm test and npm run test:all execute the existing order suite, restored banner checks against actual TypeScript utilities, then TypeScript validation. Focused order/live-auth aliases use the same runner; test:all:live explicitly opts into Firebase auth after local checks. The individual suite files remain together in the regression directory.
+
+Restored original banner fixture matching and promotion-priority checks without copying the application matcher, with inactive/deleted products and banner-tap guards. Local execution passed all 54 order assertions and 18 banner assertions; TypeScript passed and the runner reported 3/3 checks passed. No live auth was run and no Firebase records were written.
+
+Documented identities in REGRESSION.md: local order work uses customer-1/admin-1/agent-a/agent-b fixtures in memory (three roles; second agent covers reassignment/ownership). Only explicit live-auth checks use the three real .env role accounts, and those checks do not place orders or complete deliveries. Native cross-role/device and restricted-rules verification remain open.
+
+
+### 2026-10-30 — Root Testing folder, separate roles and per-stage accounting
+
+Owner requested exhaustive UI/action/section verification, separate User/Agent/Admin cases, no browser testing, and native execution later. Consolidated all executable checks and helpers under root Testing/: User/, Agent/, Admin/, Integration/, Shared/, Native/. Removed mobile/tests/regression after moving its contents; all mobile test scripts now use the one root runner. No browser was opened or operated during this pass.
+
+Added separate User (17), Agent (17) and Admin (21) service assertions. Admin cases exercise approval/reset, block/unblock, controlled phone changes, ad hoc creation, item price/stock/archive, offers create/edit/toggle/delete, QR default/archive and edit-window guards. Preserved the existing 54 order, 49 account-effects, 18 banner and six initialization assertions. Added 130 checkpoint assertions using actual screen/hook formulas: before placement, placed, assigned, packed, picked-up, delivered, recovery pickup, partial collection, ten simulated days later, recovery completion, UPI completion and cancellation. Covers admin retail/recovery revenue/counts, cash/UPI, product quantity ranking, customer expense/profile/charts/category/product spending, agent retail runs/COD and can balances. This is source/service logic coverage, not native rendering.
+
+One local runner executed up to three isolated suites concurrently: all 312 assertions, inventory checks and TypeScript passed (10/10 checks). TypeScript took about 42 seconds on this machine. The actual Firebase client SDK subsequently verified all three configured profile IDs/PIN hashes concurrently (read-only; about 55 seconds on this network). The existing last live development result remains 50 passing assertions with labelled retained orders; no additional live order data was generated in this pass. Local/private environment values stayed unchanged.
+
+Generated 432 unique UI handler sites. Shared controls are repeated per role: User 149 handler rows + 8 workflow cases, Agent 130 + 8, Admin 321 + 15. Full native/evidence gate has 631 rows, all pending execution; validated that it fails when evidence is absent. Added interactive observation/import tooling, source fingerprints, timed JSON/HTML reports, per-role commands, explicit connected test:dev and strict test:prebuild. No stale/pending UI row is auto-passed. Existing project/service/rules/product limits remain explicit.
+
+Prepared stable login selectors and three Maestro login/home smoke flows plus device launcher. These are not full automation of all 631 device cases and have not been device-validated. Owner explicitly chose to prepare native cases and run devices later; Maestro/Android tools were not installed. Recommended local Maestro for native UI; Playwright three BrowserContexts is a later web-only alternative and was not run. Missing actual agent earned-fee/payout UI (distinct from COD collections) is an explicit unmet product gate, not counted as earnings coverage. Device push/photos/safe areas/keyboard, full button interactions, elapsed multi-day device behavior, restricted-write emulator/deployment/claim evidence remain OPEN.
+
+
+### Pending task — AGENT-MONEY-01: separate shop cash from delivery earnings
+
+- [ ] OPEN: Add a clearly separate agent delivery-earnings display. Example: Suresh collects ₹200 for the shop but earns ₹25 for delivering the purchase; these must never be labelled or totalled as the same money.
+- Show eligible delivered retail-order agentFee totals separately from COD cash collected, with clear today/week/month or recent-loaded-period labels. Cancelled orders, incomplete deliveries and can-recovery visits must not inflate delivery earnings. Keep the original fee on historical orders when the admin changes future fees.
+- Acceptance: before placement, placed/assigned/packed/picked-up and partial recovery cause no earned-fee increase; one completed retail delivery adds its agreed fee once; repeated completion adds nothing; COD/UPI cash accounting stays separate. Verify in Agent and Admin views and include native UI checks. Payout/handover tracking needs an explicit model if added later; do not invent paid-out amounts.
+- Testing constraint: use open-source local testing tools only; no paid cloud testing service. Owner can connect the phone only to a personal laptop, where Antigravity is available. Native execution stays pending until that machine is ready; the repository tests can run there without Codex being installed.

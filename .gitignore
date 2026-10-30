@@ -9,3 +9,11 @@ mobile/.expo/
 *.log
 .locations
 mobile/.locations
+
+# Local build verification and private data exports
+.verify/
+mobile/scripts/backup_users_*.json
+
+# Environment templates are documentation, not credentials
+!.env.example
+!**/.env.example

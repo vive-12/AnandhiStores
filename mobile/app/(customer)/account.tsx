@@ -18,13 +18,14 @@ import * as Location from 'expo-location';
 import { Colors, Spacing, Radius, FontSize, Shadow } from '../../theme';
 import { useSession } from '../../hooks/useSession';
 import { useCart } from '../../hooks/useCart';
-import { getUser, updateAddress, updateUser } from '../../services/users';
+import { getUser, listenUser, updateAddress, updateUser } from '../../services/users';
 import { logout } from '../../services/auth';
 import {
   ScreenHeader,
   Card,
   Button,
   NotificationBell,
+  ErrorState,
   useToast,
 } from '../../components/ui';
 import type { Address } from '../../types';
@@ -54,35 +55,27 @@ export default function AccountScreen() {
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
 
-  // Load user profile from Firestore on mount
+  const dirty = React.useRef(false);
+  const [profileError, setProfileError] = useState<Error | null>(null);
+  const [profileRevision, setProfileRevision] = useState(0);
   useEffect(() => {
-    async function loadProfile() {
-      if (!uid) return;
-      try {
-        const u = await getUser(uid);
-        if (u) {
-          setName(u.name || sessionName || '');
-          if (u.address) {
-            setDoor(u.address.door || '');
-            setStreet(u.address.street || '');
-            setLocality(u.address.locality || '');
-            setCity(u.address.city || 'Chennai');
-            setLandmark(u.address.landmark || '');
-            setLat(u.address.lat ?? null);
-            setLng(u.address.lng ?? null);
-          }
-        }
-      } catch (err) {
-        console.error('Error loading profile:', err);
-      } finally {
-        setLoading(false);
+    if (!uid) { setLoading(false); return; }
+    setLoading(true); setProfileError(null);
+    return listenUser(uid, user => {
+      if (!user) { setProfileError(new Error('Your profile could not be loaded.')); setLoading(false); return; }
+      if (!dirty.current) {
+        setName(user.name || '');
+        setDoor(user.address?.door || ''); setStreet(user.address?.street || '');
+        setLocality(user.address?.locality || ''); setCity(user.address?.city || 'Chennai');
+        setLandmark(user.address?.landmark || ''); setLat(user.address?.lat ?? null); setLng(user.address?.lng ?? null);
       }
-    }
-    loadProfile();
-  }, [uid]);
+      setLoading(false);
+    }, error => { setProfileError(error); setLoading(false); });
+  }, [uid, profileRevision]);
 
   // GPS Location detection using expo-location
   const handleDetectLocation = async () => {
+    dirty.current = true;
     setLocating(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -163,6 +156,7 @@ export default function AccountScreen() {
         await updateUser(uid, { name: name.trim() });
       }
 
+      dirty.current = false;
       showToast('Delivery address updated successfully! 📍', 'success');
     } catch (err: any) {
       console.error('Failed to save address:', err);
@@ -215,7 +209,7 @@ export default function AccountScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-        {loading ? (
+        {profileError ? <ErrorState message={profileError.message} onRetry={() => setProfileRevision(n => n + 1)} /> : loading ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="large" color={Colors.green700} />
             <Text style={styles.loadingText}>Loading profile...</Text>
@@ -253,7 +247,7 @@ export default function AccountScreen() {
                   placeholder="Enter full name"
                   placeholderTextColor={Colors.inkSoft}
                   value={name}
-                  onChangeText={setName}
+                  onChangeText={value => { dirty.current = true; setName(value); }}
                 />
               </View>
               <Button
@@ -315,7 +309,7 @@ export default function AccountScreen() {
                     placeholder="e.g. Flat 3B, Sunshine Apts, #12"
                     placeholderTextColor={Colors.inkSoft}
                     value={door}
-                    onChangeText={setDoor}
+                    onChangeText={value => { dirty.current = true; setDoor(value); }}
                   />
                 </View>
 
@@ -326,7 +320,7 @@ export default function AccountScreen() {
                     placeholder="e.g. 2nd Main Road, Gandhi Nagar"
                     placeholderTextColor={Colors.inkSoft}
                     value={street}
-                    onChangeText={setStreet}
+                    onChangeText={value => { dirty.current = true; setStreet(value); }}
                   />
                 </View>
 
@@ -337,7 +331,7 @@ export default function AccountScreen() {
                     placeholder="e.g. Adyar, Velachery, T. Nagar"
                     placeholderTextColor={Colors.inkSoft}
                     value={locality}
-                    onChangeText={setLocality}
+                    onChangeText={value => { dirty.current = true; setLocality(value); }}
                   />
                 </View>
 
@@ -349,7 +343,7 @@ export default function AccountScreen() {
                       placeholder="Chennai"
                       placeholderTextColor={Colors.inkSoft}
                       value={city}
-                      onChangeText={setCity}
+                      onChangeText={value => { dirty.current = true; setCity(value); }}
                     />
                   </View>
 
@@ -360,7 +354,7 @@ export default function AccountScreen() {
                       placeholder="e.g. Near Bus Stop"
                       placeholderTextColor={Colors.inkSoft}
                       value={landmark}
-                      onChangeText={setLandmark}
+                      onChangeText={value => { dirty.current = true; setLandmark(value); }}
                     />
                   </View>
                 </View>
@@ -397,7 +391,7 @@ export default function AccountScreen() {
                   style={[styles.supportBtn, { backgroundColor: '#25D366' }]}
                   onPress={() =>
                     Linking.openURL(
-                      'whatsapp://send?phone=919600102028&text=Hi%20Anandhi%20Stores,%20I%20have%20a%20question%20regarding%20my%20order.',
+                      'whatsapp://send?phone=919003115101&text=Hi%20Anandhi%20Stores,%20I%20have%20a%20question%20regarding%20my%20order.',
                     ).catch(() =>
                       Alert.alert('Error', 'WhatsApp is not installed.'),
                     )
@@ -410,7 +404,7 @@ export default function AccountScreen() {
                 <TouchableOpacity
                   style={[styles.supportBtn, { backgroundColor: Colors.green700 }]}
                   onPress={() =>
-                    Linking.openURL('tel:9600102028').catch(() =>
+                    Linking.openURL('tel:9003115101').catch(() =>
                       Alert.alert('Error', 'Calling not supported.'),
                     )
                   }

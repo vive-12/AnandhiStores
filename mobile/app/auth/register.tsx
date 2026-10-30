@@ -16,6 +16,20 @@ import type { Address } from '../../types';
 type Field = { value: string; error: string };
 const field = (value = ''): Field => ({ value, error: '' });
 
+  const InputField = ({ label, f, setter, ...props }: any) => (
+    <View style={styles.field}>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput
+        style={[styles.input, f.error ? styles.inputErr : null]}
+        value={f.value}
+        onChangeText={(value: string) => setter((previous: Field) => ({ ...previous, value, error: '' }))}
+        placeholderTextColor={Colors.inkSoft}
+        {...props}
+      />
+      {f.error ? <Text style={styles.errTxt}>{f.error}</Text> : null}
+    </View>
+  );
+
 export default function RegisterScreen() {
   const router         = useRouter();
   const { showToast }  = useToast();
@@ -70,7 +84,7 @@ export default function RegisterScreen() {
         pin:     pin.value,
         address,
       });
-      setSession({ id: user.id, role: user.role, name: user.name, phone: user.phone, status: user.status });
+      setSession(user);
       // RouteGuard will redirect pending customer to awaiting-approval
     } catch (e: any) {
       showToast(e.message ?? 'Registration failed. Try again.', 'error');
@@ -79,19 +93,6 @@ export default function RegisterScreen() {
     }
   }, [validate, submitting, name, phone, pin, door, street, locality, city, landmark, setSession, showToast]);
 
-  const InputField = ({ label, f, setter, ...props }: any) => (
-    <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        style={[styles.input, f.error ? styles.inputErr : null]}
-        value={f.value}
-        onChangeText={set(setter)}
-        placeholderTextColor={Colors.inkSoft}
-        {...props}
-      />
-      {f.error ? <Text style={styles.errTxt}>{f.error}</Text> : null}
-    </View>
-  );
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>

@@ -31,6 +31,7 @@ import {
   Button,
   BottomSheet,
   EmptyState,
+  ErrorState,
   CardSkeleton,
   useToast,
 } from '../../components/ui';
@@ -203,7 +204,7 @@ export default function AdminAgents({ showHeader = true }: AdminAgentsProps = {}
     }
 
     Alert.alert(
-      'Delete Delivery Agent',
+      'Deactivate Delivery Agent',
       `Are you sure you want to delete ${agent.name} (${agent.phone})?\n\nThis will remove them from the active delivery fleet. Past delivered orders and performance stats will remain recorded.`,
       [
         { text: 'Cancel', style: 'cancel' },
@@ -217,7 +218,7 @@ export default function AdminAgents({ showHeader = true }: AdminAgentsProps = {}
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               detailSheetRef.current?.close();
               setSelectedAgent(null);
-              showToast(`Agent ${agent.name} deleted successfully`, 'success');
+              showToast(`Agent ${agent.name} deactivated successfully`, 'success');
               refreshAgents();
             } catch (err: unknown) {
               const msg = err instanceof Error ? err.message : 'Failed to delete agent';
@@ -403,7 +404,7 @@ export default function AdminAgents({ showHeader = true }: AdminAgentsProps = {}
       </View>
 
       {/* Agents List */}
-      {agentsLoading ? (
+      {agentsError ? <ErrorState message={agentsError.message} onRetry={refreshAgents} /> : agentsLoading ? (
         <View style={{ padding: Spacing.lg, gap: Spacing.md }}>
           <CardSkeleton />
           <CardSkeleton />

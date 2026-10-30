@@ -74,7 +74,7 @@ export default function CustomerDashboardScreen() {
       return key >= minimumKey && key <= todayKey;
     });
 
-    const total = filtered.reduce((sum, order) => sum + orderSpend(order.items || []), 0);
+    const total = filtered.reduce((sum, order) => sum + Number(order.total || 0), 0);
     const categories: Record<string, number> = {};
     const products: Record<string, { name: string; qty: number; spend: number }> = {};
     const daily: Record<string, number> = {};
@@ -82,7 +82,7 @@ export default function CustomerDashboardScreen() {
       const date = toDate(order.deliveredAt || order.updatedAt || order.createdAt);
       if (date) {
         const key = getISTDateKey(date);
-        daily[key] = (daily[key] || 0) + orderSpend(order.items || []);
+        daily[key] = (daily[key] || 0) + Number(order.total || 0);
       }
       for (const line of order.items || []) {
         const item = itemMap.get(line.itemId);
@@ -134,7 +134,7 @@ export default function CustomerDashboardScreen() {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title="My Dashboard" subtitle="Your grocery spending at a glance" />
+      <ScreenHeader title="My Dashboard" subtitle="Recent purchases, including delivery fees" />
       {ordersError ? (
         <ErrorState message={`Could not load your spending history. ${ordersError.message}`} onRetry={refresh} />
       ) : (
@@ -143,6 +143,7 @@ export default function CustomerDashboardScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.green700} />}
         >
+          <Text style={{ color: Colors.inkSoft }}>Based on the most recent loaded purchases, not a complete annual statement. Empty-can collections are excluded.</Text>
           <View style={styles.rangeRow}>
             {(['week', 'month', 'year'] as Range[]).map(value => (
               <TouchableOpacity key={value} onPress={() => setRange(value)} style={[styles.rangeChip, range === value && styles.rangeChipActive]}>
@@ -157,7 +158,7 @@ export default function CustomerDashboardScreen() {
             <>
               <View style={styles.hero}>
                 <View style={styles.heroIcon}><Ionicons name="wallet-outline" size={22} color={Colors.green700} /></View>
-                <Text style={styles.eyebrow}>{range === 'week' ? 'SPENT IN THE LAST 7 DAYS' : range === 'month' ? 'SPENT THIS MONTH' : 'SPENT THIS YEAR'}</Text>
+                <Text style={styles.eyebrow}>{range === 'week' ? 'RECENT SPEND · 7 DAYS' : range === 'month' ? 'RECENT SPEND · THIS MONTH' : 'RECENT SPEND · THIS YEAR'}</Text>
                 <Text style={styles.total}>₹{report.total.toLocaleString('en-IN')}</Text>
                 <Text style={styles.heroFoot}>{report.orders} delivered {report.orders === 1 ? 'order' : 'orders'}</Text>
               </View>

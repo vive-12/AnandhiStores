@@ -12,19 +12,7 @@ import { Colors, FontSize, Spacing } from '../../theme';
 export default function AwaitingApprovalScreen() {
   const { uid, name, phone, setSession, clearSession } = useSession();
 
-  // Listen for approval — when admin approves, status changes → RouteGuard redirects
-  useEffect(() => {
-    if (!uid) return;
-    const unsub = listenUser(uid, user => {
-      if (user && user.status === 'approved') {
-        setSession({ id: user.id, role: user.role, name: user.name, phone: user.phone, status: user.status, mustChangePin: user.mustChangePin });
-      } else if (user && user.status === 'blocked') {
-        clearSession();
-        logout();
-      }
-    });
-    return unsub;
-  }, [uid]);
+  // The root SessionMonitor owns approval, blocking and reset invalidation.
 
   const handleLogout = async () => {
     await logout();

@@ -13,7 +13,7 @@ export const useCart = create<CartStore>()(
 
       initForUser: (uid: string) => {
         // If switching users, clear the old cart
-        if (get().uid && get().uid !== uid) {
+        if (get().uid !== uid) {
           set({ lines: [], uid });
         } else {
           set({ uid });

@@ -14,10 +14,10 @@ function readLocalEnv() {
 
 const env = { ...readLocalEnv(), ...process.env };
 const demoCredentials = {
-  enabled: true,
-  admin: { phone: env.ADMIN_PHONE || '9876543219', pin: env.ADMIN_PIN || '1234' },
-  customer: { phone: env.CUSTOMER_PHONE || '9789042245', pin: env.CUSTOMER_PIN || '1211' },
-  agent: { phone: env.AGENT_PHONE || '9940405016', pin: env.AGENT_PIN || '1211', name: 'Smallvivek' },
+  enabled: env.EXPO_PUBLIC_DEMO_MODE !== 'false',
+  admin: { phone: env.ADMIN_PHONE || '9003115101', name: 'Vivek', pin: env.ADMIN_PIN || '1234' },
+  customer: { phone: env.CUSTOMER_PHONE || '9003115106', name: 'Shivani', pin: env.CUSTOMER_PIN || '1211' },
+  agent: { phone: env.AGENT_PHONE || '9940405016', pin: env.AGENT_PIN || '1211', name: 'Suresh' },
 };
 
 module.exports = ({ config }) => ({

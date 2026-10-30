@@ -1,11 +1,12 @@
 // services/users.ts — User / agent read/write service
 import {
   collection, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot,
-  query, where, orderBy, limit, serverTimestamp, Unsubscribe,
+  query, where, orderBy, limit, serverTimestamp, Unsubscribe, getDocs, runTransaction, increment,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../config/firebase';
 import type { User, UserRole, UserStatus, Address } from '../types';
+import { useSession } from '../hooks/useSession';
 import { log } from '../utils/logger';
 
 const COL = 'users';
@@ -49,7 +50,7 @@ export async function getUser(uid: string): Promise<User | null> {
 }
 
 /** Live listener for a single user */
-export function listenUser(uid: string, onData: (u: User | null) => void): Unsubscribe {
+export function listenUser(uid: string, onData: (u: User | null) => void, onError: (e: Error) => void = () => {}): Unsubscribe {
   return onSnapshot(doc(db, COL, String(uid)), snap => {
     if (snap.exists()) {
       const d = snap.data();
@@ -86,7 +87,7 @@ export function listenUser(uid: string, onData: (u: User | null) => void): Unsub
         }
       }).catch(() => onData(null));
     }
-  });
+  }, onError);
 }
 
 /** Create a new user document (called at registration) */
@@ -107,27 +108,22 @@ export async function blockUser(uid: string): Promise<void> {
   await updateDoc(doc(db, COL, String(uid)), { status: 'blocked' as UserStatus });
 }
 
-/** Admin: delete an agent */
+/** Keep identities and historical links; deactivate only after work is settled. */
 export async function deleteAgent(uid: string, phone?: string): Promise<void> {
-  const sUid = String(uid);
-  log.admin.info(`Deleting agent: uid=${sUid}`);
-
-  // 1. Delete Firestore user document
-  await deleteDoc(doc(db, COL, sUid));
-  try {
-    await deleteDoc(doc(db, 'agents', sUid));
-  } catch {
-    // Ignore legacy collection deletion if not present
+  if (useSession.getState().role !== 'admin') throw new Error('Admin access required.');
+  if (!useSession.getState().isDemo) {
+    await httpsCallable(functions, 'adminDeleteAgent')({ uid });
+    return;
   }
-
-  // 2. Try calling adminDeleteAgent cloud function if available to clean up auth user
-  try {
-    const fn = httpsCallable(functions, 'adminDeleteAgent');
-    await fn({ uid: sUid, phone: phone || '' });
-  } catch (err) {
-    // If functions isn't deployed yet or fails, the firestore delete has already taken effect
-    log.admin.warn('adminDeleteAgent callable error or offline (doc already deleted):', err);
-  }
+  const active = await getDocs(query(collection(db, 'orders'), where('agentId', '==', uid), where('status', 'in', ['placed', 'packed', 'out_for_delivery']), limit(1)));
+  if (!active.empty) throw new Error('Reassign all delivery and recovery work before deactivating this agent.');
+  await runTransaction(db, async tx => {
+    const ref = doc(db, COL, uid);
+    const snap = await tx.get(ref);
+    if (!snap.exists() || snap.data().role !== 'agent') throw new Error('Select a delivery agent.');
+    if (Number(snap.data().assignedRunCount || snap.data().activeOrderCount || 0) > 0) throw new Error('Agent has assigned work.');
+    tx.update(ref, { status: 'blocked', isOnline: false, isArchived: true, sessionVersion: increment(1), deactivatedAt: serverTimestamp() });
+  });
 }
 
 /** Update delivery address */
@@ -135,39 +131,17 @@ export async function updateAddress(uid: string, address: Address): Promise<void
   await updateDoc(doc(db, COL, String(uid)), { address });
 }
 
-/** Agent: toggle online status */
+/** Waiting recoveries stay visible but do not hold an agent on shift for days. */
 export async function setAgentOnline(uid: string, isOnline: boolean): Promise<void> {
-  const sUid = String(uid);
-  log.agent.info(`setAgentOnline: uid=${sUid} → ${isOnline ? 'ONLINE' : 'OFFLINE'}`);
-  const userRef = doc(db, COL, sUid);
-  const snap = await getDoc(userRef);
-  if (snap.exists()) {
-    await updateDoc(userRef, { isOnline });
-  } else {
-    // Check legacy agents collection
-    const agentRef = doc(db, 'agents', sUid);
-    const aSnap = await getDoc(agentRef);
-    if (aSnap.exists()) {
-      await updateDoc(agentRef, { isOnline, is_available: isOnline });
-      const aData = aSnap.data();
-      await setDoc(userRef, {
-        ...aData,
-        name: aData.name || 'Agent',
-        phone: aData.phone || '',
-        role: 'agent',
-        status: 'approved',
-        isOnline,
-        createdAt: serverTimestamp(),
-      }, { merge: true });
-    } else {
-      await setDoc(userRef, {
-        role: 'agent',
-        status: 'approved',
-        isOnline,
-        createdAt: serverTimestamp(),
-      }, { merge: true });
-    }
-  }
+  const active = await getDocs(query(collection(db, 'orders'), where('agentId', '==', uid), where('status', 'in', ['placed', 'packed', 'out_for_delivery']), limit(1000)));
+  const busy = active.docs.some(d => d.data().type !== 'recovery' || d.data().status === 'out_for_delivery');
+  await runTransaction(db, async tx => {
+    const ref = doc(db, COL, uid);
+    const snap = await tx.get(ref);
+    if (!snap.exists() || snap.data().role !== 'agent' || snap.data().status === 'blocked') throw new Error('This agent is unavailable.');
+    if (!isOnline && (busy || Number(snap.data().activeOrderCount || 0) > 0)) throw new Error('Complete or reassign active deliveries before going offline.');
+    tx.update(ref, { isOnline });
+  });
 }
 
 /** Live listener for users of a given role with a bounded result set. */
@@ -182,7 +156,7 @@ export function listenUsersByRole(
   return onSnapshot(
     q,
     snap => {
-      const list = snap.docs.map(d => {
+      const list = snap.docs.filter(d => !d.data().isArchived).map(d => {
         const data = d.data();
         const resolvedRole = data.role ?? role;
         const rawStatus = data.status;
@@ -261,4 +235,10 @@ export function listenOnlineAgents(
     snap => onData(snap.docs.map(d => ({ id: d.id, ...d.data() } as User))),
     onError,
   );
+}
+
+export async function findUserByPhone(phone: string): Promise<User | null> {
+  const snap = await getDocs(query(collection(db, COL), where('phone', '==', phone), limit(2)));
+  if (snap.size > 1) throw new Error('Duplicate profiles. Resolve the account identity before resetting.');
+  return snap.empty ? null : { ...snap.docs[0].data(), id: snap.docs[0].id } as User;
 }

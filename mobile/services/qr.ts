@@ -6,13 +6,15 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { QRCodeItem } from '../types';
+import { getSettings } from './settings';
+import { isStoreOpen } from '../utils/compute';
 import { log } from '../utils/logger';
 
 export const QR_COL = 'qr_codes';
 export const MAX_QR_CODES = 5;
 
 function qrListQuery() {
-  return query(collection(db, QR_COL), limit(10));
+  return query(collection(db, QR_COL), limit(100));
 }
 
 /** Default fallback store UPI details if none seeded */
@@ -56,7 +58,7 @@ export function listenQRCodes(
   return onSnapshot(
     q,
     snapshot => {
-      const list: QRCodeItem[] = snapshot.docs.map(d => ({
+      const list: QRCodeItem[] = snapshot.docs.filter(d => !d.data().isArchived).map(d => ({
         id: d.id,
         ...d.data(),
       } as QRCodeItem));
@@ -75,15 +77,10 @@ export function listenQRCodes(
 export async function getDefaultQRCode(): Promise<QRCodeItem | null> {
   try {
     const snap = await getDocs(qrListQuery());
-    if (snap.empty) {
-      await seedDefaultQRCodeIfEmpty();
-      const freshSnap = await getDocs(qrListQuery());
-      if (freshSnap.empty) return null;
-      return { id: freshSnap.docs[0].id, ...freshSnap.docs[0].data() } as QRCodeItem;
-    }
-    const all = snap.docs.map(d => ({ id: d.id, ...d.data() } as QRCodeItem));
+    if (snap.empty) return null;
+    const all = snap.docs.filter(d => !d.data().isArchived).map(d => ({ id: d.id, ...d.data() } as QRCodeItem));
     const def = all.find(q => q.isDefault);
-    return def || all[0];
+    return def || all[0] || null;
   } catch (err) {
     log.admin.error('Error fetching default QR code', err);
     return null;
@@ -102,8 +99,10 @@ export async function saveQRCode(params: {
   imageUrl?: string;
   isDefault?: boolean;
 }): Promise<string> {
+  await requirePaymentEditWindow();
+  if (!params.upiId?.includes('@') || !params.imageUrl?.trim()) throw new Error('Upload the payment QR and enter its matching UPI ID.');
   const snap = await getDocs(qrListQuery());
-  const existingDocs = snap.docs.map(d => ({ id: d.id, ...d.data() } as QRCodeItem));
+  const existingDocs = snap.docs.filter(d => !d.data().isArchived).map(d => ({ id: d.id, ...d.data() } as QRCodeItem));
 
   const isEditing = Boolean(params.id && existingDocs.some(d => d.id === params.id));
 
@@ -138,10 +137,8 @@ export async function saveQRCode(params: {
       merchantName: (params.merchantName || 'Anandhi Stores').trim(),
       imageUrl: params.imageUrl?.trim() || null,
       isDefault: willBeDefault,
-      totalSales: existingData?.totalSales ?? 0,
-      orderCount: existingData?.orderCount ?? 0,
-      lastUsedAt: existingData?.lastUsedAt ?? null,
-      createdAt: existingData?.createdAt ?? now,
+      ...(!isEditing ? { totalSales: 0, orderCount: 0, lastUsedAt: null, createdAt: now } : {}),
+      isArchived: false,
       updatedAt: now,
     },
     { merge: true },
@@ -156,6 +153,7 @@ export async function saveQRCode(params: {
  * Set an existing QR code as the default active code
  */
 export async function setDefaultQRCode(qrId: string): Promise<void> {
+  await requirePaymentEditWindow();
   const snap = await getDocs(qrListQuery());
   const batch = writeBatch(db);
   const now = Timestamp.now();
@@ -176,12 +174,13 @@ export async function setDefaultQRCode(qrId: string): Promise<void> {
  * Delete a QR code. If the deleted one was default, set another remaining as default.
  */
 export async function deleteQRCode(qrId: string): Promise<void> {
+  await requirePaymentEditWindow();
   const snap = await getDocs(qrListQuery());
   const all = snap.docs.map(d => ({ id: d.id, ...d.data() } as QRCodeItem));
   const target = all.find(d => d.id === qrId);
 
   const batch = writeBatch(db);
-  batch.delete(doc(db, QR_COL, qrId));
+  batch.update(doc(db, QR_COL, qrId), { isArchived: true, isDefault: false, updatedAt: Timestamp.now() });
 
   if (target?.isDefault) {
     const remaining = all.filter(d => d.id !== qrId);
@@ -200,27 +199,9 @@ export async function deleteQRCode(qrId: string): Promise<void> {
 /**
  * Seed initial default QR code if the collection is empty
  */
-export async function seedDefaultQRCodeIfEmpty(): Promise<void> {
-  try {
-    const snap = await getDocs(query(collection(db, QR_COL), limit(1)));
-    if (!snap.empty) return;
+export async function seedDefaultQRCodeIfEmpty(): Promise<void> { /* Explicit admin setup only. */ }
 
-    const newRef = doc(collection(db, QR_COL));
-    const now = Timestamp.now();
-    await setDoc(newRef, {
-      name: DEFAULT_STORE_UPI.name,
-      upiId: DEFAULT_STORE_UPI.upiId,
-      merchantName: DEFAULT_STORE_UPI.merchantName,
-      imageUrl: null,
-      isDefault: true,
-      totalSales: 0,
-      orderCount: 0,
-      lastUsedAt: null,
-      createdAt: now,
-      updatedAt: now,
-    });
-    log.admin.info('Seeded initial default QR code', { id: newRef.id });
-  } catch (err) {
-    log.admin.warn('Failed to seed default QR code (may already exist)', err);
-  }
+async function requirePaymentEditWindow(): Promise<void> {
+  const settings = await getSettings();
+  if (settings.instantDeliveryEnabled !== false && isStoreOpen(settings)) throw new Error('Close instant delivery before changing payment QR details. Scheduled orders stay available.');
 }

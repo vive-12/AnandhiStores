@@ -1,4 +1,4 @@
-// app/admin/profiles.tsx — Customer Profiles & Lifetime Order History for Admin
+// app/admin/profiles.tsx — Customer Profiles & Recent Order History for Admin
 import React, { useState, useMemo, useRef, useCallback } from 'react';
 import {
   View,
@@ -19,11 +19,12 @@ import RNBottomSheet from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, Radius, FontSize, Shadow, StatusColors } from '../../theme';
 import AdminAgents from './agents';
+import { AccountHelpPanel } from '../../components/ui/AccountHelpPanel';
 import { useSession } from '../../hooks/useSession';
 import { useCustomers } from '../../hooks/useCustomers';
 import { useAdminOrders } from '../../hooks/useOrders';
 import { blockUser, updateUser } from '../../services/users';
-import { adminResetPin } from '../../services/auth';
+import { adminResetPin, adminChangePhone } from '../../services/auth';
 import { openMapChoice } from '../../utils/openMap';
 import {
   ScreenHeader,
@@ -63,6 +64,7 @@ export default function AdminProfiles() {
   const [selectedUserForOrders, setSelectedUserForOrders] = useState<User | null>(null);
   const [pinModalUser, setPinModalUser] = useState<User | null>(null);
   const [isApproveMode, setIsApproveMode] = useState(false);
+  const [newPhone, setNewPhone] = useState('');
   const [pinInput, setPinInput] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -154,6 +156,7 @@ export default function AdminProfiles() {
     setPinModalUser(user);
     setIsApproveMode(approve);
     setPinInput('');
+    setNewPhone(user.phone);
   };
 
   // Confirm PIN Save / Approval
@@ -167,6 +170,12 @@ export default function AdminProfiles() {
 
     setActionLoading(true);
     try {
+      if (newPhone !== pinModalUser.phone) {
+        await adminChangePhone(pinModalUser.id, newPhone, pin);
+        showToast('Phone changed. Share the temporary PIN directly; all order links were kept.', 'success');
+        setPinModalUser(null);
+        return;
+      }
       if (isApproveMode) {
         // Approve & set PIN (Sync row 2)
         await adminResetPin(pinModalUser.id, pinModalUser.phone, pin);
@@ -224,11 +233,12 @@ export default function AdminProfiles() {
         title={activeRole === 'customers' ? 'Customer Profiles' : 'Delivery Agents'}
         subtitle={
           activeRole === 'customers'
-            ? 'Customer approvals, addresses & purchase history'
+            ? 'Customer approvals, addresses & recent purchase history'
             : 'Fleet onboarding, status & delivery performance'
         }
       />
 
+      <AccountHelpPanel />
       {/* Top Role Switcher: Customers vs Delivery Agents */}
       <View style={[styles.roleSwitcher, { marginHorizontal: Math.max(insets.left, insets.right, Spacing.lg) }]}>
         <TouchableOpacity
@@ -554,14 +564,14 @@ export default function AdminProfiles() {
                   <View style={styles.statsBanner}>
                     <View style={styles.statMetric}>
                       <Text style={styles.statMetricVal}>{stats.totalOrders}</Text>
-                      <Text style={styles.statMetricLabel}>Orders</Text>
+                      <Text style={styles.statMetricLabel}>Recent orders</Text>
                     </View>
 
                     <View style={styles.metricDivider} />
 
                     <View style={styles.statMetric}>
                       <Text style={styles.statMetricVal}>₹{stats.totalSpent}</Text>
-                      <Text style={styles.statMetricLabel}>Spent</Text>
+                      <Text style={styles.statMetricLabel}>Recent spend</Text>
                     </View>
 
                     <View style={styles.metricDivider} />
@@ -679,7 +689,7 @@ export default function AdminProfiles() {
                       <Text style={styles.orderHistoryAddress} numberOfLines={1}>
                         📍 {order.addressSnapshot?.locality || 'Chennai'}
                       </Text>
-                      <Text style={styles.orderHistoryTotal}>₹{order.total} (COD)</Text>
+                      <Text style={styles.orderHistoryTotal}>₹{order.total} ({order.paymentMethod === 'upi_qr' ? 'UPI QR' : 'Cash'})</Text>
                     </View>
                   </View>
                 ))}
@@ -709,7 +719,9 @@ export default function AdminProfiles() {
                 : `Set a one-time PIN for ${pinModalUser?.name}. They must change it after signing in.`}
             </Text>
 
-            <TextInput
+            <Text style={styles.phoneText}>Phone (admin-assisted change, no SMS OTP)</Text>
+              <TextInput value={newPhone} onChangeText={setNewPhone} keyboardType="phone-pad" maxLength={10} style={{ padding: Spacing.md, borderWidth: 1, borderColor: Colors.line }} />
+              <TextInput
               style={styles.pinInputField}
               placeholder="e.g. 1234"
               placeholderTextColor={Colors.inkSoft}

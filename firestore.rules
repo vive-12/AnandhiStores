@@ -44,6 +44,10 @@ service cloud.firestore {
       return isSignedIn() && (status() == 'approved' || isAdmin());
     }
 
+    // Development rules intentionally remain open for account switching.
+    // firestore.production.rules is a separate fail-closed release guard; do not
+    // deploy it until trusted order writers and the emulator matrix are complete.
+
     // ─── Users Collection ──────────────────────────────────────────
     // Users can read/update their own profile.
     // Unauthenticated reads permitted for phone login lookups.
@@ -149,6 +153,9 @@ service cloud.firestore {
 
       allow delete: if !isSignedIn() || isAdmin();
     }
+
+    // Development PIN-help inbox; production submissions must be server-validated.
+    match /account_help/{phone} { allow read, write: if true; }
 
     // ─── Counters ──────────────────────────────────────────────────
     match /counters/{counterId} {

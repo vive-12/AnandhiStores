@@ -28,6 +28,11 @@ export interface User {
   phone:        string;
   pin?:         string;           // hashed in P4 — plain text until migration
   plainPin?:    string;           // fallback plain PIN
+  sessionVersion?: number;
+  authUid?: string;
+  isDemo?: boolean;
+  activeOrderCount?: number;
+  assignedRunCount?: number;
   mustChangePin?: boolean;        // temporary PIN set by an administrator
   status:       UserStatus;
   address?:     Address;
@@ -51,6 +56,7 @@ export interface Item {
   inStock:   boolean;
   isDeleted: boolean;          // soft-delete — never hard-delete
   sortOrder: number;
+  isWaterCan?: boolean;
   imageUrl?: string | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -78,6 +84,7 @@ export interface OrderItem {
   itemId:    string;
   name:      string;
   unit:      string;
+  isWaterCan?: boolean;
   price:     number;
   qty:       number;
   lineTotal: number;
@@ -94,7 +101,9 @@ export interface AddressSnapshot {
 }
 
 export interface StatusHistoryEntry {
-  status: OrderStatus | 'placed'; // includes initial placed entry
+  status: OrderStatus;
+  event?: 'assigned' | 'reassigned' | 'collection';
+  note?: string; // includes initial placed entry
   at:     Timestamp;
   byUid:  string;
   byRole: UserRole;
@@ -130,6 +139,7 @@ export interface Order {
   paymentMethod:   PaymentMethod;
   qrId?:           string | null;
   qrLabel?:        string | null;
+  qrUpiId?: string | null;
   slot:            OrderSlot;
   notes:           string;
   status:          OrderStatus;
@@ -149,6 +159,10 @@ export interface Order {
   cancelledAt:     Timestamp | null;
   // Can recovery extension (Q4 — kept compatible)
   type?:               'order' | 'recovery';
+  originalCansToCollect?: number;
+  collectionHistory?: { id: string; qty: number; at: Timestamp; byUid: string }[];
+  parentOrderId?: string;
+  lastCollectionAt?: Timestamp;
   pendingCansToCollect?: number;
   emptyCansCollected?:   number;
   checkedItems?:         Record<string, boolean>;
@@ -165,6 +179,8 @@ export interface Settings {
   isStoreOpenOverride: null | true | false;
   slots:              string[]; // slot labels
   agentFeePerDelivery: number;
+  instantDeliveryEnabled?: boolean;
+  supportPhone?: string;
 }
 
 // ─── Notification ─────────────────────────────────────────────────────────────
@@ -179,7 +195,9 @@ export type NotificationType =
   | 'agent_reassigned'
   | 'stock_changed'
   | 'customer_registered'
-  | 'settings_changed';
+  | 'settings_changed'
+  | 'account_help'
+  | 'can_collection';
 
 export interface AppNotification {
   id:        string;
@@ -189,6 +207,7 @@ export interface AppNotification {
   orderId:   string | null;
   title:     string;
   body:      string;
+  pushStatus?: 'pending' | 'sent' | 'failed';
   read:      boolean;
   createdAt: Timestamp;
 }

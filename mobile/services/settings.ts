@@ -8,6 +8,8 @@ import type { Settings } from '../types';
 const DOC_PATH = 'settings/store';
 
 const DEFAULTS: Settings = {
+  instantDeliveryEnabled: true,
+  supportPhone: '9003115101',
   minOrderValue:       99,
   deliveryFee:         20,
   freeDeliveryAbove:   299,
@@ -18,11 +20,11 @@ const DEFAULTS: Settings = {
   agentFeePerDelivery: 30,
 };
 
-function normalizeSettings(data: any): Settings {
+export function normalizeSettings(data: any): Settings {
   if (!data) return DEFAULTS;
   const rawSlots = Array.isArray(data.slots) && data.slots.length > 0 ? data.slots : DEFAULTS.slots;
   const slots = rawSlots.map((s: string) => (typeof s === 'string' && s.trim().toUpperCase() === 'ASAP' ? '5 min' : s));
-  return { ...data, slots };
+  return { ...DEFAULTS, ...data, slots };
 }
 
 /** Live listener for store settings */

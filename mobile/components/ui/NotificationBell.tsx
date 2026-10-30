@@ -86,7 +86,7 @@ export function NotificationBell({ color = '#FFFFFF', size = 22 }: NotificationB
 
   // Filter to only today's notifications
   const todayNotifications = useMemo(() => {
-    return notifications.filter(n => isToday(n.createdAt));
+    return notifications;
   }, [notifications]);
 
   const todayUnreadCount = useMemo(() => {
@@ -101,32 +101,6 @@ export function NotificationBell({ color = '#FFFFFF', size = 22 }: NotificationB
   const [latestBanner, setLatestBanner] = useState<AppNotification | null>(null);
   const prevCountRef = useRef(todayUnreadCount);
 
-  // Push notification token registration with EAS projectId & high-priority sound channel
-  useEffect(() => {
-    if (!uid) return;
-    registerDevicePushToken(uid).catch(err => {
-      console.log('Push token registration skipped or unsupported in environment:', err);
-    });
-  }, [uid]);
-
-  // Handle tapping a native notification from system tray
-  useEffect(() => {
-    if (!NotificationsModule?.addNotificationResponseReceivedListener) return;
-    const sub = NotificationsModule.addNotificationResponseReceivedListener(response => {
-      const orderId = response?.notification?.request?.content?.data?.orderId;
-      if (orderId && typeof orderId === 'string') {
-        if (role === 'customer') {
-          router.push(`/track/${orderId}` as any);
-        } else if (role === 'admin') {
-          router.push('/admin/alerts' as any);
-        } else if (role === 'agent') {
-          router.push('/agent/dashboard' as any);
-        }
-      }
-    });
-    return () => sub.remove();
-  }, [role, router]);
-
   // Live in-app banner trigger for today's new notifications
   useEffect(() => {
     if (todayNotifications.length > 0 && todayUnreadCount > prevCountRef.current) {
@@ -134,19 +108,6 @@ export function NotificationBell({ color = '#FFFFFF', size = 22 }: NotificationB
       if (!newest.read) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setLatestBanner(newest);
-
-        // Schedule native notification in Android notification drawer on standalone APK
-        if (NotificationsModule?.scheduleNotificationAsync) {
-          NotificationsModule.scheduleNotificationAsync({
-            content: {
-              title: newest.title,
-              body: newest.body,
-              data: { orderId: newest.orderId, notificationId: newest.id },
-              sound: 'default',
-            },
-            trigger: null,
-          }).catch(() => {});
-        }
 
         const timer = setTimeout(() => setLatestBanner(null), 4000);
         return () => clearTimeout(timer);

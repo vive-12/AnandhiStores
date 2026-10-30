@@ -14,8 +14,10 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors, Spacing, Radius, FontSize, Shadow, StatusColors } from '../../theme';
 import { useSession } from '../../hooks/useSession';
+import { useOrder } from '../../hooks/useOrder';
+import { RecoveryList } from '../../components/ui/RecoveryList';
 import { listenOrder, transitionOrder } from '../../services/orders';
-import { ScreenHeader, StatusPill, Button, useToast } from '../../components/ui';
+import { ScreenHeader, StatusPill, Button, ErrorState, EmptyState, useToast } from '../../components/ui';
 import type { Order, OrderStatus } from '../../types';
 
 const STEPS: { key: OrderStatus; label: string; icon: string; desc: string }[] = [
@@ -51,67 +53,18 @@ export default function TrackOrderScreen() {
   const { uid, name } = useSession();
   const { showToast } = useToast();
 
-  const [order, setOrder] = useState<Order | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { order, loading, error, refresh } = useOrder(id);
   const [cancelling, setCancelling] = useState(false);
-  const [secs, setSecs] = useState(15 * 60);
-
-  // Pulse animation for active delivery
-  const pulse = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.06, duration: 800, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 800, useNativeDriver: true }),
-      ]),
-    ).start();
-  }, []);
-
-  // Live order listener
-  useEffect(() => {
-    if (!id) return;
-    setLoading(true);
-
-    const unsub = listenOrder(
-      id,
-      data => {
-        setOrder(data);
-        setLoading(false);
-      },
-      err => {
-        console.error('Error listening to order:', err);
-        setLoading(false);
-      },
-    );
-
-    return () => unsub();
-  }, [id]);
-
-  // Delivery countdown timer
-  useEffect(() => {
-    if (!order || order.status === 'delivered' || order.status === 'cancelled') return;
-    const interval = setInterval(() => {
-      setSecs(s => Math.max(0, s - 1));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [order?.status]);
-
-  const fmtTime = (s: number) => {
-    const mins = Math.floor(s / 60);
-    const remainder = s % 60;
-    return `${String(mins).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
-  };
-
   const isDelivered = order?.status === 'delivered';
   const isCancelled = order?.status === 'cancelled';
   const isPlaced = order?.status === 'placed';
 
+  const visibleSteps = STEPS.filter(step => step.key !== 'packed' || !!order?.packedAt || order?.status === 'packed');
   const currentStepIndex = useMemo(() => {
     if (!order) return 0;
     if (order.status === 'cancelled') return -1;
-    return STEPS.findIndex(s => s.key === order.status);
-  }, [order?.status]);
+    return visibleSteps.findIndex(s => s.key === order.status);
+  }, [order?.status, order?.packedAt]);
 
   // Cancel order action
   const handleCancel = () => {
@@ -159,6 +112,9 @@ export default function TrackOrderScreen() {
     );
   };
 
+  if (error) return <View style={styles.container}><ScreenHeader title="Track order" showBack /><ErrorState message={error.message} onRetry={refresh} /></View>;
+  if (!loading && !order) return <View style={styles.container}><ScreenHeader title="Order unavailable" showBack /><EmptyState title="Order not found" subtitle="Return to Orders or try again." actionLabel="Retry" onAction={refresh} /></View>;
+  if (order?.type === 'recovery') return <ScrollView style={styles.container}><ScreenHeader title="Empty can collection" showBack /><RecoveryList orders={[order]} /></ScrollView>;
   return (
     <View style={styles.container}>
       <ScreenHeader
@@ -200,34 +156,15 @@ export default function TrackOrderScreen() {
               </View>
             )}
 
-            {/* ─── Active Delivery Countdown ───────────────────────────────── */}
-            {!isDelivered && !isCancelled && (
-              <View style={styles.timerCard}>
-                <Text style={styles.timerLabel}>Estimated Delivery</Text>
-                <Animated.View
-                  style={[
-                    styles.timerCircle,
-                    { transform: [{ scale: pulse }] },
-                  ]}
-                >
-                  <Text style={styles.timerDigits}>{fmtTime(secs)}</Text>
-                  <Text style={styles.timerSub}>minutes</Text>
-                </Animated.View>
-                <Text style={styles.timerPromise}>
-                  ⚡ Fast Delivery • Cash on Delivery
-                </Text>
-              </View>
-            )}
-
             {/* ─── Status Machine Timeline ─────────────────────────────────── */}
             {!isCancelled && (
               <View style={styles.timelineCard}>
                 <Text style={styles.sectionTitle}>Order Progress</Text>
-                {STEPS.map((step, idx) => {
+                {visibleSteps.map((step, idx) => {
                   const isCompleted = idx < currentStepIndex || isDelivered;
                   const isCurrent = idx === currentStepIndex && !isDelivered;
                   const isPending = idx > currentStepIndex && !isDelivered;
-                  const isLast = idx === STEPS.length - 1;
+                  const isLast = idx === visibleSteps.length - 1;
 
                   return (
                     <View key={step.key} style={[styles.timelineRow, isPending && { opacity: 0.55 }]}>

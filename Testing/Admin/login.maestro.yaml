@@ -1,0 +1,17 @@
+appId: ${APP_ID}
+name: Admin role login smoke (device validation required)
+---
+- launchApp
+- openLink: ${EXPO_URL}
+- extendedWaitUntil:
+    visible:
+      id: "login-demo-admin"
+    timeout: 60000
+- tapOn:
+    id: "login-demo-admin"
+- tapOn:
+    id: "login-submit"
+- extendedWaitUntil:
+    visible: "Operations|Orders|Dashboard"
+    timeout: 30000
+- takeScreenshot: admin-home

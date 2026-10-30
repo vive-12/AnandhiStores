@@ -1,11 +1,21 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   collection, doc, getDoc, updateDoc, deleteDoc, writeBatch, onSnapshot,
-  query, where, orderBy, limit, Unsubscribe, getDocs, serverTimestamp,
+  query, where, orderBy, limit, Unsubscribe, getDocs, serverTimestamp, runTransaction, arrayUnion, arrayRemove, increment,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { AppNotification } from '../types';
 
 const COL = 'notifications';
+let adminCache: { until: number; ids: string[] } | null = null;
+export async function getAdminRecipients(): Promise<string[]> {
+  if (adminCache && adminCache.until > Date.now()) return adminCache.ids;
+  const snap = await getDocs(query(collection(db, 'users'), where('role', '==', 'admin'), limit(10)));
+  const ids = snap.docs.filter(d => d.data().status !== 'blocked').map(d => d.id);
+  adminCache = { ids, until: Date.now() + 60_000 };
+  return ids;
+}
+
 const EAS_PROJECT_ID = '89170e22-3b73-4828-a94e-172135ffe4f9';
 
 export interface SendRemotePushParams {
@@ -19,7 +29,7 @@ export interface SendRemotePushParams {
 
 /**
  * Dispatch remote push notifications via the Expo Push API.
- * This guarantees notifications and sound are delivered even when
+ * Requests are best effort; acceptance does not guarantee delivery when
  * the application is closed or in the background.
  */
 export async function sendRemotePushNotification(params: SendRemotePushParams): Promise<void> {
@@ -32,9 +42,8 @@ export async function sendRemotePushNotification(params: SendRemotePushParams): 
       const userSnap = await getDoc(doc(db, 'users', params.toUid));
       if (userSnap.exists()) {
         const token = userSnap.data()?.pushToken;
-        if (typeof token === 'string' && token.startsWith('ExponentPushToken[')) {
-          tokens.push(token);
-        }
+        const registered = Array.isArray(userSnap.data()?.pushTokens) ? userSnap.data().pushTokens : [token];
+        for (const device of registered) if (typeof device === 'string' && /^(ExponentPushToken|ExpoPushToken)\[/.test(device) && !tokens.includes(device)) tokens.push(device);
       }
     }
 
@@ -53,7 +62,7 @@ export async function sendRemotePushNotification(params: SendRemotePushParams): 
     }
 
     if (!tokens.length) {
-      return;
+      throw Object.assign(new Error('No registered push device. In-app alert remains available.'), { code: 'no-device' });
     }
 
     const messages = tokens.map(to => ({
@@ -67,7 +76,7 @@ export async function sendRemotePushNotification(params: SendRemotePushParams): 
       _displayInForeground: true,
     }));
 
-    await fetch('https://exp.host/--/api/v2/push/send', {
+    const response = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
@@ -76,9 +85,14 @@ export async function sendRemotePushNotification(params: SendRemotePushParams): 
       },
       body: JSON.stringify(messages),
     });
+    if (!response.ok) throw new Error('Push service HTTP ' + response.status);
+    const result = await response.json();
+    const tickets = Array.isArray(result.data) ? result.data : [result.data];
+    if (tickets.some((ticket: any) => !ticket || ticket.status !== 'ok')) throw new Error('Push service did not accept all devices.');
   } catch (err) {
+    throw err;
     // Non-fatal: background push error must never crash or disrupt primary order flow
-    console.warn('[Push Notification] Error sending remote push notification:', err);
+
   }
 }
 
@@ -127,8 +141,10 @@ export async function registerDevicePushToken(uid: string): Promise<string | nul
     if (pushToken && typeof pushToken === 'string') {
       await updateDoc(doc(db, 'users', uid), {
         pushToken,
+        pushTokens: arrayUnion(pushToken),
         pushTokenUpdatedAt: serverTimestamp(),
       }).catch(() => {});
+      await AsyncStorage.setItem('anandhi_push_token', pushToken);
       return pushToken;
     }
     return null;
@@ -154,18 +170,20 @@ export async function notifyAdminsOfCustomerSignup(user: { id: string; name: str
       title: 'New customer signup',
       body: `${user.name} (+${user.phone}) is waiting for approval.`,
       read: false,
+      pushStatus: 'pending',
       createdAt: serverTimestamp(),
     });
   });
   await batch.commit();
 
+  /* Dispatch is handled from durable notification records.
   // Dispatch push notification to admin devices
   sendRemotePushNotification({
     toRole: 'admin',
     title: '👤 New Customer Signup',
     body: `${user.name} (+${user.phone}) is waiting for approval.`,
     data: { type: 'customer_registered', userId: user.id },
-  }).catch(() => {});
+  }).catch(() => {}); */
 }
 
 function sortNotifsDesc(notifications: AppNotification[]): AppNotification[] {
@@ -223,4 +241,49 @@ export async function clearAllNotifications(notifications: AppNotification[]): P
     batch.delete(doc(db, COL, n.id));
   });
   await batch.commit();
+}
+
+/** Free development relay: durable records are retried while an app is open.
+ * An optional server trigger can take over later; no billing/deployment is enabled here.
+ */
+export function startPushRelay(): () => void {
+  let stopped = false;
+  let latest: { id: string; data: any }[] = [];
+  const busy = new Set<string>();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const process = async (row: { id: string; data: any }) => {
+    if (stopped || busy.has(row.id) || Number(row.data.retryAfter || 0) > Date.now()) return;
+    busy.add(row.id);
+    const ref = doc(db, COL, row.id);
+    try {
+      const claimed = await runTransaction(db, async tx => {
+        const snap = await tx.get(ref);
+        if (!snap.exists() || snap.data().pushStatus !== 'pending' || Number(snap.data().leaseUntil || 0) > Date.now()) return false;
+        tx.update(ref, { leaseUntil: Date.now() + 60_000 });
+        return true;
+      });
+      if (!claimed) return;
+      await sendRemotePushNotification({ toUid: row.data.toUid, title: row.data.title, body: row.data.body, data: { orderId: row.data.orderId, notificationId: row.id, type: row.data.type } });
+      await updateDoc(ref, { pushStatus: 'sent', leaseUntil: 0, pushAcceptedAt: serverTimestamp() });
+    } catch (error) {
+      await updateDoc(ref, { pushStatus: (error as any)?.code === 'no-device' || Number(row.data.pushAttempts || 0) >= 4 ? 'failed' : 'pending', pushAttempts: increment(1), leaseUntil: 0, retryAfter: Date.now() + 60_000, pushError: error instanceof Error ? error.message : 'Push unavailable' }).catch(() => {});
+    } finally { busy.delete(row.id); }
+  };
+  const tick = () => {
+    if (stopped) return;
+    for (const row of latest) process(row).catch(() => {});
+    timer = setTimeout(tick, 60_000);
+  };
+  const stop = onSnapshot(query(collection(db, COL), where('pushStatus', '==', 'pending'), limit(20)), snap => {
+    latest = snap.docs.map(d => ({ id: d.id, data: d.data() }));
+    for (const row of latest) process(row).catch(() => {});
+  }, () => {});
+  tick();
+  return () => { stopped = true; stop(); if (timer) clearTimeout(timer); };
+}
+
+export async function unregisterDevicePushToken(uid: string): Promise<void> {
+  const token = await AsyncStorage.getItem('anandhi_push_token');
+  if (token) await updateDoc(doc(db, 'users', uid), { pushTokens: arrayRemove(token), pushToken: null }).catch(() => {});
+  await AsyncStorage.removeItem('anandhi_push_token');
 }

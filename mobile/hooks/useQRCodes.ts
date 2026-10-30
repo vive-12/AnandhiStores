@@ -1,6 +1,6 @@
 // hooks/useQRCodes.ts — Live subscription & state for QR codes
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { listenQRCodes, seedDefaultQRCodeIfEmpty, getDefaultQRCode } from '../services/qr';
+import { listenQRCodes } from '../services/qr';
 import type { QRCodeItem } from '../types';
 
 interface UseQRCodesResult {
@@ -16,12 +16,14 @@ export function useQRCodes(): UseQRCodesResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  const [revision, setRevision] = useState(0);
   useEffect(() => {
     // Attempt auto-seed if collection is empty
-    seedDefaultQRCodeIfEmpty().catch(() => {});
+    // Payee details must be explicitly configured by admin.
 
     const unsub = listenQRCodes(
       list => {
+        setError(null);
         setQrCodes(list);
         setLoading(false);
       },
@@ -32,24 +34,14 @@ export function useQRCodes(): UseQRCodesResult {
     );
 
     return unsub;
-  }, []);
+  }, [revision]);
 
   const defaultQR = useMemo(() => {
     if (qrCodes.length === 0) return null;
     return qrCodes.find(q => q.isDefault) || qrCodes[0];
   }, [qrCodes]);
 
-  const refresh = useCallback(async () => {
-    try {
-      const def = await getDefaultQRCode();
-      if (def) {
-        setQrCodes(prev => {
-          const exists = prev.some(q => q.id === def.id);
-          return exists ? prev : [def, ...prev];
-        });
-      }
-    } catch (_) {}
-  }, []);
+  const refresh = useCallback(async () => { setLoading(true); setError(null); setRevision(n => n + 1); }, []);
 
   return { qrCodes, defaultQR, loading, error, refresh };
 }

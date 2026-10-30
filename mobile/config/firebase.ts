@@ -5,10 +5,10 @@ import { getFirestore } from 'firebase/firestore';
 // Firebase v12 exposes this symbol through its React Native runtime condition,
 // but the package's generic TypeScript declarations omit the native export.
 // @ts-expect-error Expo Metro resolves the React Native auth entry for iOS/Android.
-import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
-import { getStorage } from 'firebase/storage';
+import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFunctions } from 'firebase/functions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 const firebaseConfig = {
   apiKey:            process.env.EXPO_PUBLIC_FIREBASE_API_KEY || 'AIzaSyBkFWe2PEcJpJh_V51C6sYyuEvueLXGs4k',
@@ -23,10 +23,15 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
 export const db      = getFirestore(app);
-export const storage = getStorage(app);
 export const functions = getFunctions(app, 'asia-south1');
 
 // Persist Firebase Auth sessions across Expo Go restarts with AsyncStorage.
-export const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage),
-});
+export const auth = (() => {
+  if (Platform.OS === 'web') return getAuth(app);
+  try {
+    return initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
+  } catch (error) {
+    if ((error as { code?: string }).code === 'auth/already-initialized') return getAuth(app);
+    throw error;
+  }
+})();

@@ -1,5 +1,5 @@
 // app/_layout.tsx — Root layout: fonts, providers, session restoration, role routing
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Platform, View, StatusBar } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -16,12 +16,15 @@ import * as SplashScreen from 'expo-splash-screen';
 import { ToastProvider } from '../components/ui/Toast';
 import { Colors } from '../theme';
 import { useSession } from '../hooks/useSession';
-import { restoreSession } from '../services/auth';
+import { restoreSession, saveSession, logout } from '../services/auth';
+import { listenUser } from '../services/users';
+import { useCart } from '../hooks/useCart';
+import { onIdTokenChanged } from 'firebase/auth';
+import { auth } from '../config/firebase';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { OfflineBanner } from '../components/ui/OfflineBanner';
-import { initOutboxListener } from '../services/outbox';
 import { initLogger, log } from '../utils/logger';
-import { registerDevicePushToken } from '../services/notifications';
+import { registerDevicePushToken, startPushRelay } from '../services/notifications';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -66,7 +69,7 @@ function RouteGuard() {
 
     if (isLoggedIn) {
       // Register device for background push notifications with sound
-      registerDevicePushToken(uid).catch(() => {});
+
       if (mustChangePin && segments.join('/') !== 'auth/reset-pin') {
         router.replace('/auth/reset-pin');
         return;
@@ -101,6 +104,68 @@ function RouteGuard() {
 }
 
 // ─── Session restoration on startup ──────────────────────────────────────────
+
+function SessionMonitor() {
+  const router = useRouter();
+  const lastResponse = useRef<string | null>(null);
+  const role = useSession(s => s.role);
+  const uid = useSession(s => s.uid);
+  const version = useSession(s => s.sessionVersion);
+  const isDemo = useSession(s => s.isDemo);
+  useEffect(() => {
+    if (!uid) return;
+    if (useCart.persist.hasHydrated()) useCart.getState().initForUser(uid);
+    const stopHydration = useCart.persist.onFinishHydration(() => { if (useSession.getState().uid === uid) useCart.getState().initForUser(uid); });
+    const stop = listenUser(uid, user => {
+      if (useSession.getState().uid !== uid) return;
+      if (!user || user.status === 'blocked' || (user.sessionVersion ?? 0) !== version) {
+        useSession.getState().clearSession();
+        logout().catch(() => {});
+        return;
+      }
+      useSession.getState().setSession({ ...user, isDemo });
+      saveSession({ ...user, isDemo }).catch(() => {});
+    }, () => {
+      // Keep persisted work intact. Subsequent server snapshots/foreground restore retry.
+    });
+    return () => { stop(); stopHydration(); };
+  }, [uid, version, isDemo]);
+  useEffect(() => {
+    if (!uid || isDemo) return;
+    return onIdTokenChanged(auth, user => {
+      if (useSession.getState().uid === uid && (!user || user.uid !== uid)) {
+        useSession.getState().clearSession();
+        logout().catch(() => {});
+      }
+    });
+  }, [uid, isDemo]);
+  useEffect(() => { if (!uid || role !== 'admin' || process.env.EXPO_PUBLIC_SERVER_PUSH === 'true') return; return startPushRelay(); }, [uid, role]);
+  useEffect(() => {
+    if (!uid || Platform.OS === 'web') return;
+    let stop: { remove: () => void } | undefined;
+    try {
+      const notifications = require('expo-notifications');
+      const handle = (response: any) => {
+        const state = useSession.getState();
+        if (!response || state.uid !== uid || state.mustChangePin || state.status !== 'approved') return;
+        const request = response.notification.request;
+        if (lastResponse.current === request.identifier) return;
+        lastResponse.current = request.identifier;
+        const data = request.content.data || {};
+        if (role === 'admin') router.push(['account_help', 'customer_registered'].includes(data.type) ? '/admin/profiles' : '/admin/alerts');
+        else if (typeof data.orderId === 'string') router.push((role === 'agent' ? '/agent/delivery/' : '/track/') + data.orderId as any);
+      };
+      stop = notifications.addNotificationResponseReceivedListener(handle);
+      notifications.getLastNotificationResponseAsync?.().then(handle).catch(() => {});
+    } catch {}
+    return () => stop?.remove();
+  }, [uid, role]);
+  useEffect(() => {
+    if (uid) registerDevicePushToken(uid).catch(() => {});
+  }, [uid]);
+  return null;
+}
+
 function SessionRestorer() {
   const { setSession, clearSession, setLoading } = useSession();
 
@@ -111,7 +176,7 @@ function SessionRestorer() {
       return restoreSession();
     }).then(user => {
       if (user) {
-        setSession({ id: user.id, role: user.role, name: user.name, phone: user.phone, status: user.status, mustChangePin: user.mustChangePin });
+        setSession(user);
       } else {
         clearSession();
       }
@@ -135,39 +200,6 @@ export default function RootLayout() {
     if (fontsLoaded) SplashScreen.hideAsync();
   }, [fontsLoaded]);
 
-  useEffect(() => {
-    const cleanupOutbox = initOutboxListener();
-    return () => {
-      cleanupOutbox();
-    };
-  }, []);
-
-  useEffect(() => {
-    try {
-      const Notifications = require('expo-notifications');
-      if (Platform.OS === 'android' && Notifications?.setNotificationChannelAsync) {
-        Notifications.setNotificationChannelAsync('default', {
-          name: 'Orders & Deliveries',
-          importance: Notifications.AndroidImportance.MAX,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#123524',
-          sound: 'default',
-          enableVibrate: true,
-          showBadge: true,
-        }).catch(() => {});
-      }
-      if (Notifications?.requestPermissionsAsync) {
-        Notifications.requestPermissionsAsync({
-          ios: {
-            allowAlert: true,
-            allowBadge: true,
-            allowSound: true,
-          },
-        }).catch(() => {});
-      }
-    } catch {}
-  }, []);
-
   if (!fontsLoaded) {
     return <View style={{ flex: 1, backgroundColor: Colors.green900 }} />;
   }
@@ -181,6 +213,7 @@ export default function RootLayout() {
               <StatusBar barStyle="light-content" {...(Platform.OS === 'android' ? { backgroundColor: Colors.green900 } : {})} />
               <OfflineBanner />
               <SessionRestorer />
+              <SessionMonitor />
               <RouteGuard />
               <Stack
                 id="root-stack"

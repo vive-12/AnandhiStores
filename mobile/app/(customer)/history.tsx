@@ -14,6 +14,9 @@ import { Colors, Spacing, Radius, FontSize, Shadow } from '../../theme';
 import { useSession } from '../../hooks/useSession';
 import { useCustomerOrders } from '../../hooks/useOrders';
 import { useCart } from '../../hooks/useCart';
+import { RecoveryList } from '../../components/ui/RecoveryList';
+import { useAuthUser } from '../../hooks/useAuthUser';
+import { useItems } from '../../hooks/useItems';
 import { transitionOrder } from '../../services/orders';
 import {
   ScreenHeader,
@@ -32,8 +35,12 @@ export default function OrderHistoryScreen() {
   const router = useRouter();
   const { uid, name } = useSession();
   const { showToast } = useToast();
-  const { orders, loading, error, refresh } = useCustomerOrders(uid);
+  const { orders, loading, error, refresh, loadMore, historyLimit } = useCustomerOrders(uid);
   const { addItem } = useCart();
+  const { items } = useItems();
+  const { user } = useAuthUser();
+  const [view, setView] = useState<'purchases' | 'recovery'>('purchases');
+  const purchases = orders.filter(o => o.type !== 'recovery');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const onRefresh = useCallback(() => refresh(), [refresh]);
@@ -64,8 +71,9 @@ export default function OrderHistoryScreen() {
 
     let addedCount = 0;
     for (const item of order.items) {
-      addItem(item.itemId);
-      addedCount++;
+      if (!items.some(i => i.id === item.itemId && i.inStock && !i.isDeleted)) continue;
+      for (let n = 0; n < item.qty; n++) addItem(item.itemId);
+      addedCount += item.qty;
     }
 
     showToast(`Added ${addedCount} items from order ${order.orderNo} to cart! 🛒`, 'success');
@@ -142,6 +150,8 @@ export default function OrderHistoryScreen() {
           />
         }
       >
+        <View style={{ flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md }}><Button label="Purchases" onPress={() => setView('purchases')} /><Button label="Empty cans" variant="secondary" onPress={() => setView('recovery')} /></View>
+        {view === 'recovery' && <RecoveryList orders={orders} balance={user?.pendingCans} />}
         {error && <ErrorState message="Could not load order history." onRetry={refresh} />}
         {/* Loading Skeletons */}
         {loading && (
@@ -153,7 +163,7 @@ export default function OrderHistoryScreen() {
         )}
 
         {/* Empty State */}
-        {!loading && orders.length === 0 && (
+        {!loading && view === 'purchases' && purchases.length === 0 && (
           <EmptyState
             title="No orders yet"
             subtitle="You haven't placed any orders with Anandhi Stores yet. Fresh groceries and water cans are just a tap away!"
@@ -162,10 +172,11 @@ export default function OrderHistoryScreen() {
           />
         )}
 
+        <Button label="Load older completed history" variant="secondary" onPress={loadMore} />
         {/* Orders List */}
-        {!loading && orders.length > 0 && (
+        {!loading && view === 'purchases' && purchases.length > 0 && (
           <View style={styles.ordersList}>
-            {orders.map(order => {
+            {purchases.map(order => {
               const isPlaced = order.status === 'placed';
               const isDelivered = order.status === 'delivered';
               const isCancelled = order.status === 'cancelled';
@@ -218,7 +229,7 @@ export default function OrderHistoryScreen() {
                     </View>
 
                     <View style={styles.metaRight}>
-                      <Text style={styles.metaLabel}>Total (COD)</Text>
+                      <Text style={styles.metaLabel}>Order total</Text>
                       <Text style={styles.metaTotal}>₹{order.total}</Text>
                     </View>
                   </View>

@@ -22,6 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import { preparePhoto } from '../../services/photos';
 import { Image } from 'expo-image';
 import { Colors, Spacing, Radius, FontSize, Shadow } from '../../theme';
 import { getBannerPalette } from '../../utils/bannerPalette';
@@ -41,6 +42,7 @@ import {
   Button,
   EmptyState,
   CardSkeleton,
+  ErrorState,
   useToast,
 } from '../../components/ui';
 
@@ -76,6 +78,8 @@ export default function OffersScreen({ showHeader = true }: OffersScreenProps = 
 
   const [banners, setBanners] = useState<AppBanner[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<Error | null>(null);
+  const [reload, setReload] = useState(0);
 
   // Modal
   const [modalVisible, setModalVisible] = useState(false);
@@ -179,17 +183,18 @@ export default function OffersScreen({ showHeader = true }: OffersScreenProps = 
     setLoading(true);
     const unsub = listenAllBanners(
       data => {
+        setLoadError(null);
         setBanners(data);
         setLoading(false);
       },
       err => {
-        console.error('Error listening to banners:', err);
+        setLoadError(err);
         setLoading(false);
       },
     );
 
     return unsub;
-  }, []);
+  }, [reload]);
 
   // Image picking handler with camera or gallery
   const pickImage = async (useCamera: boolean) => {
@@ -210,7 +215,7 @@ export default function OffersScreen({ showHeader = true }: OffersScreenProps = 
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
-        const uri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+        const uri = await preparePhoto(asset, 'offer');
         // Clean fresh selection: reset scale, offsets and rotation to exact center
         setImageUrl(uri);
         setImageScale(1);
@@ -221,7 +226,7 @@ export default function OffersScreen({ showHeader = true }: OffersScreenProps = 
         setTempOffsetX(0);
         setTempOffsetY(0);
         setTempRotation(0);
-        setCropModalVisible(true);
+        // Ready to publish; optional crop controls remain available.
         Haptics.selectionAsync();
         showToast('Photo loaded! Centered and ready to adjust', 'success');
       }
@@ -499,7 +504,7 @@ export default function OffersScreen({ showHeader = true }: OffersScreenProps = 
       </View>
 
       {/* List */}
-      {loading ? (
+      {loadError ? <ErrorState message={loadError.message} onRetry={() => setReload(n => n + 1)} /> : loading ? (
         <View style={{ padding: Spacing.lg, gap: Spacing.md }}>
           <CardSkeleton />
           <CardSkeleton />
@@ -643,7 +648,11 @@ export default function OffersScreen({ showHeader = true }: OffersScreenProps = 
 
                     {/* Title */}
                     <View style={s.inputGroup}>
-                      <Text style={s.inputLabel}>Banner Headline *</Text>
+                      <Text style={s.inputLabel}>Start with a template, then upload your photo</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>
+                {[{ title: 'Fresh groceries', subtitle: 'Shop today’s available essentials', color: Colors.green700 }, { title: '20L water cans', subtitle: 'Order water for your home', color: Colors.green900 }, { title: 'Weekend picks', subtitle: 'Browse our latest arrivals', color: Colors.amber }].map(template => <Button key={template.title} label={template.title} variant="secondary" onPress={() => { setTitle(template.title); setSubtitle(template.subtitle); setSelectedColor(template.color); }} />)}
+              </View>
+              <Text style={s.inputLabel}>Banner Headline *</Text>
                       <TextInput
                         style={s.textInput}
                         placeholder="e.g. Free Delivery on First Order!"

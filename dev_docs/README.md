@@ -1,27 +1,23 @@
-# Developer Documentation & Logs Directory (`dev_docs/`)
+# Anandhi Stores documentation
 
-This directory centralizes all architecture specifications, project requirements, audit checklists, work logs, and error logs for **Anandhi Stores**.
+All project documentation lives under this folder. Start with the current project context and setup guide; older reviews and build notes describe the repository at their recorded dates.
 
----
+| Document | Purpose |
+| --- | --- |
+| [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) | Current product scope, data model and owner decisions |
+| [SETUP.md](SETUP.md) | Single environment file, Expo startup and maintenance commands |
+| [REGRESSION.md](REGRESSION.md) | Test coverage status and folder map |
+| [TESTING.md](TESTING.md) | Per-role commands, every-stage expected effects, reports and build gate |
+| [TESTING_NATIVE.md](TESTING_NATIVE.md) | Maestro device setup and three-role testing options |
+| [PERSONAL_LAPTOP_TESTING.md](PERSONAL_LAPTOP_TESTING.md) | Simple handoff for phone testing with Antigravity |
+| [TEST_ACTIONS.md](TEST_ACTIONS.md) | Every source-derived UI action handler |
+| [worklog.md](worklog.md) | Completed changes and explicitly open work |
+| [review.md](review.md) | Append-only review history, relocated from the repo root |
+| [design/README.md](design/README.md) | Typography, theme, components and screen guides |
+| [CODEBASE_REVIEW_CHECKLIST.md](CODEBASE_REVIEW_CHECKLIST.md) | Release-readiness checklist |
+| [PERMISSIONS_TEST.md](PERMISSIONS_TEST.md) | Historical permissions verification matrix; check current rules before using |
+| [SYNC_REPORT.md](SYNC_REPORT.md) | Historical affected-role synchronization review |
+| [codexsuggestions.md](codexsuggestions.md) | Earlier recommendations; current owner decisions take precedence |
+| [Build guide](Anandhi%20Stores_%20Build%20Guide%20for%20Antigravity.md) | Earlier architecture/build reference |
 
-## 📑 Architecture & Planning Documents
-
-| Document | Description |
-| :--- | :--- |
-| **[`Anandhi Stores_ Build Guide for Antigravity.md`](file:///d:/Vivek/Can/dev_docs/Anandhi%20Stores_%20Build%20Guide%20for%20Antigravity.md)** | Core architecture build guide, data models, role definitions, and workflow state machines. |
-| **[`PROJECT_CONTEXT.md`](file:///d:/Vivek/Can/dev_docs/PROJECT_CONTEXT.md)** | Deep technical context on collections, schemas, Firestore rules, and state management. |
-| **[`CODEBASE_REVIEW_CHECKLIST.md`](file:///d:/Vivek/Can/dev_docs/CODEBASE_REVIEW_CHECKLIST.md)** | Production readiness checklist, security items, and deployment roadmap. |
-| **[`codexsuggestions.md`](file:///d:/Vivek/Can/dev_docs/codexsuggestions.md)** | Prioritized architectural, scale, UI, security, and performance recommendations. |
-| **[`SYNC_REPORT.md`](file:///d:/Vivek/Can/dev_docs/SYNC_REPORT.md)** | Cross-role synchronization matrix audit across Admin, Agent, and Customer workflows. |
-| **[`PERMISSIONS_TEST.md`](file:///d:/Vivek/Can/dev_docs/PERMISSIONS_TEST.md)** | Security rules and role-based access control permission tests. |
-| **[`worklog.md`](file:///d:/Vivek/Can/dev_docs/worklog.md)** | Complete chronological changelog of all completed features, bug fixes, and test suites. |
-| **[`AUDIT.md`](file:///d:/Vivek/Can/dev_docs/AUDIT.md)** | Early codebase audit findings and gap analyses. |
-
----
-
-## 🪵 Runtime & Test Logs (`dev_docs/logs/`)
-
-| Log File | Description |
-| :--- | :--- |
-| **[`logs/session-errors.log`](file:///d:/Vivek/Can/dev_docs/logs/session-errors.log)** | Live device, Metro bundler, and Firebase runtime error logs from the current Expo session. |
-| **[`logs/test-e2e.log`](file:///d:/Vivek/Can/dev_docs/logs/test-e2e.log)** | End-to-end multi-role test execution logs and assertion outputs. |
+Generated exports, runtime logs and local verification artifacts belong in ignored .verify/ at the repository root. Credentials belong only in the ignored root .env. Neither belongs in documentation.

@@ -33,6 +33,8 @@ export function useAuthUser(): UseAuthUserResult {
       setLoading(false);
       return;
     }
+    setLoading(true);
+    setUser(null);
     // Listen for Firestore profile (role, status, isOnline, etc.)
     const unsubProfile = listenUser(effectiveUid, profile => {
       setUser(profile);
@@ -41,5 +43,5 @@ export function useAuthUser(): UseAuthUserResult {
     return unsubProfile;
   }, [effectiveUid]);
 
-  return { user, firebaseUid: effectiveUid, loading };
+  return { user, firebaseUid, loading };
 }

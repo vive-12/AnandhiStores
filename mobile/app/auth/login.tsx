@@ -10,9 +10,10 @@ import { useRouter } from 'expo-router';
 import { Button } from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
 import { useSession } from '../../hooks/useSession';
-import { loginWithPhone } from '../../services/auth';
+import { loginWithPhone, prepareDevelopmentAccounts } from '../../services/auth';
 import { getDemoCredentials } from '../../config/demoCredentials';
 import { isValidPhone, isValidPin, normalisePhone } from '../../utils/compute';
+import { AccountSupport } from '../../components/ui/AccountSupport';
 import { Colors, FontSize, Spacing, Radius } from '../../theme';
 
 export default function LoginScreen() {
@@ -20,6 +21,7 @@ export default function LoginScreen() {
   const { showToast }   = useToast();
   const { setSession }  = useSession();
 
+  const [attempts, setAttempts] = useState(0);
   const [phone,      setPhone]      = useState('');
   const [pin,        setPin]        = useState('');
   const [phoneErr,   setPhoneErr]   = useState('');
@@ -42,9 +44,10 @@ export default function LoginScreen() {
     setSubmitting(true);
     try {
       const user = await loginWithPhone({ phone: normalisePhone(phone), pin });
-      setSession({ id: user.id, role: user.role, name: user.name, phone: user.phone, status: user.status, mustChangePin: user.mustChangePin });
+      setSession(user);
       // RouteGuard in _layout handles redirect
     } catch (e: any) {
+      setAttempts(e.attempts || 0);
       showToast(e.message ?? 'Login failed. Try again.', 'error');
     } finally {
       setSubmitting(false);
@@ -69,6 +72,7 @@ export default function LoginScreen() {
           <Text style={styles.label}>Phone number</Text>
           <TextInput
             style={[styles.input, phoneErr ? styles.inputErr : null]}
+            testID="login-phone"
             placeholder="9xxxxxxxxx"
             placeholderTextColor={Colors.inkSoft}
             keyboardType="phone-pad"
@@ -81,11 +85,13 @@ export default function LoginScreen() {
           {phoneErr ? <Text style={styles.errTxt}>{phoneErr}</Text> : null}
         </View>
 
+        {attempts >= 3 && <AccountSupport />}
         {/* PIN */}
         <View style={styles.field}>
           <Text style={styles.label}>4-digit PIN</Text>
           <TextInput
             style={[styles.input, pinErr ? styles.inputErr : null]}
+            testID="login-pin"
             placeholder="• • • •"
             placeholderTextColor={Colors.inkSoft}
             keyboardType="number-pad"
@@ -102,10 +108,12 @@ export default function LoginScreen() {
         {demoCredentials.length > 0 ? (
           <View style={styles.demoBox}>
             <Text style={styles.demoTitle}>Development test logins</Text>
+            <Button label="Prepare named development accounts" variant="secondary" onPress={async () => { try { await prepareDevelopmentAccounts(); showToast('Vivek, Shivani and Suresh are ready. Existing PINs and order links were kept.', 'success'); } catch (e) { showToast(e instanceof Error ? e.message : 'Setup failed', 'error'); } }} />
             <Text style={styles.demoHint}>Tap a role to fill the phone and PIN fields.</Text>
             {demoCredentials.map(({ role, credential }) => (
               <TouchableOpacity
                 key={role}
+                testID={`login-demo-${role}`}
                 style={styles.demoRow}
                 onPress={() => {
                   setPhone(credential.phone);
@@ -126,6 +134,7 @@ export default function LoginScreen() {
         <View style={{ marginTop: Spacing.xl }}>
           <Button
             label="Sign in"
+            testID="login-submit"
             onPress={handleLogin}
             loading={submitting}
             disabled={submitting}

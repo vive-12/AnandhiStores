@@ -1,0 +1,39 @@
+rules_version = '2';
+// Release guard, deliberately NOT referenced by firebase.json during development.
+// Privileged order/accounting mutations require trusted callable/event handlers.
+// Keep this fail-closed until that migration and emulator matrix are completed.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function admin() { return signedIn() && request.auth.token.admin == true; }
+    function own(uid) { return signedIn() && request.auth.uid == uid; }
+    function approved() { return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'approved'; }
+    match /users/{uid} {
+      allow read: if own(uid) || admin();
+      allow create: if own(uid) && request.resource.data.role == 'customer'
+        && request.resource.data.status == 'pending'
+        && request.resource.data.keys().hasOnly(['role','name','phone','address','createdAt','status','isOnline','pin','isDemo','sessionVersion'])
+        && request.resource.data.isDemo == false && request.resource.data.sessionVersion == 0;
+      allow update: if own(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','address','pushTokens','pushToken','pushTokenUpdatedAt']);
+      allow delete: if false;
+    }
+    match /items/{id} { allow read: if approved() || admin(); allow write: if admin(); }
+    match /settings/{id} { allow read: if approved() || admin(); allow write: if admin(); }
+    match /banners/{id} { allow read: if approved() || admin(); allow write: if admin(); }
+    match /orders/{id} {
+      allow read: if admin() || (approved() && (resource.data.customerId == request.auth.uid || resource.data.agentId == request.auth.uid));
+      // Never accept caller-supplied roles, prices, balances or statistics.
+      allow write: if false;
+    }
+    match /notifications/{id} {
+      allow read: if admin() || (approved() && resource.data.toUid == request.auth.uid);
+      allow update: if approved() && resource.data.toUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow create, delete: if false;
+    }
+    match /qr_codes/{id} { allow read: if approved() || admin(); allow write: if admin(); }
+    match /stats_daily/{date} { allow read: if admin(); allow write: if false; }
+    match /account_help/{phone} { allow read: if admin(); allow write: if false; }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

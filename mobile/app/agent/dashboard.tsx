@@ -22,6 +22,7 @@ import RNBottomSheet from '@gorhom/bottom-sheet';
 import { Colors, Spacing, Radius, FontSize, Shadow, StatusColors } from '../../theme';
 import { useSession } from '../../hooks/useSession';
 import { useAuthUser } from '../../hooks/useAuthUser';
+import { useStats } from '../../hooks/useStats';
 import { useAgentOrders } from '../../hooks/useOrders';
 import { getSundayOfCurrentWeek, getFirstDayOfCurrentMonth, getISTDateKey } from '../../services/stats';
 import { setAgentOnline } from '../../services/users';
@@ -33,6 +34,7 @@ import {
   Button,
   BottomSheet,
   EmptyState,
+  ErrorState,
   CardSkeleton,
   NotificationBell,
   useToast,
@@ -55,7 +57,7 @@ export default function AgentDashboard() {
   const earningsSheetRef = useRef<RNBottomSheet>(null);
 
   // Live orders assigned to this agent
-  const { orders, loading: ordersLoading, error: ordersError } = useAgentOrders(uid);
+  const { orders, loading: ordersLoading, error: ordersError, refresh: refreshOrders, loadMore, historyLimit } = useAgentOrders(uid);
 
   // Online status state
   const [isOnline, setIsOnline] = useState<boolean>(() => profileUser?.isOnline ?? true);
@@ -66,6 +68,8 @@ export default function AgentDashboard() {
     }
   }, [profileUser?.isOnline]);
 
+  const { getAgentPerformance, error: statsError } = useStats(32);
+  const performance = getAgentPerformance(uid || '');
   const agentName = profileUser?.name || sessionName || 'Agent';
 
   // Partition orders by tab
@@ -82,6 +86,7 @@ export default function AgentDashboard() {
   }, [assignedOrders]);
 
   // Sub-filter inside Assigned tab: 'all' | 'retail' | 'recovery'
+  const [completedKind, setCompletedKind] = useState<'retail' | 'recovery'>('retail');
   const [assignedSubFilter, setAssignedSubFilter] = useState<'all' | 'retail' | 'recovery'>('all');
 
   // Structured sections for Assigned tab
@@ -178,10 +183,10 @@ export default function AgentDashboard() {
 
   // Use the agent's own delivered order records. This avoids a separate
   // stats_daily listener and keeps the dashboard scoped to data it already reads.
-  const effectiveTodayDeliveries = todayCompletedOrders.length;
-  const effectiveWeeklyDeliveries = weeklyCompletedOrders.length;
-  const effectiveMonthlyDeliveries = monthlyCompletedOrders.length;
-  const effectiveTodayCash = todayCashFromOrders;
+  const effectiveTodayDeliveries = performance.todayDeliveries;
+  const effectiveWeeklyDeliveries = performance.weeklyDeliveries;
+  const effectiveMonthlyDeliveries = performance.monthlyDeliveries;
+  const effectiveTodayCash = performance.todayCash;
 
   // Filtered completed runs list based on active timeframe
   const filteredCompletedOrders = useMemo(() => {
@@ -190,7 +195,10 @@ export default function AgentDashboard() {
     return monthlyCompletedOrders;
   }, [runTimeframe, todayCompletedOrders, weeklyCompletedOrders, monthlyCompletedOrders]);
 
-  const activeOrdersCount = assignedOrders.length + outOrders.length;
+  const completedRecoveries = orders.filter(o => o.type === 'recovery' && o.status === 'delivered').filter(o => { const d = parseOrderDate(o); if (!d) return false; const start = runTimeframe === 'today' ? new Date(getISTDateKey(clickTime) + 'T00:00:00+05:30') : runTimeframe === 'week' || runTimeframe === '7days' ? getSundayOfCurrentWeek(clickTime) : getFirstDayOfCurrentMonth(clickTime); return d >= start && d <= clickTime; });
+  useEffect(() => setClickTime(new Date()), [orders]);
+  const activeOrdersCount = assignedRetailOrders.length + outOrders.length;
+  useEffect(() => { const timer = setInterval(() => setClickTime(new Date()), 30_000); return () => clearInterval(timer); }, []);
 
   // New assignment alert tracking
   // IMPORTANT: Firestore onSnapshot fires TWICE on first load (cache, then server).
@@ -261,7 +269,8 @@ export default function AgentDashboard() {
         nextStatus ? 'success' : 'info',
       );
     } catch (err: unknown) {
-      console.warn('Backend update failed:', err);
+      setIsOnline(!nextStatus);
+      showToast(err instanceof Error ? err.message : 'Could not update online status.', 'error');
     } finally {
       setTogglingOnline(false);
     }
@@ -772,8 +781,10 @@ export default function AgentDashboard() {
           </View>
         )}
 
+        {activeTab === 'completed' && <View style={s.subfilterBar}><Button label="Delivery history" variant="secondary" onPress={() => setCompletedKind('retail')} /><Button label="Can collection history" variant="secondary" onPress={() => setCompletedKind('recovery')} /></View>}
+        <Button label="Load older completed history" variant="secondary" onPress={loadMore} />
         {/* Orders List */}
-        {ordersLoading ? (
+        {ordersError || statsError ? <ErrorState message={(ordersError || statsError).message} onRetry={refreshOrders} /> : ordersLoading ? (
           <View style={{ padding: Spacing.lg, gap: Spacing.md }}>
             <CardSkeleton />
             <CardSkeleton />
@@ -830,7 +841,7 @@ export default function AgentDashboard() {
           />
         ) : (
           <FlatList
-            data={currentTabOrders}
+            data={activeTab === 'completed' && completedKind === 'recovery' ? completedRecoveries : currentTabOrders}
             keyExtractor={item => item.id}
             renderItem={renderOrderCard}
             showsVerticalScrollIndicator={false}
@@ -867,7 +878,7 @@ export default function AgentDashboard() {
         <BottomSheet
           ref={earningsSheetRef}
           snapPoints={['55%', '85%']}
-          title="Earnings & Cash Handover"
+          title="Collections & recent completed runs"
         >
           <View style={s.sheetContent}>
             {/* Cash Handover Notice */}
@@ -876,7 +887,7 @@ export default function AgentDashboard() {
               <View style={{ flex: 1 }}>
                 <Text style={s.cashHeroLabel}>
                   {runTimeframe === 'today'
-                    ? 'Cash to Hand Over Today'
+                    ? 'Cash collected today (before handover)'
                     : runTimeframe === 'week' || runTimeframe === '7days'
                     ? 'Weekly COD Total'
                     : 'Monthly COD Total'}
@@ -885,12 +896,12 @@ export default function AgentDashboard() {
                   ₹{(runTimeframe === 'today'
                     ? effectiveTodayCash
                     : runTimeframe === 'week' || runTimeframe === '7days'
-                    ? weeklyCashFromOrders
-                    : monthlyCashFromOrders
+                    ? performance.weeklyCash
+                    : performance.monthlyCash
                   ).toLocaleString('en-IN')}
                 </Text>
                 <Text style={s.cashHeroSub}>
-                  COD Collected from {filteredCompletedOrders.length} completed run
+                  Cash collected from {filteredCompletedOrders.filter(o => o.paymentMethod !== 'upi_qr').length} completed run
                   {filteredCompletedOrders.length !== 1 ? 's' : ''}
                 </Text>
               </View>
@@ -983,7 +994,7 @@ export default function AgentDashboard() {
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
                         <Text style={s.runTotal}>₹{order.total}</Text>
-                        <Text style={s.runCod}>COD Collected</Text>
+                        <Text style={s.runCod}>{order.paymentMethod === 'upi_qr' ? 'UPI QR recorded' : 'Cash collected'}</Text>
                       </View>
                     </View>
                   ))}

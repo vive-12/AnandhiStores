@@ -9,6 +9,7 @@ import { useToast } from '../../components/ui/Toast';
 import { useSession } from '../../hooks/useSession';
 import { changePin, loginWithPhone } from '../../services/auth';
 import { isValidPin } from '../../utils/compute';
+import { AccountSupport } from '../../components/ui/AccountSupport';
 import { Colors, FontSize, Spacing, Radius } from '../../theme';
 
 export default function ResetPinScreen() {
@@ -16,6 +17,7 @@ export default function ResetPinScreen() {
   const { showToast } = useToast();
   const { uid, phone, mustChangePin, setSession } = useSession();
 
+  const [attempts, setAttempts] = useState(0);
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
@@ -41,8 +43,11 @@ export default function ResetPinScreen() {
       showToast('PIN updated successfully', 'success');
       // Now log them in with new PIN
       const user = await loginWithPhone({ phone, pin: newPin });
-      setSession({ id: user.id, role: user.role, name: user.name, phone: user.phone, status: user.status, mustChangePin: user.mustChangePin });
+      setSession(user);
+      setCurrentPin(''); setNewPin(''); setConfirmPin('');
+      router.replace(user.role === 'admin' ? '/admin/alerts' : user.role === 'agent' ? '/agent/dashboard' : '/(customer)');
     } catch (e: any) {
+      setAttempts(e.attempts || 0);
       showToast(e.message ?? 'Failed to reset PIN.', 'error');
     } finally {
       setSubmitting(false);
@@ -52,6 +57,7 @@ export default function ResetPinScreen() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
       <View style={styles.container}>
+        {attempts >= 3 && <AccountSupport />}
         <Text style={styles.title}>Set new PIN</Text>
         <Text style={styles.subtitle}>{mustChangePin ? 'Your admin issued a one-time PIN. Enter it, then choose a private 4-digit PIN to continue.' : 'Enter your current PIN, then choose a new 4-digit PIN.'}</Text>
 
@@ -59,7 +65,7 @@ export default function ResetPinScreen() {
           <Text style={styles.label}>Current PIN</Text>
           <TextInput
             style={styles.input}
-            placeholder="â€¢ â€¢ â€¢ â€¢"
+            placeholder="• • • •"
             placeholderTextColor={Colors.inkSoft}
             keyboardType="number-pad"
             secureTextEntry

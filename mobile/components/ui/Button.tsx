@@ -27,6 +27,7 @@ interface ButtonProps {
   style?: ViewStyle;
   textStyle?: TextStyle;
   fullWidth?: boolean;
+  testID?: string;
 }
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
@@ -40,6 +41,7 @@ export function Button({
   style,
   textStyle,
   fullWidth = true,
+  testID,
 }: ButtonProps) {
   const scale = useSharedValue(1);
 
@@ -73,6 +75,7 @@ export function Button({
 
   return (
     <AnimatedTouchable
+      testID={testID}
       activeOpacity={0.85}
       onPress={handlePress}
       onPressIn={handlePressIn}

@@ -1,0 +1,17 @@
+appId: ${APP_ID}
+name: User role login smoke (device validation required)
+---
+- launchApp
+- openLink: ${EXPO_URL}
+- extendedWaitUntil:
+    visible:
+      id: "login-demo-customer"
+    timeout: 60000
+- tapOn:
+    id: "login-demo-customer"
+- tapOn:
+    id: "login-submit"
+- extendedWaitUntil:
+    visible: "Hello, Shivani.*"
+    timeout: 30000
+- takeScreenshot: user-home

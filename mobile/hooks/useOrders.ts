@@ -13,6 +13,8 @@ interface UseOrdersResult {
   loading:  boolean;
   error:    Error | null;
   refresh:  () => void;
+  loadMore: () => void;
+  historyLimit: number;
 }
 
 /** Customer: own orders */
@@ -21,8 +23,12 @@ export function useCustomerOrders(customerId: string | null): UseOrdersResult {
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<Error | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [historyLimit, setHistoryLimit] = useState(50);
+  const loadMore = useCallback(() => setHistoryLimit(n => n + 50), []);
 
   useEffect(() => {
+    setOrders([]);
+    setError(null);
     if (!customerId) { setLoading(false); return; }
     setLoading(true);
     setError(null);
@@ -30,12 +36,13 @@ export function useCustomerOrders(customerId: string | null): UseOrdersResult {
       customerId,
       data => { setOrders(data); setError(null); setLoading(false); },
       e    => { setError(e);    setLoading(false); },
+      historyLimit,
     );
     return unsub;
-  }, [customerId, reloadKey]);
+  }, [customerId, reloadKey, historyLimit]);
 
   const refresh = useCallback(() => setReloadKey(key => key + 1), []);
-  return { orders, loading, error, refresh };
+  return { orders, loading, error, refresh, loadMore, historyLimit };
 }
 
 /** Agent: own assigned orders */
@@ -44,8 +51,12 @@ export function useAgentOrders(agentId: string | null): UseOrdersResult {
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<Error | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [historyLimit, setHistoryLimit] = useState(50);
+  const loadMore = useCallback(() => setHistoryLimit(n => n + 50), []);
 
   useEffect(() => {
+    setOrders([]);
+    setError(null);
     if (!agentId) { setLoading(false); return; }
     setLoading(true);
     setError(null);
@@ -53,12 +64,13 @@ export function useAgentOrders(agentId: string | null): UseOrdersResult {
       agentId,
       data => { setOrders(data); setError(null); setLoading(false); },
       e    => { setError(e);    setLoading(false); },
+      historyLimit,
     );
     return unsub;
-  }, [agentId, reloadKey]);
+  }, [agentId, reloadKey, historyLimit]);
 
   const refresh = useCallback(() => setReloadKey(key => key + 1), []);
-  return { orders, loading, error, refresh };
+  return { orders, loading, error, refresh, loadMore, historyLimit };
 }
 
 /** Admin: all orders with optional status filter */
@@ -67,6 +79,8 @@ export function useAdminOrders(statusFilter?: OrderStatus): UseOrdersResult {
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<Error | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [historyLimit, setHistoryLimit] = useState(50);
+  const loadMore = useCallback(() => setHistoryLimit(n => n + 50), []);
 
   useEffect(() => {
     setLoading(true);
@@ -75,12 +89,13 @@ export function useAdminOrders(statusFilter?: OrderStatus): UseOrdersResult {
       data => { setOrders(data); setError(null); setLoading(false); },
       e    => { setError(e);    setLoading(false); },
       statusFilter,
+      historyLimit,
     );
     return unsub;
-  }, [statusFilter, reloadKey]);
+  }, [statusFilter, reloadKey, historyLimit]);
 
   const refresh = useCallback(() => setReloadKey(key => key + 1), []);
-  return { orders, loading, error, refresh };
+  return { orders, loading, error, refresh, loadMore, historyLimit };
 }
 
 /** Admin: bounded recovery queue kept separate from ordinary order pages. */
@@ -89,15 +104,18 @@ export function useRecoveryOrders(): UseOrdersResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [historyLimit, setHistoryLimit] = useState(50);
+  const loadMore = useCallback(() => setHistoryLimit(n => n + 50), []);
   useEffect(() => {
     setLoading(true);
     setError(null);
     const unsub = listenRecoveryOrders(
       data => { setOrders(data); setError(null); setLoading(false); },
       e => { setError(e); setLoading(false); },
+      historyLimit,
     );
     return unsub;
-  }, [reloadKey]);
+  }, [reloadKey, historyLimit]);
   const refresh = useCallback(() => setReloadKey(key => key + 1), []);
-  return { orders, loading, error, refresh };
+  return { orders, loading, error, refresh, loadMore, historyLimit };
 }

@@ -12,6 +12,7 @@ export function useBanners() {
   useEffect(() => {
     const unsub = listenBanners(
       data => {
+        setError(null);
         setBanners(data);
         setLoading(false);
       },

@@ -1,6 +1,6 @@
 # PERMISSIONS_TEST.md — Firestore Security Rules & Permissions Matrix
 
-This document defines the test verification matrix for production Firestore security rules implemented in [`firestore.rules`](file:///d:/Vivek/Can/firestore.rules).
+This document defines the test verification matrix for production Firestore security rules implemented in [`firestore.rules`](../firestore.rules).
 
 ---
 
@@ -64,7 +64,7 @@ This document defines the test verification matrix for production Firestore secu
 ### Option B: Firebase Console (Manual Copy-Paste)
 1. Open the [Firebase Console](https://console.firebase.google.com).
 2. Navigate to **Firestore Database** ➔ **Rules** tab.
-3. Replace the test rules with the entire content of [`firestore.rules`](file:///d:/Vivek/Can/firestore.rules).
+3. Replace the test rules with the entire content of [`firestore.rules`](../firestore.rules).
 4. Click **Publish**.
 5. Navigate to **Firestore Database** ➔ **Indexes** tab.
-6. Verify that the composite indexes listed in [`firestore.indexes.json`](file:///d:/Vivek/Can/firestore.indexes.json) are created or created automatically when clicking links from any initial Firestore queries in the log.
+6. Verify that the composite indexes listed in [`firestore.indexes.json`](../firestore.indexes.json) are created or created automatically when clicking links from any initial Firestore queries in the log.

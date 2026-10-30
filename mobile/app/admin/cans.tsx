@@ -51,7 +51,7 @@ export default function CansOutsideScreen() {
   // Hooks
   const { customers, loading: customersLoading, error: customersError, refresh: refreshCustomers } = useCustomers();
   const { agents: onlineAgents, loading: agentsLoading, error: agentsError, refresh: refreshAgents } = useOnlineAgents();
-  const { orders, loading: ordersLoading, error: ordersError, refresh: refreshRecoveries } = useRecoveryOrders();
+  const { orders, loading: ordersLoading, error: ordersError, refresh: refreshRecoveries, loadMore: loadRecoveryHistory } = useRecoveryOrders();
 
   // Active recovery orders (placed, packed, out_for_delivery)
   const activeRecoveries = useMemo(() => {
@@ -161,6 +161,7 @@ export default function CansOutsideScreen() {
             lat: targetCustomer.address?.lat ?? null,
             lng: targetCustomer.address?.lng ?? null,
           },
+          customerId: targetCustomer.id,
           customerName: targetCustomer.name,
           customerPhone: targetCustomer.phone,
           subtotal: 0,
@@ -305,6 +306,7 @@ export default function CansOutsideScreen() {
             <StatusPill status={item.status} />
           </View>
           <Text style={s.customerSub}>Customer: {item.customerName}</Text>
+          <Text style={s.agentSub}>Collected {item.emptyCansCollected || 0} · Outstanding {item.pendingCansToCollect || 0}</Text>
           <Text style={s.agentSub}>
             Assigned Agent: <Text style={{ fontFamily: 'Manrope_700Bold' }}>{item.agentName || 'Pending'}</Text>
           </Text>
@@ -387,7 +389,7 @@ export default function CansOutsideScreen() {
           <View style={[s.canBadge, { backgroundColor: '#DCFCE7' }]}>
             <Ionicons name="water" size={16} color={Colors.green700} />
             <Text style={[s.canBadgeNum, { color: Colors.green700 }]}>
-              {item.pendingCansToCollect || item.emptyCansCollected || 1}
+              {item.emptyCansCollected ?? 0}
             </Text>
             <Text style={[s.canBadgeTxt, { color: Colors.green700 }]}>collected</Text>
           </View>
@@ -422,7 +424,7 @@ export default function CansOutsideScreen() {
     <View style={s.container}>
       <ScreenHeader
         title="Water Can Tracking"
-        subtitle="Manage pending empty cans & dispatch collection runs"
+        subtitle="Collections stay open until all cans are returned"
       />
 
       {/* Hero Stats Card */}
@@ -550,6 +552,7 @@ export default function CansOutsideScreen() {
         />
       )}
 
+      {activeTab === 'history' && <Button label="Load older collection history" variant="secondary" onPress={loadRecoveryHistory} />}
       {/* Agent Selection BottomSheet */}
       <BottomSheet
         ref={assignSheetRef}

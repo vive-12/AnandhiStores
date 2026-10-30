@@ -16,7 +16,10 @@ export function useNotifications(uid: string | null): UseNotificationsResult {
   const [error,         setError]         = useState<Error | null>(null);
 
   useEffect(() => {
+    setNotifications([]);
+    setError(null);
     if (!uid) { setLoading(false); return; }
+    setLoading(true);
     const unsub = listenNotifications(
       uid,
       data => { setNotifications(data); setLoading(false); },

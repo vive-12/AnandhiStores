@@ -2,10 +2,13 @@
   "name": "anandhi-functions",
   "private": true,
   "main": "index.js",
-  "engines": { "node": "20" },
+  "engines": {
+    "node": "20"
+  },
   "scripts": {
     "deploy": "firebase deploy --only functions",
-    "grant-admin-claim": "node scripts/set-admin-claim.js"
+    "grant-admin-claim": "node --env-file=../.env scripts/set-admin-claim.js",
+    "data:reset:plan": "node --env-file=../.env scripts/reset-store-data.js"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",

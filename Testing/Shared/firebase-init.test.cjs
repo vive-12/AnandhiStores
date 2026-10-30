@@ -1,0 +1,9 @@
+'use strict';
+const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');const Module=require('node:module');const ts=require('./paths.cjs').requireMobile('typescript');
+const file=path.join(require('./paths.cjs').mobile,'config/firebase.ts');const code=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true}}).outputText;
+let checks=0;
+function run(os,alreadyInitialized=false){const calls=[];const original=Module._load;const expected={test:true};Module._load=function(name,parent,isMain){if(name==='firebase/app')return {getApps:()=>[],initializeApp:()=>({})};if(name==='firebase/firestore')return {getFirestore:()=>({})};if(name==='firebase/functions')return {getFunctions:()=>({})};if(name==='react-native')return {Platform:{OS:os}};if(name==='@react-native-async-storage/async-storage')return {};if(name==='firebase/auth')return {getAuth:()=>{calls.push('getAuth');return expected;},initializeAuth:(_,options)=>{calls.push('initializeAuth');if(alreadyInitialized)throw Object.assign(new Error(),{code:'auth/already-initialized'});assert.ok(options.persistence);return expected;},...(os!=='web'?{getReactNativePersistence:()=>{calls.push('nativePersistence');return {};}}:{})};return original.call(this,name,parent,isMain);};try{const testModule=new Module(file,module);testModule.filename=file;testModule.paths=module.paths;testModule._compile(code,file);assert.equal(testModule.exports.auth,expected);checks++;return calls;}finally{Module._load=original;}}
+assert.deepEqual(run('web'),['getAuth']);checks++;
+assert.deepEqual(run('android'),['nativePersistence','initializeAuth']);checks++;
+assert.deepEqual(run('ios',true),['nativePersistence','initializeAuth','getAuth']);checks++;
+console.log('PASS: '+checks+' Firebase initialization assertions for web, native persistence and hot reload.');

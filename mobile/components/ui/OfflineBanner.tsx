@@ -30,7 +30,7 @@ export function OfflineBanner() {
       <View style={styles.content}>
         <Text style={styles.icon}>📡</Text>
         <Text style={styles.text}>
-          You're offline. Changes will sync when you're back.
+          You're offline. Reconnect before placing orders or recording collections.
         </Text>
       </View>
     </View>

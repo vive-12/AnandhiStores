@@ -1,0 +1,17 @@
+appId: ${APP_ID}
+name: Agent role login smoke (device validation required)
+---
+- launchApp
+- openLink: ${EXPO_URL}
+- extendedWaitUntil:
+    visible:
+      id: "login-demo-agent"
+    timeout: 60000
+- tapOn:
+    id: "login-demo-agent"
+- tapOn:
+    id: "login-submit"
+- extendedWaitUntil:
+    visible: "Hello, Suresh.*"
+    timeout: 30000
+- takeScreenshot: agent-home

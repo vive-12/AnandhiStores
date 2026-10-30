@@ -35,7 +35,7 @@ import { useCart, useCartCount } from '../../hooks/useCart';
 import { useSettings } from '../../hooks/useSettings';
 import { useBanners, AppBanner } from '../../hooks/useBanners';
 import { useCustomerOrders } from '../../hooks/useOrders';
-import { computeTotals, isStoreOpen, storeOpenLabel } from '../../utils/compute';
+import { computeTotals, isStoreOpen, storeOpenLabel, canUseSlot, isImmediateSlot } from '../../utils/compute';
 import { createOrder } from '../../services/orders';
 import { getUser } from '../../services/users';
 import {
@@ -98,6 +98,8 @@ export default function CustomerHomeScreen() {
   const totalCartCount = useCartCount();
 
   // Local UI State
+  const [clock, setClock] = useState(Date.now());
+  useEffect(() => { const timer = setInterval(() => setClock(Date.now()), 30_000); return () => clearInterval(timer); }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [sortBy, setSortBy] = useState<'popular' | 'price_asc' | 'price_desc' | 'offers' | 'recent'>('popular');
@@ -112,13 +114,7 @@ export default function CustomerHomeScreen() {
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const bannerFlatListRef = useRef<FlatList>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
-  const bannerMotion: any = {
-    opacity: scrollY.interpolate({ inputRange: [0, 180], outputRange: [1, 0.72], extrapolate: 'clamp' }),
-    transform: [
-      { translateY: scrollY.interpolate({ inputRange: [0, 180], outputRange: [0, -16], extrapolate: 'clamp' }) },
-      { scale: scrollY.interpolate({ inputRange: [0, 180], outputRange: [1, 0.97], extrapolate: 'clamp' }) },
-    ],
-  };
+  const bannerMotion = {};
 
   // Cart Bottom Sheet Ref
   const cartSheetRef = useRef<RNBottomSheet>(null);
@@ -273,12 +269,20 @@ export default function CustomerHomeScreen() {
   // Store open status
   const storeIsOpen = useMemo(() => {
     return isStoreOpen(defaultSettings);
-  }, [defaultSettings]);
+  }, [defaultSettings, clock]);
+
+  const slotAllowed = canUseSlot(defaultSettings, selectedSlot);
+  useEffect(() => {
+    if (!canUseSlot(defaultSettings, selectedSlot)) {
+      const next = availableSlots.find(slot => canUseSlot(defaultSettings, slot));
+      if (next) setSelectedSlot(next);
+    }
+  }, [availableSlots, defaultSettings, selectedSlot, clock]);
 
   // Active customer order (not delivered and not cancelled)
   const activeOrder = useMemo(() => {
     return orders.find(
-      o => o.status !== 'delivered' && o.status !== 'cancelled',
+      o => o.type !== 'recovery' && o.status !== 'delivered' && o.status !== 'cancelled',
     );
   }, [orders]);
 
@@ -305,7 +309,7 @@ export default function CustomerHomeScreen() {
 
       addItem(target.id);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast(`🎉 ${target.name} offer applied & added to cart!`, 'success');
+      showToast(`${target.name} added to cart at the displayed price.`, 'success');
     } else {
       // If broad banner promotion, show all deals & offers
       setSelectedCategory('All');
@@ -328,9 +332,9 @@ export default function CustomerHomeScreen() {
       showToast('Add items before placing order.', 'error');
       return;
     }
-    if (!storeIsOpen) {
+    if (!canUseSlot(defaultSettings, selectedSlot)) {
       showToast(
-        `Orders can only be placed when store is open (${storeOpenLabel(defaultSettings)}).`,
+        'Instant delivery is unavailable. Choose an available scheduled window.',
         'error',
       );
       return;
@@ -389,9 +393,11 @@ export default function CustomerHomeScreen() {
       const orderItems: OrderItem[] = [];
       for (const line of lines) {
         const liveItem = itemsMap[line.itemId];
+        if (!liveItem || !liveItem.inStock || liveItem.isDeleted) throw new Error('Your cart changed. Remove unavailable items before ordering.');
         if (liveItem && liveItem.inStock && !liveItem.isDeleted) {
           orderItems.push({
             itemId: liveItem.id,
+            isWaterCan: liveItem.isWaterCan === true || liveItem.unit.toLowerCase() === 'can',
             name: liveItem.name,
             unit: liveItem.unit,
             price: liveItem.price,
@@ -421,8 +427,8 @@ export default function CustomerHomeScreen() {
         },
         items: orderItems,
         addressSnapshot,
-        customerName: name || userProfile.name || 'Customer',
-        customerPhone: phone || userProfile.phone || '',
+        customerName: userProfile.name || name || 'Customer',
+        customerPhone: userProfile.phone || phone || '',
         subtotal: cartTotals.subtotal,
         deliveryFee: cartTotals.deliveryFee,
         total: cartTotals.total,
@@ -529,9 +535,9 @@ export default function CustomerHomeScreen() {
             <View style={styles.closedBanner}>
               <Text style={styles.closedIcon}>⏳</Text>
               <View style={styles.closedTextWrap}>
-                <Text style={styles.closedTitle}>Store is currently closed</Text>
+                <Text style={styles.closedTitle}>Instant delivery is unavailable</Text>
                 <Text style={styles.closedSub}>
-                  Orders will be processed when store {storeOpenLabel(defaultSettings)}
+                  Choose another delivery window at checkout.
                 </Text>
               </View>
             </View>
@@ -758,7 +764,7 @@ export default function CustomerHomeScreen() {
                 style={[styles.waBtn, { backgroundColor: '#25D366' }]}
                 onPress={() =>
                   Linking.openURL(
-                    'whatsapp://send?phone=919600102028&text=Hi%20Anandhi%20Stores,%20I%20would%20like%20to%20place%20an%20order.',
+                    'whatsapp://send?phone=919003115101&text=Hi%20Anandhi%20Stores,%20I%20would%20like%20to%20place%20an%20order.',
                   ).catch(() =>
                     Alert.alert('Error', 'WhatsApp is not installed on this device'),
                   )
@@ -772,7 +778,7 @@ export default function CustomerHomeScreen() {
               <TouchableOpacity
                 style={[styles.waBtn, { backgroundColor: Colors.green700 }]}
                 onPress={() =>
-                  Linking.openURL('tel:9600102028').catch(() =>
+                  Linking.openURL('tel:9003115101').catch(() =>
                     Alert.alert('Error', 'Calling not supported'),
                   )
                 }
@@ -1208,6 +1214,7 @@ export default function CustomerHomeScreen() {
                         styles.slotChip,
                         selectedSlot === slot && styles.slotChipActive,
                       ]}
+                      disabled={!canUseSlot(defaultSettings, slot)}
                       onPress={() => setSelectedSlot(slot)}
                     >
                       <Text
@@ -1283,7 +1290,8 @@ export default function CustomerHomeScreen() {
                   disabled={
                     isPlacingOrder ||
                     !cartTotals.meetsMinimum ||
-                    !storeIsOpen ||
+                    !slotAllowed ||
+                    lines.some(l => !itemsMap[l.itemId]?.inStock) ||
                     lines.length === 0
                   }
                   onPress={handlePlaceOrder}

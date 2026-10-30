@@ -20,7 +20,7 @@ export function useItems(includeDeleted = false): UseItemsResult {
     setLoading(true);
     setError(null);
     const unsub = listenItems(
-      data => { setItems(data); setLoading(false); },
+      data => { setItems(data); setError(null); setLoading(false); },
       e    => { setError(e);   setLoading(false); },
       includeDeleted,
     );

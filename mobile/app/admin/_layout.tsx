@@ -19,6 +19,7 @@ const ADMIN_TABS = [
 
 export default function AdminLayout() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const currentTab = pathname.split('/').filter(Boolean)[1] || 'alerts';
   const currentTabRef = useRef(currentTab);
@@ -115,7 +116,7 @@ export default function AdminLayout() {
   if (isLoading) return <View style={{ flex: 1, backgroundColor: Colors.green900 }} />;
   if (!uid || role !== 'admin') return <Redirect href="/auth/login" />;
 
-  const insets = useSafeAreaInsets();
+
   const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 14);
   const tabHeight = 58 + bottomInset;
 

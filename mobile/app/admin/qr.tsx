@@ -13,6 +13,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { preparePhoto } from '../../services/photos';
 import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, Radius, FontSize, Shadow } from '../../theme';
 import { useQRCodes } from '../../hooks/useQRCodes';
@@ -25,12 +27,12 @@ import {
   getQRCodeImageUrl,
   MAX_QR_CODES,
 } from '../../services/qr';
-import { ScreenHeader, Card, Button, useToast, CardSkeleton } from '../../components/ui';
+import { ScreenHeader, Card, Button, useToast, CardSkeleton, ErrorState } from '../../components/ui';
 import type { QRCodeItem } from '../../types';
 
 export default function AdminQRScreen() {
   const { showToast } = useToast();
-  const { qrCodes, defaultQR, loading, refresh } = useQRCodes();
+  const { qrCodes, defaultQR, loading, error, refresh } = useQRCodes();
   const { computeMetrics } = useStats();
 
   // Timeframe filter state: 'today' (12 AM) | 'week' (Sun 12 AM) | 'month' (1st 12 AM) | 'all'
@@ -193,6 +195,7 @@ export default function AdminQRScreen() {
         title="QR Code Management"
       />
 
+      {error && <ErrorState message={error.message} onRetry={refresh} />}
       <ScrollView
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
@@ -309,7 +312,7 @@ export default function AdminQRScreen() {
               merchantName: item.merchantName,
               amount: 100, // sample
             });
-            const qrImage = item.imageUrl || getQRCodeImageUrl(upiUri, 200);
+            const qrImage = item.imageUrl || '';
 
             const rawTs = item.lastUsedAt as any;
             const lastUsedFormatted = rawTs
@@ -366,6 +369,7 @@ export default function AdminQRScreen() {
                   </TouchableOpacity>
                 </View>
 
+                <Text style={s.qrUpiId}>UPI ID: {item.upiId}</Text>
                 {/* Sales Tracking Box */}
                 <View style={s.salesBox}>
                   <View style={s.salesCol}>
@@ -511,12 +515,13 @@ export default function AdminQRScreen() {
               </View>
 
               <View style={s.field}>
-                <Text style={s.label}>Custom QR Image URL (Optional)</Text>
+                <Button label="Upload payment QR photo" onPress={async () => { try { const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1] }); if (!result.canceled) setImageUrl(await preparePhoto(result.assets[0], 'qr')); } catch (error) { showToast(error instanceof Error ? error.message : 'Could not load QR', 'error'); } }} />
+            <Text style={s.label}>Payment QR image (required)</Text>
                 <TextInput
                   style={s.input}
-                  placeholder="https://... (leave blank to auto-generate)"
+                  placeholder={imageUrl.startsWith('data:') ? 'Uploaded QR attached' : 'Upload a QR or paste its image URL'}
                   placeholderTextColor={Colors.inkSoft}
-                  value={imageUrl}
+                  value={imageUrl.startsWith('data:') ? '' : imageUrl}
                   onChangeText={setImageUrl}
                   autoCapitalize="none"
                 />
@@ -574,15 +579,7 @@ export default function AdminQRScreen() {
                 <Image
                   source={{
                     uri:
-                      previewQR.imageUrl ||
-                      getQRCodeImageUrl(
-                        generateUPIUri({
-                          upiId: previewQR.upiId,
-                          merchantName: previewQR.merchantName,
-                          amount: 100,
-                        }),
-                        350,
-                      ),
+                      previewQR.imageUrl || ''
                   }}
                   style={s.previewImage}
                 />

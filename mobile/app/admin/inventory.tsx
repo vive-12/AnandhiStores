@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import { preparePhoto } from '../../services/photos';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, Radius, FontSize, Shadow, StatusColors } from '../../theme';
@@ -143,7 +144,7 @@ export default function InventoryScreen() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
-        const uri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+        const uri = await preparePhoto(asset, 'product');
         setImageUrl(uri);
         Haptics.selectionAsync();
         showToast('Photo attached to product!', 'success');

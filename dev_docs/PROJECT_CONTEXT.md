@@ -6,7 +6,7 @@ Read this file before every task and follow it. Do not change app code when inst
 
 ## PROJECT
 
-Anandhi Stores: a single Expo (React Native, Expo Router, TypeScript) app for a local grocery and 20L water-can delivery store in Chennai. Backend: Firebase (Auth + Firestore). Three roles in ONE app: customer, agent, admin. Payment: Cash on Delivery only. Must run in Expo Go. Existing screens and behaviour (approve and set PIN, reset PIN, agent ONLINE toggle, inventory stock toggle, open in maps, GPS capture) must keep working.
+Anandhi Stores: a single Expo (React Native, Expo Router, TypeScript) app for a local grocery and 20L water-can delivery store in Chennai. Backend: Firebase (Auth + Firestore). Three roles in ONE app: customer, agent, admin. Payment: cash or an admin-uploaded store QR with its matching UPI ID, manually verified by the agent. No payment gateway or SMS OTP. Must run in Expo Go. Existing screens and behaviour (approve and set PIN, reset PIN, agent ONLINE toggle, inventory stock toggle, open in maps, GPS capture) must keep working.
 
 ---
 
@@ -40,7 +40,7 @@ cancelled is reachable from placed (customer or admin) and from packed (admin on
 - Admin: assigns or reassigns agent, optionally marks 'packed' (Ready for Pickup), cancels with reason, creates manual orders.
 - Agent: only sees orders assigned to them. placed|packed -> out_for_delivery ("Pick Up & Start Delivery"), out_for_delivery -> delivered ("Slide to Mark Delivered"). Nothing else.
 
-Agent free/busy: agent is FREE when isOnline is true and they have zero active orders (placed, packed or out_for_delivery with their agentId). An agent with active orders cannot go offline.
+Agent free/busy: agent is FREE when isOnline is true and they have zero active orders (placed, packed or out_for_delivery with their agentId). An agent with active retail deliveries or recovery currently out for collection cannot go offline. Waiting recovery may remain assigned for 2–10 days or longer and does not hold the agent online.
 
 ---
 
@@ -48,8 +48,8 @@ Agent free/busy: agent is FREE when isOnline is true and they have zero active o
 
 users/{uid}: role (customer|agent|admin), name, phone, status (pending|approved|blocked), address {door, street, locality, city, landmark, lat, lng}, isOnline (agents), createdAt
 items/{itemId}: name, category, unit, price, inStock (bool), isDeleted (bool), sortOrder, createdAt, updatedAt
-orders/{orderId}: orderNo (e.g. AS-1042 from a counter doc in a transaction), customerId, customerName, customerPhone, addressSnapshot {...}, items [{itemId, name, unit, price, qty, lineTotal}], subtotal, deliveryFee, total, paymentMethod "COD", slot {type: asap|scheduled, label}, notes, status, agentId, agentName, agentPhone, agentFee, source (customer|admin_manual), cancelReason, cancelledBy, statusHistory [{status, at, byUid, byRole}], createdAt, updatedAt, packedAt, pickedUpAt, deliveredAt, cancelledAt
-settings/store: minOrderValue, deliveryFee, freeDeliveryAbove, openTime, closeTime (IST, "HH:mm"), isStoreOpenOverride (null|true|false), slots [labels], agentFeePerDelivery
+orders/{orderId}: orderNo (e.g. AS-1042 from a counter doc in a transaction), customerId, customerName, customerPhone, addressSnapshot {...}, items [{itemId, name, unit, price, qty, lineTotal}], subtotal, deliveryFee, total, paymentMethod (COD|cash|upi_qr), slot {type: asap|scheduled, label}, notes, status, agentId, agentName, agentPhone, agentFee, source (customer|admin_manual), cancelReason, cancelledBy, statusHistory [{status, at, byUid, byRole}], createdAt, updatedAt, packedAt, pickedUpAt, deliveredAt, cancelledAt
+settings/store: minOrderValue, deliveryFee, freeDeliveryAbove, openTime, closeTime (IST, "HH:mm"), isStoreOpenOverride (null|true|false; instant availability), instantDeliveryEnabled (bool), supportPhone, slots [labels], agentFeePerDelivery
 notifications/{id}: toUid, toRole, type, orderId, title, body, read, createdAt
 banners/{id}: title, imageUrl or color, isActive, sortOrder
 stats_daily/{YYYY-MM-DD}: orders, revenue, cashCollectedByAgent {agentId: amount}, deliveriesByAgent {agentId: count}, itemQty {itemId: qty} (incremented in the same batch that marks an order delivered)
@@ -105,3 +105,15 @@ After every implementation task:
 3. Stop and ask if anything is ambiguous before writing code.
 4. Do not break existing screens or behaviour.
 5. Reuse existing code where possible.
+
+
+## OWNER CLARIFICATIONS — 2026-10-30
+
+- Keep development rules open and development phone+PIN sessions for switching roles. No paid plan, paid service, SMS provider or gateway is enabled here. Production is gated separately.
+- Named development identities: customer Shivani 9003115106; admin Vivek 9003115101; agent Suresh 9940405016. The explicit login-screen preparation action preserves an existing matching profile ID/PIN and creates a development profile only if none exists. Real Auth accounts are not provisioned just by changing config.
+- Only admin handles forgotten PINs. Changing your own PIN requires the old PIN. Three failed attempts create a persistent admin help request and expose call/WhatsApp to Vivek. Admin resets invalidate sessions, never orders, balances or assignments. Phone changes are admin-assisted with a temporary PIN, preserving UID and historical order contacts, without OTP.
+- Turning instant delivery off leaves configured scheduled windows available. QR editing is allowed when instant delivery is off or outside store hours. Each QR requires its uploaded image and matching UPI ID. Payment details are frozen for delivery confirmation.
+- Recovery uses the order infrastructure with type=recovery, zero sale value and separate queue/history. Partial collection records actual quantity and leaves the same run open for the remainder with no expiry. It never increases retail revenue/order counts, cash collection, item sales or retail-delivery counts. Only full collection increments completed-recovery counts.
+- Active work uses bounded live pages independently of terminal history. More history is loaded explicitly; daily summaries drive store/agent totals. Customer reports disclose their bounded recent history.
+- Offer presets and local photo compression reduce developer upkeep/document size without hosted processing or a new Storage bucket.
+- Full device/emulator regression, release/deployment evidence, backup/restore exercises and optional store extras remain OPEN in worklog.md by owner request.
